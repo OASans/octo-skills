@@ -15,6 +15,7 @@ Output directory: `design/<name>/` (kebab-case from `$ARGUMENTS`). Files:
 - `error-handling.md` — failure modes, recovery strategies (skip if trivial)
 - `testing-strategy.md` — unit/integration/E2E plan, mock boundaries
 - `implementation-plan.md` — ordered PRs/commits in dependency order
+- `tracker.md` — checkbox tracker for `/batch` execution (see format below)
 
 Design principles:
 - Interface-driven: code-style type signatures, not prose descriptions. Match project language.
@@ -40,8 +41,17 @@ Steps:
 11. Enumerate failure modes. For each: detection method, recovery strategy, user-facing message. Skip this file if error handling is trivial.
 12. Define testing strategy: unit test boundaries, integration test scope, E2E scenarios, mock points.
 13. Write ordered implementation plan: each item lists files to create/modify, what it produces, and what it unblocks.
-14. Write all files to `design/<name>/`. Cross-check interfaces against architecture, verify all types referenced in data flow exist.
-15. Present summary: component count, new files, touched files, estimated complexity. Ask if anything is missing.
+14. Generate `tracker.md` from the implementation plan. Format:
+    ```
+    # <Feature Name> — Implementation Tracker
+
+    Source: `design/<name>/implementation-plan.md`
+
+    - [ ] **Step N: <title>** — <one-line goal>. Files: <key files to create/modify>. Commit: `<conventional commit message>`.
+    ```
+    One checkbox per implementation step. Each item must be self-contained enough for `/batch` to create a meaningful task from it — include the goal, key files, and a commit message. Reference the full plan for details.
+15. Write all files to `design/<name>/`. Cross-check interfaces against architecture, verify all types referenced in data flow exist.
+16. Present summary: component count, new files, touched files, estimated complexity. Ask if anything is missing.
 
 Rules:
 - Never skip a question round. Maximum clarity before writing.
