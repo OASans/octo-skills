@@ -135,7 +135,7 @@ Sources:
 
 **Core workflow:**
 - Uses Plan Mode to iterate on approach before any code. Goes back and forth until plan is right, then switches to auto-accept edits mode. Claude usually 1-shots it from a good plan.
-- Slash commands for every repeated inner-loop workflow (`/commit-push-pr` used daily). Commands checked into git in `.claude/commands/`.
+- Slash commands for every repeated inner-loop workflow (`/commit-push-pr` used daily). Commands checked into git in `.claude/skills/`.
 - Each team maintains CLAUDE.md in git to document mistakes. Uses `@.claude` tag on coworkers' PRs to add learnings, preserving knowledge from each PR.
 - Prefers Opus with thinking for all coding - values quality and reliability over speed.
 
@@ -273,7 +273,7 @@ Source: https://code.claude.com/docs/en/agent-teams
 
 ### Implemented Skills (from community patterns)
 
-All in `.claude/commands/`. Created 2026-02-14.
+All in `.claude/skills/`. Created 2026-02-14.
 
 | Skill | Purpose | Pattern |
 |-------|---------|---------|
