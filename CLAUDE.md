@@ -34,7 +34,6 @@ All build/test/lint commands are wrapped in `ai-tools/` scripts with minimal out
   --e2e: E2E tests, --all: unit + E2E (WSL2-safe), <name>: single test. Default: unit tests only.
 ./ai-tools/fmt.sh — auto-fix formatting
 ./ai-tools/lint.sh — clippy lint (errors only)
-./ai-tools/coverage.sh — per-file coverage table + uncovered line ranges
 ./ai-tools/sweep.sh — remove old build artifacts
 
 Debug: `tail -f octo-debug.txt` (general log) and `octo-error.txt` (errors) at project root. If an issue is hard to diagnose, add more logging. Keep valuable log statements for future debugging — don't remove them after fixing.
@@ -44,9 +43,8 @@ Debug: `tail -f octo-debug.txt` (general log) and `octo-error.txt` (errors) at p
 1. `git pull` — sync with remote, merge changes, verify clean state.
 2. Plan — read relevant code/docs first. Follow @doc/coding-guide.md for all design and implementation decisions. Read doc/ui.md before UI changes. Simple changes: code directly. Complex: clarify first.
 3. Implement — update scripts/install_dependencies.sh for new deps.
-4. Run /review once — check all uncommitted changes against coding guide. Fix any issues raised.
-5. Add unit tests — target 100% coverage of new/changed code. Run `./ai-tools/coverage.sh` to verify.
-6. Verify — loop until all pass: `./ai-tools/test.sh`, `./ai-tools/build.sh`, `./ai-tools/lint.sh`, `./ai-tools/fmt.sh`.
+4. Add unit tests — target 100% coverage of new/changed code.
+5. Verify — loop until all pass: `/review`, `./ai-tools/test.sh`, `./ai-tools/build.sh`, `./ai-tools/lint.sh`, `./ai-tools/fmt.sh`. **/review is mandatory** — treat it the same as test/build/lint/fmt. Run `/review` once, fix its suggestions, then move on — one round is sufficient, no need to re-run review after fixes.
 
 Ownership: every agent owns the entire codebase. If you encounter clippy warnings, build failures, or test failures — even if you didn't cause them — fix them before completing your task.
 
