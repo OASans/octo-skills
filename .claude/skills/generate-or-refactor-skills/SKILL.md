@@ -9,10 +9,18 @@ Context:
 ## Skill Design Principles
 
 - **First principles.** Identify the user's ultimate goal. Design the simplest flow that achieves that outcome — don't mechanically implement what was described. Push back if the approach adds unnecessary complexity.
-- **Minimize steps.** Every step must carry real value. Cut bookkeeping (updating trackers, marking items done, logging completion). If a step doesn't meaningfully advance the task, delete it. Trackers/checklists: delete done items, only open work remains.
+- **Minimize steps.** Every step must carry real value. Cut bookkeeping (updating trackers, marking items done, logging completion). If a step doesn't meaningfully advance the task, delete it.
 - **Compact.** Short sentences, flat structure. Steps as numbered list, one action each, no sub-steps. No verbose explanations or edge-case branches — trust the agent to infer.
 - **File format.** Frontmatter (never add `allowed-tools`). One-line description. Context section (if needed) with `!command` for context injection, `$ARGUMENTS` for user input. Then Steps section.
 - Keep focused: one task type per skill.
+
+## Plan Skill Conventions
+
+Plan skills (`plan-*`) produce tracker files consumed by `/batch`. Their goal: do the heavy lifting upfront — deep analysis, reading files, thinking through approaches — so batch subagents can run autonomously without research or interruption.
+
+- **Tracker format.** Sections grouped by `###` headers. Each section has a **Context** block before its items. No checkboxes — assume all items will be completed at once by `/batch`.
+- **Section Context.** Like a plan mode brief. Include: which principles/goals apply, the planning agent's analysis (what's wrong, what exists, what's missing), and suggested approach (key files, patterns observed, specific strategy). The subagent should be able to start implementing immediately from Context alone.
+- **Items.** Self-contained, exact file paths, atomic changes that build+test independently. Right-sized for one subagent pass.
 
 ## Steps
 

@@ -7,16 +7,16 @@ Usage: `/plan-doc <path-to-doc-guide>`
 
 The doc guide defines what documents the project needs — each with a purpose (onboarding, debugging, knowledge sharing, etc.), high-level goals, description, target audience, and target path. This skill reads the guide, compares against existing docs, and produces a tracker of gaps.
 
-Downstream: consumed by `/batch`. Items must be self-contained with exact file paths for zero-context subagents.
+Downstream: consumed by `/batch`. Items must be self-contained with exact file paths.
 
 ## Rules
 
 - Do NOT modify source or doc files. Only write `ai-doc/doc/tracker.md`.
-- Item format: `- [ ] \`target-path\` — description (source: \`path1\`, \`path2\`)`
+- Item format: `- \`target-path\` — description (source: \`path1\`, \`path2\`)`
 - Right-size items: one focused doc change per item, ~100-300 lines of output.
 - Tracker regenerated fresh each run.
 
-## Writing Guidance (include in Context section)
+## Writing Guidance (include in section Context blocks)
 
 - Dual audience: AI agents (exact paths) + humans (conceptual clarity).
 - Accuracy over completeness. Short+correct > long+stale.
@@ -31,5 +31,5 @@ Downstream: consumed by `/batch`. Items must be self-contained with exact file p
 2. Read the doc guide. Extract each required document's metadata: purpose, goals, description, target path, related source areas.
 3. Scan existing docs against the guide: which exist, which are missing/stale/incomplete.
 4. For each gap, scan relevant source via parallel `Task` subagents.
-5. Write `ai-doc/doc/tracker.md`: header with `/batch ai-doc/doc/tracker.md` usage, **Context** section (what the subagent should do: read source files, write/update target doc, "only add/modify docs, do NOT change source"; include the doc guide's goals/descriptions for each doc so subagents understand the purpose; project conventions and writing guidance from above), **Backlog** section (items grouped by `###` category headers matching doc guide categories).
+5. Write `ai-doc/doc/tracker.md`: header with `/batch ai-doc/doc/tracker.md` usage, then sections grouped by `###` category headers matching doc guide categories. Each section has a **Context** block before its items — the doc guide's goals/description for that category, the planning agent's analysis of what exists vs what's missing, key source files and structures discovered during scanning, writing guidance from above, and suggested outline/approach for the doc. Share your findings so the subagent can start writing immediately.
 6. Report summary: files analyzed, total items, categories.
