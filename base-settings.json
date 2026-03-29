@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "WebFetch",
+      "WebSearch",
+      "Edit(file_path:.claude/skills/**)",
+      "Write(file_path:.claude/skills/**)"
+    ],
+    "deny": [],
+    "defaultMode": "plan"
+  },
+  "hooks": {
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json,os,time;f=os.environ.get('OCTO_HOOK_FILE','');d=json.load(sys.stdin);open(f,'a').write(json.dumps({'type':'permission','aid':os.environ.get('OCTO_AGENT_ID',''),'ts':int(time.time()),'data':d})+chr(10)) if f else None\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"\nimport sys,json,os,re\nd=json.load(sys.stdin)\nc=d.get('tool_input',{}).get('command','')\nkws=sys.argv[1:]\ndef chk(t):\n for k in kws:\n  if re.search(r'(?<![\\w/.-])'+re.escape(k)+r'(?!\\w)',t):return k\nhit=chk(c)\nif not hit:\n for w in c.split():\n  p=w.strip(\\\"';\\\")\n  if p.endswith('.sh') and os.path.isfile(p):\n   try:\n    hit=chk(open(p).read())\n    if hit:break\n   except:pass\nif hit:\n json.dump({'hookSpecificOutput':{'hookEventName':'PreToolUse','permissionDecision':'ask','permissionDecisionReason':hit+' requires approval'}},sys.stdout)\n\" sudo"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "python3 -c \"\nimport sys,json,os,time\nfrom datetime import datetime\nd=json.load(sys.stdin)\ncw=d.get('context_window',{})\nco=d.get('cost',{})\npct=cw.get('used_percentage',0)\nsz=cw.get('context_window_size',0)\na=co.get('total_lines_added',0)\nr=co.get('total_lines_removed',0)\nszf=str(sz//1000)+'k' if sz>=1000 else str(sz)\nR='\\x1b[0m';B='\\x1b[1m';D='\\x1b[2m';G='\\x1b[32m';RE='\\x1b[31m'\ncc=lambda v:'\\x1b[31m' if v>=80 else '\\x1b[33m' if v>=50 else '\\x1b[36m'\no=D+'ctx:'+R+' '+cc(pct)+B+'%.0f%%'%pct+R+D+'/'+szf+R+'  '+D+'+'+R+G+str(a)+R+D+'/-'+R+RE+str(r)+R\nrl=d.get('rate_limits',{})\ndef rl_sec(key,lb):\n t=rl.get(key,{});p=t.get('used_percentage')\n if p is None:return ''\n s='  '+D+lb+':'+R+'  '+cc(p)+B+'%.0f%%'%p+R;ra=t.get('resets_at')\n if ra is not None:dt=datetime.fromtimestamp(ra);tf=dt.strftime('%H:%M') if lb=='5h' else dt.strftime('%a');s+=D+'\\u2192'+tf+R\n return s\no+=rl_sec('five_hour','5h')+rl_sec('seven_day','wk')\nprint(o,end='')\nf=os.environ.get('OCTO_HOOK_FILE','')\nif f:\n bk=int(pct//5)*5\n sf=f+'.pct'\n try:lp=int(open(sf).read())\n except Exception:lp=-1\n if bk!=lp:\n  open(f,'a').write(json.dumps({'type':'status','aid':os.environ.get('OCTO_AGENT_ID',''),'ts':int(time.time()),'data':d})+'\\n')\n  open(sf,'w').write(str(bk))\n  ls=open(f).readlines()\n  if len(ls)>200:open(f,'w').writelines(ls[-30:])\n\" 2>/dev/null || true"
+  },
+  "enabledPlugins": {
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true
+  }
+}

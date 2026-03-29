@@ -11,9 +11,9 @@
 ## Code Clarity
 
 - **Clarity Over Brevity**: Prefer explicit, readable code over compact one-liners. If a "simplification" makes the code harder to read, it's not simpler.
-- **Flat Control Flow**: Use early returns and guard clauses to reduce nesting. Prefer `match` over deeply nested `if let` chains. Deeply nested blocks signal a function doing too much.
-- **Meaningful Function Extraction**: Functions must encapsulate real logic, not just forward to another function. Names should make architecture self-documenting at every level — reading call sites should explain the flow without comments.
-- **One Concern Per Function**: Don't stuff multiple responsibilities into a single function to "keep it simple." Each function should do one thing well. If you need a comment to separate sections within a function, extract them.
+- **Flat Control Flow**: Use early returns and guard clauses to reduce nesting. Deeply nested blocks signal a function doing too much.
+- **Meaningful Function Extraction**: Functions must encapsulate real logic, not just forward to another function. Names should make architecture self-documenting at every level.
+- **One Concern Per Function**: Don't stuff multiple responsibilities into a single function. Each function should do one thing well.
 - **Consolidate Constants**: No magic strings or hardcoded values scattered across files. Centralize into constants.
 
 ## Duplication & Abstraction
@@ -24,11 +24,11 @@
 
 ## Error Handling & Debugging
 
-- **Consistent Error Handling**: Pick one strategy per layer. Don't mix error handling styles arbitrarily. Add context to errors — a bare I/O error without "what failed" is unhelpful. Every error must be logged before propagating or handling.
+- **Consistent Error Handling**: Pick one strategy per layer. Don't mix styles arbitrarily. Add context to errors — a bare error without "what failed" is unhelpful.
 - **Fail Fast**: Validate at system boundaries (user input, external APIs). Don't add defensive checks deep in internal code.
-- **Debuggability**: Write code that's easy to debug and extend. Avoid opaque transformations — intermediate variables with descriptive names beat long chains. Keep valuable log statements for future debugging.
+- **Debuggability**: Write code that's easy to debug. Avoid opaque transformations — intermediate variables with descriptive names beat long chains.
 
 ## Testing
 
 - **Testability**: Code must be testable. If untestable, fix architecture first.
-- **Unit Test Coverage**: Target 100% coverage. If code is hard to test, the architecture needs fixing — not the test strategy.
+- **Unit Test Coverage**: Target high coverage. If code is hard to test, the architecture needs fixing — not the test strategy.
