@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"\nimport sys,json,os,re\nd=json.load(sys.stdin)\nc=d.get('tool_input',{}).get('command','')\nkws=sys.argv[1:]\ndef chk(t):\n for k in kws:\n  if re.search(r'(?<![\\w/.-])'+re.escape(k)+r'(?!\\w)',t):return k\nhit=chk(c)\nif not hit:\n for w in c.split():\n  p=w.strip(\\\"';\\\")\n  if p.endswith('.sh') and os.path.isfile(p):\n   try:\n    hit=chk(open(p).read())\n    if hit:break\n   except:pass\nif hit:\n json.dump({'hookSpecificOutput':{'hookEventName':'PreToolUse','permissionDecision':'ask','permissionDecisionReason':hit+' requires approval'}},sys.stdout)\n\" sudo"
+            "command": "python3 -c \"\nimport sys,json,os,re\nd=json.load(sys.stdin)\nc=d.get('tool_input',{}).get('command','')\nkws=sys.argv[1:]\ndef chk(t):\n for k in kws:\n  if re.search(r'(?<![\\w/.-])'+re.escape(k)+r'(?!\\w)',t):return k\nhit=chk(c)\nif not hit:\n segs=re.split(r'[;&|]+',c)\n for seg in segs:\n  ts=seg.split()\n  if not ts:continue\n  ex=[]\n  if ts[0].endswith('.sh'):ex.append(ts[0])\n  for i,t in enumerate(ts[:-1]):\n   if t in('bash','sh','source','.') and ts[i+1].endswith('.sh'):ex.append(ts[i+1])\n  for e in ex:\n   p=e.strip(\\\"';\\\")\n   if os.path.isfile(p):\n    try:\n     hit=chk(open(p).read())\n     if hit:break\n    except:pass\n  if hit:break\nif hit:\n json.dump({'hookSpecificOutput':{'hookEventName':'PreToolUse','permissionDecision':'ask','permissionDecisionReason':hit+' requires approval'}},sys.stdout)\n\" sudo"
           }
         ]
       }
