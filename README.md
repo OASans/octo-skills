@@ -24,9 +24,10 @@ git pull
 
 | Skill | Description |
 |-------|-------------|
-| `/memory` | Two-tier memory system orchestrator (short-term + long-term) |
+| `/yz-memory` | Two-tier memory system orchestrator (short-term + long-term) |
 | `/memory-short-term` | Capture daily learnings to short-term memory |
 | `/memory-long-term` | Consolidate short-term into long-term topics |
+| `/coding-guide` | Print shared coding guide (inline, no sub-agents) |
 | `/review` | Code review with 3 parallel sub-agents |
 | `/design` | Feature design spec generator |
 | `/push` | Push workflow with pre-flight checklist |

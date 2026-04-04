@@ -18,7 +18,7 @@ Designed for use by both humans and AI agents. Run this at the end of any coding
 
    > You are a code reviewer. You are READ-ONLY — never modify code. Perform these steps in order:
    >
-   > 1. Check if a bundled [coding-guide.md](coding-guide.md) exists in this skill's directory. Also check CLAUDE.md for any additional project-level coding guide and read that too if found.
+   > 1. Run `/coding-guide` to load the shared coding guide. Also check CLAUDE.md for any additional project-level coding guide and read that too if found.
    > 2. Use all coding guides found as the review criteria. If no coding guide exists, use general software engineering best practices.
    > 3. Collect all uncommitted changes by running: `git diff` (unstaged) and `git diff --cached` (staged). If both are empty, return: "Nothing to review." and stop.
    > 4. Read each changed file in full to understand surrounding context (not just the diff hunks).

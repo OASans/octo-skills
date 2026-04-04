@@ -1,3 +1,10 @@
+---
+name: coding-guide
+description: >
+  Print the shared coding guide. Inline skill — no sub-agents. Use as a
+  reference for code reviews, implementation decisions, and plan evaluation.
+---
+
 # Coding Guide
 
 ## Architecture

@@ -1,5 +1,5 @@
 ---
-name: memory
+name: yz-memory
 description: >
   Check and update the project's two-tier memory system in ai-memory/. Use
   after completing a task, when the user asks to remember something, or at

@@ -30,3 +30,4 @@ Only after all gates pass:
 4. If the project uses a version field (package.json version, Cargo.toml version, etc.), bump the patch version. Use the Edit tool.
 5. If version was bumped, rebuild to verify, then stage the version files and amend into last commit with `git commit --amend --no-edit`.
 6. Run `git push`.
+7. Run `ai-tool:clean` (see CLAUDE.md) to free disk space. The target/ directory will rebuild on next build.
