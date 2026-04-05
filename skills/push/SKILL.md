@@ -25,9 +25,10 @@ If any gate is incomplete — **stop here**. Report what's missing and go back t
 Only after all gates pass:
 
 1. Check `git status`. If there are uncommitted changes, commit them first (stage specific files, conventional commit message, new commit).
-2. Run `git pull --rebase` to sync with remote.
-3. If CLAUDE.md defines a build command (ai-tool:build or similar), run it to verify the build passes.
-4. If the project uses a version field (package.json version, Cargo.toml version, etc.), bump the patch version. Use the Edit tool.
-5. If version was bumped, rebuild to verify, then stage the version files and amend into last commit with `git commit --amend --no-edit`.
-6. Run `git push`.
-7. Run `ai-tool:clean` (see CLAUDE.md) to free disk space. The target/ directory will rebuild on next build.
+2. If the project has a memory skill (`/yz-memory` or `/memory`), run it now. If memory files changed, commit them (new commit).
+3. Run `git pull --rebase` to sync with remote.
+4. If CLAUDE.md defines a build command (ai-tool:build or similar), run it to verify the build passes.
+5. If the project uses a version field (package.json version, Cargo.toml version, etc.), bump the patch version. Use the Edit tool.
+6. If version was bumped, rebuild to verify, then stage the version files and amend into last commit with `git commit --amend --no-edit`.
+7. Run `git push`.
+8. If CLAUDE.md defines a clean command (ai-tool:clean or similar), run it to free disk space.
