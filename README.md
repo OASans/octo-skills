@@ -24,14 +24,17 @@ git pull
 
 | Skill | Description |
 |-------|-------------|
-| `/yz-memory` | Two-tier memory system orchestrator (short-term + long-term) |
-| `/memory-short-term` | Capture daily learnings to short-term memory |
-| `/memory-long-term` | Consolidate short-term into long-term topics |
-| `/coding-guide` | Print shared coding guide (inline, no sub-agents) |
-| `/review` | Code review with 3 parallel sub-agents |
+| `/coding-guide` | Shared coding guide — source of truth for code quality standards |
+| `/review` | Code review with 3 parallel sub-agents (consumes `/coding-guide`) |
+| `/plan-refactor` | Analyze codebase, refresh refactoring backlog (consumes `/coding-guide`) |
 | `/design` | Feature design spec generator |
 | `/push` | Push workflow with pre-flight checklist |
 | `/pull` | Pull and sync with remote |
+| `/commit-for-batch` | Commit for batch subagents (internal, used by `/yz-batch`) |
+| `/yz-batch` | Execute tasks from a tracker file via sequential subagents |
+| `/yz-memory` | Two-tier memory system orchestrator (short-term + long-term) |
+| `/memory-short-term` | Capture daily learnings to short-term memory |
+| `/memory-long-term` | Consolidate short-term into long-term topics |
 
 ### Settings (`~/.claude/settings.json`)
 
