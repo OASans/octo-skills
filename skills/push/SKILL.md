@@ -25,7 +25,7 @@ If any gate is incomplete — **stop here**. Report what's missing and go back t
 Only after all gates pass:
 
 1. Check `git status`. If there are uncommitted changes, commit them first (stage specific files, conventional commit message, new commit).
-2. If the project has a memory skill (`/yz-memory` or `/memory`), run it now. If memory files changed, commit them (new commit).
+2. If the project has a memory skill (`/yz-memory` or `/memory`), run it now — **memory must run before push** so any memory changes are included in this push. If memory files changed, commit them (new commit).
 3. Run `git pull --rebase` to sync with remote.
 4. If CLAUDE.md defines a build command (ai-tool:build or similar), run it to verify the build passes.
 5. If the project uses a version field (package.json version, Cargo.toml version, etc.), bump the patch version. Use the Edit tool.

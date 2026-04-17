@@ -92,7 +92,8 @@ If a topic is partially stale (some references dead, core knowledge still valid)
 ### Phase 3: Finalize
 
 1. Update `tracker.md`: set `last_processed_date` to today, log what was processed. Keep only the last 10 log entries — delete older ones.
-2. Report summary: N entries processed, M new topics, K updates, J skipped, L deprecated (with reasons).
+2. **Update the `latest.md` symlink**: point `ai-memory/short-term/latest.md` at the most recent `YYYY-MM-DD.md` file in `ai-memory/short-term/` (by filename, not mtime). Use a **relative** symlink so it survives clones and path moves: `ln -sfn <YYYY-MM-DD>.md ai-memory/short-term/latest.md`. Skip if no dated short-term files exist. CLAUDE.md `@`-references this symlink so a session always has the previous day's memory loaded.
+3. Report summary: N entries processed, M new topics, K updates, J skipped, L deprecated (with reasons).
 
 ## Long-term operations reference
 
