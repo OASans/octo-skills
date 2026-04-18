@@ -12,7 +12,7 @@ Designed for use by both humans and AI agents. Run this at the end of any coding
 
 ## Steps
 
-1. Spawn **three parallel Opus sub-agents** (subagent_type: general-purpose, model: opus). Do NOT read any files or run any commands before spawning — the sub-agents do everything. Each agent receives the same base instructions below, plus its own focus area.
+1. Spawn **three parallel Sonnet 4.6 sub-agents** (subagent_type: general-purpose, model: sonnet). Do NOT read any files or run any commands before spawning — the sub-agents do everything. Each agent receives the same base instructions below, plus its own focus area.
 
    **Base instructions (shared by all agents):**
 
