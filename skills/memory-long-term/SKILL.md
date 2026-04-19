@@ -59,20 +59,49 @@ Each topic file in `ai-memory/long-term/topics/<slug>.md` (max 60 lines):
 
 Adapt section names to the topic. No code snippets unless absolutely load-bearing.
 
+## Be concise — memory consumes context
+
+The index is loaded into every session; topic files are read on demand. Both cost context tokens. Write the shortest content that still delivers the knowledge:
+
+- Index description: one short sentence, not a paragraph.
+- Topic body: aim well under the 60-line cap — shorter is better. Cut hedges, background, and restatements.
+- File paths and function names beat prose. If a bullet list works, use bullets.
+- No code snippets unless load-bearing.
+- If a topic can't be stated concisely, it's probably two topics — split it.
+
 ## Steps
 
-### Phase 1: Promote new knowledge
+This skill has two independent parts. **Always run Part A.** Run Part B only if today's consolidation hasn't been done yet.
+
+### Part A: Promote session-validated short-term entries (always run)
+
+Short-term entries prove their value by being *used*. If an existing short-term entry (one that was already on disk before this session — NOT one you or `/memory-short-term` just wrote in this session) was consulted during this session and actually shaped the work, that's signal it deserves long-term promotion.
+
+1. Recall which existing short-term entries you read or referenced during this session. If none, skip to Part B.
+2. For each such entry:
+   - **Filter out newly-added entries**: Entries written during this session stay in short-term — they'll be evaluated during normal consolidation. This part is only for entries that pre-dated the session.
+   - Evaluate against the promotion criteria above (reusable / not obvious / still accurate / not already documented).
+   - If it passes: promote it now — create a new topic or merge into an existing one. Follow the same topic format and verification rules as Part B.
+   - If it fails: leave it in short-term untouched.
+3. Report which entries were evaluated and the outcome.
+
+### Part B: Daily consolidation (skip if already done today)
 
 1. Read `ai-memory/long-term/tracker.md` to find `last_processed_date`. Create tracker if missing.
-2. List files in `ai-memory/short-term/` newer than that date. If none, skip to Phase 2.
-3. **Context loading**: Read short-term files from the last 5 days (not just unprocessed ones). Already-processed entries provide context for writing better long-term topics. Only *promote* entries newer than `last_processed_date`.
-4. For each unprocessed `##` entry, classify:
+2. **If `last_processed_date` == today, skip Part B entirely** — consolidation has already happened for today. Report "consolidation already done today" and stop.
+3. Otherwise, proceed with Phases 1–3 below.
+
+#### Phase 1: Promote new knowledge
+
+1. List files in `ai-memory/short-term/` newer than `last_processed_date`. If none, skip to Phase 2.
+2. **Context loading**: Read short-term files from the last 5 days (not just unprocessed ones). Already-processed entries provide context for writing better long-term topics. Only *promote* entries newer than `last_processed_date`.
+3. For each unprocessed `##` entry, classify:
    - **New topic**: No existing long-term topic covers this. Create topic file + add index line.
    - **Update existing**: Adds to an existing topic. Read the topic file, merge new info, update `Last verified`.
    - **Ephemeral**: No lasting value. Skip.
-5. **Verify** each new/updated topic: Grep/Glob to confirm referenced files and functions still exist.
+4. **Verify** each new/updated topic: Grep/Glob to confirm referenced files and functions still exist.
 
-### Phase 2: Staleness sweep
+#### Phase 2: Staleness sweep
 
 Review every existing topic in the index. For each topic:
 
@@ -89,7 +118,7 @@ Review every existing topic in the index. For each topic:
 
 If a topic is partially stale (some references dead, core knowledge still valid), update it instead of deprecating.
 
-### Phase 3: Finalize
+#### Phase 3: Finalize
 
 1. Update `tracker.md`: set `last_processed_date` to today, log what was processed. Keep only the last 10 log entries — delete older ones.
 2. **Update the `latest.md` symlink**: point `ai-memory/short-term/latest.md` at the most recent `YYYY-MM-DD.md` file in `ai-memory/short-term/` (by filename, not mtime). Use a **relative** symlink so it survives clones and path moves: `ln -sfn <YYYY-MM-DD>.md ai-memory/short-term/latest.md`. Skip if no dated short-term files exist. CLAUDE.md `@`-references this symlink so a session always has the previous day's memory loaded.

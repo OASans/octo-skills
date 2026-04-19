@@ -21,6 +21,6 @@ Check and update the project's two-tier memory system in ai-memory/. Use this sk
 
 This skill is an orchestrator — it dispatches to the right sub-skill based on what's needed.
 
-1. **Check consolidation**: Read `ai-memory/long-term/tracker.md`. If `last_processed_date` < today and unprocessed short-term files exist, run `/memory-long-term`.
+1. **Run long-term review**: Always run `/memory-long-term`. It decides internally whether to promote existing short-term entries that aided this session, and whether to run today's consolidation (skipped if already done).
 2. **Record new knowledge**: If you learned something reusable during this conversation (non-obvious patterns, gotchas, architectural decisions, debugging insights), run `/memory-short-term` to capture it. Skip if nothing non-obvious was learned.
 3. **Fix stale topics**: If you noticed a long-term topic is wrong during your work, fix it inline and note the correction in today's short-term file.

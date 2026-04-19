@@ -49,3 +49,4 @@ Every unit (module, struct, trait) must answer three questions: what does it do,
 
 - **Testability**: Code must be testable. If untestable, fix architecture first.
 - **Unit Test Coverage**: Target 100% coverage. If code is hard to test, the architecture needs fixing — not the test strategy.
+- **No Real Dependencies in Unit Tests**: Never call tmux, shell, filesystem (outside tempdirs), network, HTTP, DBs, or system services from unit tests. They flake, corrupt dev state, and fail in CI. Mock at the boundary or split pure logic out. A "does-not-panic" test that shells out is negative value — delete it. Integration/E2E tests that need real systems must isolate (dedicated socket/tempdir) and clean up.

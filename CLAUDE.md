@@ -1,6 +1,12 @@
 # OctoSkills
 
-Shared Claude Code skills installed to `~/.claude/skills/` via `install.sh`. Available in ALL projects.
+Shared Claude Code skills, available in ALL projects once installed.
+
+## Repo layout
+
+- `skills/<name>/SKILL.md` — one directory per skill. This is the source of truth.
+- `base-settings.json` — shared Claude Code settings (env vars, permissions, hooks).
+- `install.sh` — copies `skills/*` to `~/.claude/skills/` and syncs `base-settings.json` → `~/.claude/settings.json`. Run after any edit.
 
 ## Skills
 
@@ -9,7 +15,6 @@ Shared Claude Code skills installed to `~/.claude/skills/` via `install.sh`. Ava
 | `/coding-guide` | Reference | Shared coding guide — source of truth for code quality standards |
 | `/review` | Workflow | Code review with 3 parallel sub-agents. Consumes `/coding-guide` |
 | `/plan-refactor` | Planning | Analyze codebase, refresh refactoring backlog. Consumes `/coding-guide` |
-| `/design` | Planning | Feature design spec generator |
 | `/push` | Workflow | Push workflow with pre-flight checklist |
 | `/pull` | Workflow | Pull and sync with remote |
 | `/commit-for-batch` | Internal | Commit for batch subagents. Consumed by `/yz-batch` |
@@ -17,6 +22,7 @@ Shared Claude Code skills installed to `~/.claude/skills/` via `install.sh`. Ava
 | `/yz-memory` | Memory | Two-tier memory system orchestrator (short-term + long-term) |
 | `/memory-short-term` | Memory | Capture daily learnings to short-term memory |
 | `/memory-long-term` | Memory | Consolidate short-term into long-term topics |
+| `/octo-share-image` | Integration | Share an image to the OctoCode Slack channel via media bridge |
 
 ## Skill Relationships
 
@@ -27,4 +33,4 @@ Shared Claude Code skills installed to `~/.claude/skills/` via `install.sh`. Ava
 
 ## Editing Skills
 
-Edit skills directly in this repo, then run `./install.sh` to deploy. Do not edit copies in `~/.claude/skills/` — they get overwritten on install.
+Edit skills in `skills/<name>/SKILL.md`, then run `./install.sh` to deploy. Do not edit copies in `~/.claude/skills/` — they get overwritten on install.
