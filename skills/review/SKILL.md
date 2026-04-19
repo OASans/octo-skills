@@ -45,3 +45,12 @@ Designed for use by both humans and AI agents. Run this at the end of any coding
    - **Agent C — Consistency & coherence:** Check that new code is consistent with patterns in the surrounding codebase. Look for naming mismatches, inconsistent error handling styles, API contract violations, and changes that break assumptions made elsewhere in the same files. Also check: are changes covered by tests? Missing test cases?
 
 2. Present all three agents' findings as a unified review. Group by file, deduplicate overlapping findings, and note which perspective flagged each issue (guide compliance / bug / consistency).
+
+## Writing large results to a file
+
+If the unified review is too large to comfortably fit in the chat (more than ~50 findings, or you need to preserve the raw output from all three agents verbatim), write it to a file **inside the current project directory** — not `/tmp`. Files under `/tmp` sit outside the working directory and require a user approval prompt to re-read later, which defeats the purpose of caching the result.
+
+Good path: `./review-result.md` or `./.claude/review-<timestamp>.md` in the current project.
+Bad path: `/tmp/review.md`, `~/review.md`, or any absolute path outside the current repo.
+
+When writing to a file, still print a short summary (top findings + path to the file) in chat so the user doesn't have to open the file to see the headline results.
