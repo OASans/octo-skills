@@ -1,0 +1,35 @@
+# Clippy configuration
+# https://doc.rust-lang.org/clippy/lint_configuration.html
+
+# Cognitive complexity threshold for functions
+cognitive-complexity-threshold = 25
+
+# Maximum lines in a function
+too-many-lines-threshold = 100
+
+# Maximum number of arguments for functions
+too-many-arguments-threshold = 7
+
+# Type complexity threshold
+type-complexity-threshold = 250
+
+# Allowed names that would otherwise trigger lint warnings
+allowed-idents-below-min-chars = ["i", "j", "k", "n", "x", "y", "z", "id"]
+
+# MSRV (Minimum Supported Rust Version)
+msrv = "1.75"
+
+# Avoid suggesting certain patterns in generated code
+avoid-breaking-exported-api = true
+
+# Documentation settings
+missing-docs-in-crate-items = true
+
+# Forbid the `log` crate's macros — use `tracing` instead.
+disallowed-macros = [
+    { path = "log::info",  reason = "use tracing::info instead" },
+    { path = "log::warn",  reason = "use tracing::warn instead" },
+    { path = "log::error", reason = "use tracing::error instead" },
+    { path = "log::debug", reason = "use tracing::debug instead" },
+    { path = "log::trace", reason = "use tracing::trace instead" },
+]

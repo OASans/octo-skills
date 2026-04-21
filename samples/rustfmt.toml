@@ -1,0 +1,29 @@
+# Rustfmt configuration
+# https://rust-lang.github.io/rustfmt/
+
+edition = "2024"
+
+# Line width
+max_width = 100
+
+# Indentation
+tab_spaces = 4
+hard_tabs = false
+
+# Imports
+reorder_imports = true
+reorder_modules = true
+
+# Formatting options
+use_small_heuristics = "Default"
+
+# Match arms
+match_block_trailing_comma = true
+
+# Chains
+chain_width = 60
+
+# Misc
+newline_style = "Auto"
+use_field_init_shorthand = true
+use_try_shorthand = true
