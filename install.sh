@@ -55,6 +55,39 @@ if [ -f "$SCRIPT_DIR/base-settings.json" ]; then
     fi
 fi
 
+# Install Swift LSP (sourcekit-lsp) — required by swift-lsp plugin
+install_swift_lsp() {
+    if command -v sourcekit-lsp >/dev/null 2>&1; then
+        echo "  Swift LSP already installed: $(command -v sourcekit-lsp)"
+        return
+    fi
+
+    case "$(uname -s)" in
+        Darwin)
+            if xcode-select -p >/dev/null 2>&1 && command -v sourcekit-lsp >/dev/null 2>&1; then
+                echo "  Swift LSP available via Xcode"
+                return
+            fi
+            if command -v brew >/dev/null 2>&1; then
+                echo "  Installing Swift via Homebrew (provides sourcekit-lsp)..."
+                brew install swift
+            else
+                echo "  WARNING: sourcekit-lsp not found. Install Xcode from the App Store"
+                echo "           or install Homebrew and run: brew install swift"
+            fi
+            ;;
+        Linux)
+            echo "  WARNING: sourcekit-lsp not found. Install the Swift toolchain from"
+            echo "           https://www.swift.org/download/ to enable the swift-lsp plugin."
+            ;;
+        *)
+            echo "  WARNING: sourcekit-lsp not found. Install Swift to enable the swift-lsp plugin."
+            ;;
+    esac
+}
+
+install_swift_lsp
+
 echo ""
 echo "Done. Installed skills:"
 ls -1 "$CLAUDE_DIR/skills/"
