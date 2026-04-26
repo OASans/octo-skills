@@ -1,5 +1,5 @@
 {
-  "effortLevel": "xhigh",
+  "effortLevel": "max",
   "disableAutoMode": "disable",
   "env": {
     "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
