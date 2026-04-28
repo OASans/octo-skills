@@ -28,7 +28,9 @@ Write reusable knowledge to today's short-term memory file. Low barrier — writ
 - Task-specific progress or status updates
 - Obvious code changes self-evident from reading the code
 - Things fully captured by commit messages or regression tests
-- Bug fix details (the fix is in the code, the context is in the commit)
+- **Bug-fix post-mortems** — if the load-bearing content is one bug's symptom→cause→fix, the commit + regression test ARE the memory. Don't write the entry just because debugging took effort.
+- **Session/subagent narrative** — "Agent B caught X", "rebase conflict resolved by…", "Phase A shipped with…". Describe the rule, not the session that produced it.
+- **Code blocks that paraphrase a file:line** — if `file.rs:NNN` points at the canonical version, your snippet is duplication that rots.
 - Temporary workarounds that will be removed
 
 ## Steps
@@ -50,36 +52,48 @@ Keep it concise but complete enough to be useful months later.>
 
 ## Be concise — memory consumes context
 
-Every entry gets loaded into future sessions. Today's short-term file is `@`-referenced from CLAUDE.md, so every line here is on the hot path. Aim for **≤10 lines per entry**, **≤1 line per fact**.
+Today's short-term file is `@`-referenced from CLAUDE.md, so every line lands in every future session. **Compress aggressively.** Aim for **≤1 line per fact**. A productive day legitimately produces more entries — that's fine; what's not fine is one entry that bloats to 15 lines because the writer leaned on a four-paragraph template.
 
 ### Entry shape
 
+No fixed template. Two natural shapes:
+
+**Pattern / gotcha:**
 ```
-## <Topic — specific, not generic>
-**Symptom/context:** one line.
-**Cause:** one line.
-**Fix:** one line, with `file.rs:line` anchor.
-**Rule:** one line (only if the lesson generalizes beyond this case).
+## <topic — specific, not generic>
+<One sentence: the knowledge>. <One sentence: how to apply, with `file.rs:NNN` anchor>.
+<Optional one-line **Rule:** if it generalizes>
 ```
 
-Optional extra bullets for non-obvious detail. No code blocks unless a literal string must be preserved (key name, escape sequence, wire field). Skip sections that don't apply — don't pad.
+**Invariant / constraint:**
+```
+## <X is Y, not Z>
+<One sentence stating the invariant, with `file.rs:NNN` anchor>. <One sentence on what depends on it.>
+```
+
+Skip the **Symptom: / Cause: / Fix:** scaffold — it implies four paragraphs and reliably produces bloat. If you can't compress to ~5 lines, ask whether the entry is a bug-fix post-mortem in disguise (the commit is the memory; don't write it).
 
 ### Rules
 
 - Lead with the knowledge, not preamble ("X does Y when Z" — not "I learned that…").
+- **No code blocks.** A `file.rs:NNN` anchor replaces them. Sole exceptions: env-var names, exact wire field names, escape sequences whose literal characters matter. Yaml/bash/Swift/Rust illustrative snippets — all out.
 - File paths: full path once per entry at first mention, short anchor (`mouse.rs:320`) after.
-- Drop framing words: **Rule:**, **Generalizable:**, **Takeaway:**, **Lesson:**, **Net effect:** — the reader already knows they're reading rules. One `**Rule:**` line at the end is fine; don't sprinkle three.
-- Drop narrative ("we tried…, then realized…") — keep only the conclusion.
+- Drop narrative ("we tried…, then realized…", "Agent B traced…", "Phase A shipped with…") — keep only the conclusion.
+- Drop framing-word subsections: **Symptom:**, **Cause:**, **Fix:**, **Subtleties:**, **Verified on:**, **Drive-by:**, **Tests:**. Fold any load-bearing detail into prose; drop the rest. One `**Rule:**` line at the end is fine; don't sprinkle three.
 - No restatement of the task that produced the memory.
-- No code block if a file:line + one-line description conveys the same info.
-- **Merge, don't multiply**: if the new insight extends a topic already written today, edit that entry instead of appending a new `##` header. Three entries about the same tmux-atomic-chain pattern belong under one heading.
+- **Merge, don't multiply**: if the new insight extends a topic already written today, edit that entry instead of appending a new `##` header. Three entries on the same streaming-Whisper subsystem belong under one heading.
 
 ### Before / after
 
-Before (8 lines of prose):
-> `MouseEventKind` exposes only `Down`, `Up`, `Drag`, `Moved`, `ScrollUp`, `ScrollDown` — no `DoubleClick`, no click-count field. If you need double-click detection (e.g. double-click an agent panel to zoom), implement it in software: Store `Option<PendingClick { target, at: Instant }>` on app state…
+Before (typical bloat, ~12 lines with subsections):
+> ## Resync windows must NOT advance the change timestamp — or they just shift the symptom
+> **Symptom:** code-review subagent caught a secondary bug in the first cut of the resync fix: `poll_agents` was unconditionally setting `agent.detection.last_content_change = now` whenever `result.new_content.is_some()`. During the resync window the SIGWINCH redraw makes `new_content` Some, so the timestamp got reset every poll — meaning when the window expired, the idle-drift timer needed another full `idle_threshold` (1 s) of stable content before flipping to Idle. The spurious-Working flash moved from "during the 1.5 s window" to "during the 1.5 s window + 1 s after". Suppression theatre.
+> **Fix:** `apply_content_change(detection, new_content, in_resync, now)` (`loop_impl/mod.rs`) replaces `last_content` always but only advances `last_content_change` when `!in_resync`. Sibling regression test `test_apply_content_change_in_resync_preserves_timestamp` exercises the path. Call site in `poll_agents` reduces to one helper invocation.
+> **Rule:** when adding a "ignore this signal" window to a detector, audit every state-update side-effect that runs alongside the detection — not just the state flip you wanted to suppress…
 
-After (3 lines):
-> ## crossterm 0.28 has no native double-click
-> Detect in software: store `Option<PendingClick { target, at }>`, compare on next click against 400ms threshold. Clear pending on any non-matching click target.
-> Pattern: `src/dashboard_ui_process/main_thread/handle_events/mouse.rs`. Keep detector pure (`(pending, target, now, threshold) -> bool`) for tests.
+After (3 lines, same knowledge):
+> ## Detector suppression windows must also gate the bookkeeping side-effects
+> A window that suppresses the state flip but still advances `last_change` timers just shifts the symptom in time. `loop_impl/mod.rs::apply_content_change` only advances the timer when `!in_resync`.
+> **Rule:** when adding "ignore this signal" to a detector, audit every side-effect on the same path, not just the flip you wanted to suppress.
+
+The bug story (which subagent caught it, what the original first-cut looked like) lives in the commit; the entry keeps only the rule + the anchor.

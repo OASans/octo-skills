@@ -8,12 +8,16 @@ description: >
 
 Consolidate short-term memory into long-term. Auto-triggered once per day at conversation start, or invoked manually. This skill both promotes valuable knowledge and deprecates stale topics — keeping the long-term index lean enough to always read in full.
 
+**Hot-path note**: `ai-memory/long-term/index.md` is `@`-referenced from CLAUDE.md, so every index line costs context tokens in every session. Topic bodies are read on demand. Optimise for: short index descriptions, fewer-but-better topics, merge-into-existing over new-topic.
+
 ## Promotion criteria — ALL must pass
 
 1. **Reusable across tasks**: Applies to future work, not just the task that generated it.
 2. **Not obvious from code**: Reading the code alone wouldn't teach you this. Extension patterns, non-obvious dependencies, tricky ordering constraints qualify.
 3. **Still accurate**: Referenced files, functions, and patterns must exist right now. Verify with Grep/Glob before promoting.
 4. **Not already documented**: Check doc/, CLAUDE.md, and existing topics. If already captured, update the existing entry instead.
+
+**Default to merge, not new topic.** Each new topic adds one line to the always-loaded index. Before creating `topics/<new-slug>.md`, scan `index.md` for an existing topic the knowledge could extend — even a loose thematic match beats a near-duplicate sibling. New topic only when no existing one is a defensible home.
 
 ## What gets skipped (stays in short-term only)
 
@@ -63,11 +67,12 @@ Adapt section names to the topic. No code snippets unless absolutely load-bearin
 
 The index is loaded into every session; topic files are read on demand. Both cost context tokens. Write the shortest content that still delivers the knowledge:
 
-- Index description: one short sentence, not a paragraph.
-- Topic body: aim well under the 60-line cap — shorter is better. Cut hedges, background, and restatements.
+- **Index description**: one short sentence (≤80 chars), not a paragraph. The index is on the hot path of every session.
+- **Topic body**: aim for 20-30 lines; the 60-line cap is a hard ceiling, not a target. Cut hedges, background, and restatements.
 - File paths and function names beat prose. If a bullet list works, use bullets.
-- No code snippets unless load-bearing.
-- If a topic can't be stated concisely, it's probably two topics — split it.
+- **No code blocks** unless the literal text is load-bearing (env var name, exact wire field name, escape sequence). A `file.rs:NNN` anchor replaces illustrative snippets.
+- Drop session/debugging narrative — the rule is the memory, not the path that found it.
+- If a topic can't be stated concisely in one sitting, it's probably two topics — split it. If two existing topics overlap, merge them and delete the loser.
 
 ## Steps
 
