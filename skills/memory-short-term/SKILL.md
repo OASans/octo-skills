@@ -35,8 +35,8 @@ Write reusable knowledge to today's short-term memory file. Low barrier — writ
 
 ## Steps
 
-1. Determine today's date and the target file: `ai-memory/short-term/YYYY-MM-DD.md`
-2. If `ai-memory/short-term/` does not exist, create it: `mkdir -p ai-memory/short-term`
+1. Determine today's date and the target file: `ai_memory/short_term/YYYY-MM-DD.md`
+2. If `ai_memory/short_term/` does not exist, create it: `mkdir -p ai_memory/short_term`
 3. If today's file does not exist, create it.
 4. Append a new entry using this format:
 

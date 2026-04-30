@@ -8,7 +8,7 @@ description: >
 
 Consolidate short-term memory into long-term. Auto-triggered once per day at conversation start, or invoked manually. This skill both promotes valuable knowledge and deprecates stale topics — keeping the long-term index lean enough to always read in full.
 
-**Hot-path note**: `ai-memory/long-term/index.md` is `@`-referenced from CLAUDE.md, so every index line costs context tokens in every session. Topic bodies are read on demand. Optimise for: short index descriptions, fewer-but-better topics, merge-into-existing over new-topic.
+**Hot-path note**: `ai_memory/long_term/index.md` is `@`-referenced from CLAUDE.md, so every index line costs context tokens in every session. Topic bodies are read on demand. Optimise for: short index descriptions, fewer-but-better topics, merge-into-existing over new-topic.
 
 ## Promotion criteria — ALL must pass
 
@@ -43,11 +43,11 @@ Good example (actionable):
 
 ## Topic file format
 
-Each topic file in `ai-memory/long-term/topics/<slug>.md` (max 60 lines):
+Each topic file in `ai_memory/long_term/topics/<slug>.md` (max 60 lines):
 
 ```
 <!-- Last verified: YYYY-MM-DD, commit: <short-hash> -->
-<!-- Source: short-term/YYYY-MM-DD.md -->
+<!-- Source: short_term/YYYY-MM-DD.md -->
 
 # <Topic Title>
 
@@ -92,13 +92,13 @@ Short-term entries prove their value by being *used*. If an existing short-term 
 
 ### Part B: Daily consolidation (skip if already done today)
 
-1. Read `ai-memory/long-term/tracker.md` to find `last_processed_date`. Create tracker if missing.
+1. Read `ai_memory/long_term/tracker.md` to find `last_processed_date`. Create tracker if missing.
 2. **If `last_processed_date` == today, skip Part B entirely** — consolidation has already happened for today. Report "consolidation already done today" and stop.
 3. Otherwise, proceed with Phases 1–3 below.
 
 #### Phase 1: Promote new knowledge
 
-1. List files in `ai-memory/short-term/` newer than `last_processed_date`. If none, skip to Phase 2.
+1. List files in `ai_memory/short_term/` newer than `last_processed_date`. If none, skip to Phase 2.
 2. **Context loading**: Read short-term files from the last 5 days (not just unprocessed ones). Already-processed entries provide context for writing better long-term topics. Only *promote* entries newer than `last_processed_date`.
 3. For each unprocessed `##` entry, classify:
    - **New topic**: No existing long-term topic covers this. Create topic file + add index line.
@@ -126,7 +126,7 @@ If a topic is partially stale (some references dead, core knowledge still valid)
 #### Phase 3: Finalize
 
 1. Update `tracker.md`: set `last_processed_date` to today, log what was processed. Keep only the last 10 log entries — delete older ones.
-2. **Update the `latest.md` symlink**: point `ai-memory/short-term/latest.md` at the most recent `YYYY-MM-DD.md` file in `ai-memory/short-term/` (by filename, not mtime). Use a **relative** symlink so it survives clones and path moves: `ln -sfn <YYYY-MM-DD>.md ai-memory/short-term/latest.md`. Skip if no dated short-term files exist. CLAUDE.md `@`-references this symlink so a session always has the previous day's memory loaded.
+2. **Update the `latest.md` symlink**: point `ai_memory/short_term/latest.md` at the most recent `YYYY-MM-DD.md` file in `ai_memory/short_term/` (by filename, not mtime). Use a **relative** symlink so it survives clones and path moves: `ln -sfn <YYYY-MM-DD>.md ai_memory/short_term/latest.md`. Skip if no dated short-term files exist. CLAUDE.md `@`-references this symlink so a session always has the previous day's memory loaded.
 3. Report summary: N entries processed, M new topics, K updates, J skipped, L deprecated (with reasons).
 
 ## Long-term operations reference
@@ -138,7 +138,7 @@ If a topic is partially stale (some references dead, core knowledge still valid)
 
 ## Index format
 
-`ai-memory/long-term/index.md` entries grouped by category:
+`ai_memory/long_term/index.md` entries grouped by category:
 
 ```
 # Long-Term Memory Index

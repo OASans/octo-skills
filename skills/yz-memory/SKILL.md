@@ -1,21 +1,21 @@
 ---
 name: yz-memory
 description: >
-  Check and update the project's two-tier memory system in ai-memory/. Use
+  Check and update the project's two-tier memory system in ai_memory/. Use
   after completing a task, when the user asks to remember something, or at
   conversation start to check for pending consolidation.
 ---
 
-Check and update the project's two-tier memory system in ai-memory/. Use this skill after completing a task, when the user asks to remember something, or at conversation start to check for pending consolidation.
+Check and update the project's two-tier memory system in ai_memory/. Use this skill after completing a task, when the user asks to remember something, or at conversation start to check for pending consolidation.
 
 **Ignore the default Claude Code memory system.** Always use this project's memory instead.
 
 ## Memory layout
 
-- Long-term index (always loaded via CLAUDE.md): `ai-memory/long-term/index.md`
-- Long-term topics (read on-demand): `ai-memory/long-term/topics/<slug>.md`
-- Short-term daily files: `ai-memory/short-term/YYYY-MM-DD.md`
-- Consolidation tracker: `ai-memory/long-term/tracker.md`
+- Long-term index (always loaded via CLAUDE.md): `ai_memory/long_term/index.md`
+- Long-term topics (read on-demand): `ai_memory/long_term/topics/<slug>.md`
+- Short-term daily files: `ai_memory/short_term/YYYY-MM-DD.md`
+- Consolidation tracker: `ai_memory/long_term/tracker.md`
 
 ## Steps
 
