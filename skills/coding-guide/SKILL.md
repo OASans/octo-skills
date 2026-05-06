@@ -26,6 +26,7 @@ Every unit (module, struct, trait) must answer three questions: what does it do,
 
 ## Code Clarity
 
+- **Snake Case Naming**: Directory names, file names, function names, and variable names all use `snake_case`. No `camelCase`, `PascalCase`, or `kebab-case` for these. (Types/classes follow language convention, e.g. `PascalCase` in Rust/Python.)
 - **Clarity Over Brevity**: Prefer explicit, readable code over compact one-liners. If a "simplification" makes the code harder to read, it's not simpler.
 - **Flat Control Flow**: Use early returns and guard clauses to reduce nesting. Prefer `match` over deeply nested `if let` chains. Deeply nested blocks signal a function doing too much.
 - **Meaningful Function Extraction**: Functions must encapsulate real logic, not just forward to another function. Names should make architecture self-documenting at every level — reading call sites should explain the flow without comments.
