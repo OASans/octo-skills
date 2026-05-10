@@ -9,7 +9,7 @@ This skill lets you send messages directly to other AI coding agents running und
 
 ## What this skill is (and what it is NOT)
 
-Peer messaging is **OctoCode's own feature**, separate from Claude Code's hook system. Claude Code's `.claude/settings.json` hooks fire on `Stop` / `Notification` / `PreToolUse` / etc. and produce `permission` and `status` events. This skill produces `peer_send` events. Both happen to be appended to the same `$OCTO_HOOK_FILE` (the channel is already plumbed), but they are independent event sources owned by different subsystems. Don't conflate them.
+Peer messaging is **OctoCode's own feature**, separate from Claude Code's hook system. Claude Code's `.claude/settings.json` hooks fire on `Stop` / `Notification` / `PreToolUse` / etc. and produce `permission` and `ask_user_question` events. This skill produces `peer_send` events. Both happen to be appended to the same `$OCTO_HOOK_FILE` (the channel is already plumbed), but they are independent event sources owned by different subsystems. Don't conflate them.
 
 ## Discovering peers — `$OCTO_PEERS`
 
