@@ -51,6 +51,16 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import sys,json,os,time;f=os.environ.get('OCTO_HOOK_FILE','');d=json.load(sys.stdin);open(f,'a').write(json.dumps({'type':'stop','aid':os.environ.get('OCTO_AGENT_ID',''),'ts':int(time.time()),'data':d})+chr(10)) if f else None\" 2>/dev/null || true"
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
