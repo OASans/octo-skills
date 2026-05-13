@@ -34,7 +34,25 @@
     ],
     "PreToolUse": [
       {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "( flock -x -w 5 9; jq -c --arg aid \"$OCTO_AGENT_ID\" '. + {aid:$aid}' >> \"$OCTO_HOOK_FILE\" ) 9>\"$OCTO_HOOK_FILE.lock\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
         "matcher": "AskUserQuestion|ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "( flock -x -w 5 9; jq -c --arg aid \"$OCTO_AGENT_ID\" '. + {aid:$aid}' >> \"$OCTO_HOOK_FILE\" ) 9>\"$OCTO_HOOK_FILE.lock\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
         "hooks": [
           {
             "type": "command",
