@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# OctoCode peer messaging helper. Appends events of type `peer_send` to
-# `$OCTO_HOOK_FILE`. These are OctoCode-origin events, distinct from Claude
-# Code's `.claude/settings.json` hook system.
+# OctoCode peer messaging helper. Appends events of type `octo_peer_send` to
+# `$OCTO_HOOK_FILE` under an exclusive `flock` on `$OCTO_HOOK_FILE.lock`,
+# serializing against Claude Code hook writers and the daemon's read+truncate
+# poll. These are OctoCode-origin events, distinct from Claude Code's
+# `.claude/settings.json` hook system.
 set -eu
 
 MAX_MSG_BYTES=4096
@@ -51,8 +53,8 @@ send() {
     fi
     local escaped_msg
     escaped_msg=$(escape_json "$msg")
-    printf '{"type":"peer_send","ts":%s,"data":{"from":"%s","to":"%s","msg":"%s"}}\n' \
-        "$(date +%s)" "$OCTO_AGENT_NAME" "$to" "$escaped_msg" >> "$OCTO_HOOK_FILE"
+    ( flock -x -w 5 9; printf '{"type":"octo_peer_send","data":{"from":"%s","to":"%s","msg":"%s"}}\n' \
+        "$OCTO_AGENT_NAME" "$to" "$escaped_msg" >> "$OCTO_HOOK_FILE" ) 9>"$OCTO_HOOK_FILE.lock"
 }
 
 send_with_callback() {
