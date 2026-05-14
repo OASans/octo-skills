@@ -12,8 +12,7 @@
       "Bash(*)",
       "WebFetch",
       "WebSearch",
-      "Edit(file_path:.claude/skills/**)",
-      "Write(file_path:.claude/skills/**)"
+      "Skill(*)"
     ],
     "ask": [
       "Bash(sudo *)"
