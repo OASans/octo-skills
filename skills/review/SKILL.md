@@ -10,22 +10,26 @@ Code review. Spawns parallel read-only sub-agents that independently collect the
 
 Designed for use by both humans and AI agents. Run this at the end of any coding workflow before committing.
 
+**The coding guide drives the fan-out.** Each `##` major section in `/coding-guide` is one review domain reviewed by one dedicated sub-agent. The number of agents tracks the guide: add a `##` section there and this skill spawns one more agent automatically, with no edit here. Each agent reviews **only** its assigned section, so domains are partitioned with no overlap.
+
 ## Steps
 
-1. Spawn **three parallel Sonnet 4.6 sub-agents** (subagent_type: general-purpose, model: sonnet). Do NOT read any files or run any commands before spawning — the sub-agents do everything. Each agent receives the same base instructions below, plus its own focus area.
+1. **Determine the review domains.** Run `/coding-guide` and list its top-level `##` section headings — ignore the `# Coding Guide` title and every `###` sub-heading. Each `##` section is one review domain. This single small read is the *only* thing the main agent does before spawning: do **not** collect the diff or read project files yourself — the sub-agents do all of that.
+
+2. **Spawn one parallel Sonnet 4.6 sub-agent per `##` section** (subagent_type: general-purpose, model: sonnet), all in a single message so they run concurrently. Each agent receives the shared base instructions below plus exactly one `##` section (its heading, `*Review focus:*` line, and all `###` groups/bullets, verbatim) as its assigned domain.
 
    **Base instructions (shared by all agents):**
 
    > You are a code reviewer. You are READ-ONLY — never modify code. Perform these steps in order:
    >
    > 1. Run `/coding-guide` to load the shared coding guide. Also check CLAUDE.md for any additional project-level coding guide and read that too if found.
-   > 2. Use all coding guides found as the review criteria. If no coding guide exists, use general software engineering best practices.
+   > 2. Your review criteria are **only the rules under your assigned `##` section** (given to you below) — including every `###` group and bullet within it. Do not review against other sections; another agent owns each of those. If a project-level CLAUDE.md adds rules that fall in your domain, include those too. If no coding guide exists, fall back to general software engineering best practices for your domain only.
    > 3. Collect all uncommitted changes by running: `git diff` (unstaged) and `git diff --cached` (staged). If both are empty, return: "Nothing to review." and stop.
    > 4. Read each changed file in full to understand surrounding context (not just the diff hunks).
    > 5. If you need broader context to assess an issue (e.g., how a function is used elsewhere, whether a pattern matches the rest of the codebase), spawn an Explore subagent (model: sonnet) to search for it. Don't guess — verify.
-   > 6. Review the diff against every coding guide principle AND your assigned focus area below.
+   > 6. Review the diff against every rule in your assigned section.
    >
-   > For each violation: cite exact file:line, state which principle is violated, and give specific description of the issue. Skip principles with no violations.
+   > For each violation: cite exact file:line, name the violated principle (section + bullet name), and give a specific description of the issue. Skip principles with no violations.
    >
    > **Do NOT flag false positives.** The following are NOT issues:
    > - Things a compiler, linter, or test suite would catch (type errors, unused imports, formatting)
@@ -34,21 +38,13 @@ Designed for use by both humans and AI agents. Run this at the end of any coding
    > - Intentional functionality changes that are clearly part of the broader change
    > - Style preferences not explicitly called out in the coding guide
    >
-   > Return your findings as a structured list. If you find no issues, return: "No issues found."
+   > Return your findings as a structured list headed by your assigned section name. If you find no issues, return: "No issues found."
 
-   **Agent focus areas:**
-
-   - **Agent A — Coding guide compliance:** Review the diff against every principle in the coding guide(s). Focus on architecture, code clarity, duplication, error handling, and testing guidelines. Flag only clear violations, not subjective preferences.
-
-   - **Agent B — Bugs & correctness:** Scan for logic errors, off-by-one, missing error handling, unhandled exceptions, race conditions, shared mutable state, empty inputs, boundary values, overflow, timeout handling, command injection, path traversal, and unchecked user input. Focus on real bugs that would cause incorrect behavior.
-
-   - **Agent C — Consistency & coherence:** Check that new code is consistent with patterns in the surrounding codebase. Look for naming mismatches, inconsistent error handling styles, API contract violations, and changes that break assumptions made elsewhere in the same files. Also check: are changes covered by tests? Missing test cases?
-
-2. Present all three agents' findings as a unified review. Group by file, deduplicate overlapping findings, and note which perspective flagged each issue (guide compliance / bug / consistency).
+3. Present all agents' findings as a unified review. Group by file, deduplicate overlapping findings, and label each issue with the domain (the `##` section name) that flagged it.
 
 ## Writing large results to a file
 
-If the unified review is too large to comfortably fit in the chat (more than ~50 findings, or you need to preserve the raw output from all three agents verbatim), write it to a file **inside the current project directory** — not `/tmp`. Files under `/tmp` sit outside the working directory and require a user approval prompt to re-read later, which defeats the purpose of caching the result.
+If the unified review is too large to comfortably fit in the chat (more than ~50 findings, or you need to preserve the raw output from all agents verbatim), write it to a file **inside the current project directory** — not `/tmp`. Files under `/tmp` sit outside the working directory and require a user approval prompt to re-read later, which defeats the purpose of caching the result.
 
 Good path: `./review-result.md` or `./.claude/review-<timestamp>.md` in the current project.
 Bad path: `/tmp/review.md`, `~/review.md`, or any absolute path outside the current repo.
