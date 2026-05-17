@@ -88,6 +88,46 @@ install_swift_lsp() {
 
 install_swift_lsp
 
+# Install Node.js + pre-cache Playwright MCP & Chromium.
+# Used by project-scoped Playwright MCP servers (e.g. octo-family-doc/.mcp.json).
+# This only provides the system dependency; it does NOT register the MCP server
+# globally — each project opts in via its own .mcp.json.
+install_node_playwright() {
+    if command -v node >/dev/null 2>&1; then
+        echo "  Node.js already installed: $(command -v node) ($(node --version))"
+    else
+        case "$(uname -s)" in
+            Darwin)
+                if command -v brew >/dev/null 2>&1; then
+                    echo "  Installing Node.js via Homebrew..."
+                    brew install node
+                else
+                    echo "  WARNING: node not found and Homebrew unavailable."
+                    echo "           Install Node.js from https://nodejs.org/ to enable Playwright MCP."
+                    return
+                fi
+                ;;
+            Linux)
+                echo "  WARNING: node not found. Install Node.js (https://nodejs.org/) to enable Playwright MCP."
+                return
+                ;;
+            *)
+                echo "  WARNING: node not found. Install Node.js to enable Playwright MCP."
+                return
+                ;;
+        esac
+    fi
+
+    # Pre-cache the MCP package + Chromium so the first project use is fast.
+    if command -v npx >/dev/null 2>&1; then
+        echo "  Pre-caching Playwright MCP + Chromium (one-time)..."
+        npx -y @playwright/mcp@latest --help >/dev/null 2>&1 || true
+        npx -y playwright@latest install chromium >/dev/null 2>&1 || true
+    fi
+}
+
+install_node_playwright
+
 echo ""
 echo "Done. Installed skills:"
 ls -1 "$CLAUDE_DIR/skills/"
