@@ -14,9 +14,19 @@ Designed for use by both humans and AI agents. Run this at the end of any coding
 
 ## Steps
 
-1. **Determine the review domains.** Run `/coding-guide` and list its top-level `##` section headings — ignore the `# Coding Guide` title and every `###` sub-heading. Each `##` section is one review domain. This single small read is the *only* thing the main agent does before spawning: do **not** collect the diff or read project files yourself — the sub-agents do all of that.
+1. **Determine the review domains.** Run `/coding-guide` and list its top-level `##` section headings — ignore the `# Coding Guide` title and every `###` sub-heading. Each `##` section is one review domain. Before spawning, the main agent does **only** this read plus the file-name detection in Step 2 — do **not** collect the full diff or read project files yourself; the sub-agents do all of that.
 
-2. **Spawn one parallel Sonnet 4.6 sub-agent per `##` section** (subagent_type: general-purpose, model: sonnet), all in a single message so they run concurrently. Each agent receives the shared base instructions below plus exactly one `##` section (its heading, `*Review focus:*` line, and all `###` groups/bullets, verbatim) as its assigned domain.
+2. **Detect changed files; skip if documentation-only.** List changed paths only — *not* diff content — with `git diff --name-only` and `git diff --cached --name-only`.
+
+   - **No changes at all** → return `Nothing to review.` and stop. Do not spawn agents.
+   - **Classify each changed file by purpose, not extension:**
+     - *Documentation* — human-facing prose whose change alters no program, tool, skill, or build behavior (e.g. `README`, `CHANGELOG`, `CONTRIBUTING`, `LICENSE`, prose under `docs/`).
+     - *Code* — anything that changes behavior: source in any language; **skill definitions and prompt files such as `skills/**/SKILL.md` (here markdown *is* the deliverable, not docs)**; config and manifests (`Cargo.toml`, `package.json`, `*.toml/yaml/yml/json`, lockfiles, `Dockerfile`); CI/build/scripts (`.github/`, `Makefile`, `*.sh`).
+     - When unsure, classify as code. Skipping is the exception; the default is to review.
+   - **Every changed file is documentation** → return `Skipped: documentation-only change — no code files modified.`, list the changed files, and stop. Do **not** spawn agents.
+   - **Any code file is present** → proceed to Step 3. The change is reviewed normally (agents still see the full diff, doc files included).
+
+3. **Spawn one parallel Sonnet 4.6 sub-agent per `##` section** (subagent_type: general-purpose, model: sonnet), all in a single message so they run concurrently. Each agent receives the shared base instructions below plus exactly one `##` section (its heading, `*Review focus:*` line, and all `###` groups/bullets, verbatim) as its assigned domain.
 
    **Base instructions (shared by all agents):**
 
@@ -40,7 +50,7 @@ Designed for use by both humans and AI agents. Run this at the end of any coding
    >
    > Return your findings as a structured list headed by your assigned section name. If you find no issues, return: "No issues found."
 
-3. Present all agents' findings as a unified review. Group by file, deduplicate overlapping findings, and label each issue with the domain (the `##` section name) that flagged it.
+4. Present all agents' findings as a unified review. Group by file, deduplicate overlapping findings, and label each issue with the domain (the `##` section name) that flagged it.
 
 ## Writing large results to a file
 
