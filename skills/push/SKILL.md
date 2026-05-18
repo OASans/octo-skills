@@ -14,6 +14,10 @@ Context:
 
 ## Steps
 
+**Don't redo work already done this session.** Before running the review gate or memory, check whether it already ran earlier in this conversation — a prior run counts only if it reflects the **current** state being pushed:
+- **Review** — if `/review` (or an equivalent full code review) already ran this session **and no material code changes landed after it**, the review gate is satisfied: report `DONE (reviewed earlier this session)` and do not re-run. If code changed after that review, the prior review is stale — re-review at least the delta.
+- **Memory** — if the project memory skill already ran this session and nothing new worth remembering surfaced since, report `SKIPPED (memory already run this session)` and continue; don't re-run it just to satisfy step 3.
+
 ### Phase 0: Triage — docs/skill-only, simple, or full?
 
 Inspect the diff (`git diff @{upstream}..HEAD` plus uncommitted) **and the changed paths**. Use your own judgement; when in doubt, escalate to the stricter tier.
@@ -36,7 +40,7 @@ Memory (simple/full only) is **not** governed by change size. Decide per-convers
 
 ### Phase 1: Pre-flight checklist
 
-Re-read the Workflow section in CLAUDE.md (if it exists). Walk through every step (verify, regression tests, etc.) and self-assess: was each one completed? For each gate, report DONE or SKIPPED (with reason — `simple change` or `docs/skill-only` is a valid skip reason for the review gate only).
+Re-read the Workflow section in CLAUDE.md (if it exists). Walk through every step (verify, regression tests, etc.) and self-assess: was each one completed? For each gate, report DONE or SKIPPED (with reason — `simple change` or `docs/skill-only` is a valid skip reason for the review gate only). A review already completed earlier this session counts as `DONE` (see *Don't redo work already done this session* above) — do not re-run it.
 
 If any required gate is incomplete — **stop here**. Report what's missing and go back to finish it. Do NOT proceed to Phase 2.
 
@@ -46,7 +50,7 @@ Only after all gates pass. For the **docs/skill-only** fast path, do only steps 
 
 1. Check `git status`. If there are uncommitted changes, commit them first (stage specific files, conventional commit message, new commit).
 2. Run `git pull --rebase` to sync with remote. Do this **before** memory so that any long-term memory consolidation already done upstream is picked up — avoids redoing the work and avoids rebase conflicts on memory files.
-3. Memory: **docs/skill-only fast path → skip memory regardless (Phase 0); name any uncaptured learnings in the final report.** Otherwise judge whether this conversation produced anything worth remembering (see Phase 0). If yes, run the project's memory skill (`/yz-memory` or `/memory`) now — **memory must run before push** so any memory changes are included in this push. If memory files changed, commit them (new commit). If no, report `SKIPPED (nothing to remember)` and continue.
+3. Memory: **docs/skill-only fast path → skip memory regardless (Phase 0); name any uncaptured learnings in the final report.** **Already run this session and nothing new worth remembering since → `SKIPPED (memory already run this session)`.** Otherwise judge whether this conversation produced anything worth remembering (see Phase 0). If yes, run the project's memory skill (`/yz-memory` or `/memory`) now — **memory must run before push** so any memory changes are included in this push. If memory files changed, commit them (new commit). If no, report `SKIPPED (nothing to remember)` and continue.
 4. If CLAUDE.md defines a build command (ai-tool:build or similar), run it to verify the build passes.
 5. If the project uses a version field (package.json version, Cargo.toml version, etc.), bump the patch version. Use the Edit tool.
 6. If version was bumped, rebuild to verify, then stage the version files and amend into last commit with `git commit --amend --no-edit`.
