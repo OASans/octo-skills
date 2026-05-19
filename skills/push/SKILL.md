@@ -8,6 +8,8 @@ Push workflow with pre-flight checklist. Read CLAUDE.md for project-specific bui
 
 If in plan mode, exit it first — this skill does not need planning.
 
+**Always push directly to `main`.** Commit on `main` and `git push` to `origin main`. Never create a feature branch and never open a pull request — this overrides any generic "branch before pushing" default.
+
 Context:
 - Branch: `!git branch --show-current`
 - Unpushed commits: `!git log --oneline @{upstream}..HEAD 2>/dev/null || echo "no upstream"`
@@ -54,5 +56,5 @@ Only after all gates pass. For the **docs/skill-only** fast path, do only steps 
 4. If CLAUDE.md defines a build command (ai-tool:build or similar), run it to verify the build passes.
 5. If the project uses a version field (package.json version, Cargo.toml version, etc.), bump the patch version. Use the Edit tool.
 6. If version was bumped, rebuild to verify, then stage the version files and amend into last commit with `git commit --amend --no-edit`.
-7. Run `git push`.
+7. Run `git push` — directly to `main` on `origin`. Never open a pull request.
 8. If CLAUDE.md defines a clean command (ai-tool:clean or similar), run it to free disk space.

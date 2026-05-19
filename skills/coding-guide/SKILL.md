@@ -93,3 +93,21 @@ Flag only real defects that would cause incorrect behavior — not hypotheticals
 - **Consistent Error-Handling Style**: use the same error strategy as the surrounding layer. Don't introduce a new error mechanism for a single call site when the rest of the layer does it differently.
 - **API & Contract Adherence**: respect existing function/module contracts — signatures, invariants, return conventions, ordering guarantees. A change must not silently break assumptions made by callers, especially in the same files.
 - **Change Is Covered**: behavioral changes ship with matching test updates. New code paths get new test cases; modified behavior gets updated assertions. Flag missing or now-stale coverage for **this** change specifically (general coverage goals belong to the Correctness domain).
+
+## Rust Guidance
+
+*Review focus: where the change touches Rust, does it follow this codebase's conventions for test layout, pattern matching, and global state?*
+
+> **Applies only to projects containing Rust.** If the change under review touches no `.rs` files — or the project has no Rust at all — this domain has nothing to flag: report no issues and stop.
+
+### Test Layout
+
+- **Sibling Test Files**: Unit tests live in a sibling file, never an inline `mod tests` block. In `foo.rs` write `#[cfg(test)] #[path = "foo_tests.rs"] mod tests;` and put the tests in `foo_tests.rs`.
+
+### Pattern Matching
+
+- **Match Ergonomics over `ref`**: Borrow at the scrutinee — `if let Some(x) = &expr` / `match &expr` — instead of `ref` bindings inside the pattern. `ref` is legacy pre-2018 style.
+
+### Global State
+
+- **No New Interior-Mutable Globals**: Don't add `static` items with interior-mutability types (`OnceLock`, `OnceCell`, `Lazy(Lock)?`, `Mutex`, `RwLock`, `Atomic*`). Hold state in a struct and pass it through. Pre-existing grandfathered globals are exempt; do not add more.
