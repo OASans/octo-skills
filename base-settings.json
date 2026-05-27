@@ -12,12 +12,16 @@
     "CLAUDE_ENABLE_BYTE_WATCHDOG": "1",
     "CLAUDE_CODE_MAX_RETRIES": "3"
   },
+  "additionalDirectories": [
+    "~/.cargo"
+  ],
   "permissions": {
     "allow": [
       "Bash(*)",
       "WebFetch",
       "WebSearch",
-      "Skill(*)"
+      "Skill(*)",
+      "Read(~/.cargo/**)"
     ],
     "ask": [
       "Bash(sudo *)"
