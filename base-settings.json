@@ -28,7 +28,7 @@
       "Bash(sudo *)"
     ],
     "deny": [],
-    "defaultMode": "plan"
+    "defaultMode": "default"
   },
   "hooks": {
     "PermissionRequest": [
