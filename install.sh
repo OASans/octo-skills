@@ -38,19 +38,36 @@ for skill_dir in "$SCRIPT_DIR/skills"/*/; do
     echo "  Installed skill: $skill_name"
 done
 
-# Merge settings: copy base-settings.json as settings.json if it doesn't exist,
+# Merge settings: copy global-settings.json as settings.json if it doesn't exist,
 # otherwise show a diff so the user can decide
-if [ -f "$SCRIPT_DIR/base-settings.json" ]; then
+if [ -f "$SCRIPT_DIR/global-settings.json" ]; then
     target_settings="$CLAUDE_DIR/settings.json"
     if [ ! -f "$target_settings" ]; then
-        cp "$SCRIPT_DIR/base-settings.json" "$target_settings"
+        cp "$SCRIPT_DIR/global-settings.json" "$target_settings"
         echo "  Installed settings.json (new)"
     else
-        if diff -q "$SCRIPT_DIR/base-settings.json" "$target_settings" > /dev/null 2>&1; then
+        if diff -q "$SCRIPT_DIR/global-settings.json" "$target_settings" > /dev/null 2>&1; then
             echo "  Settings unchanged"
         else
-            cp "$SCRIPT_DIR/base-settings.json" "$target_settings"
+            cp "$SCRIPT_DIR/global-settings.json" "$target_settings"
             echo "  Updated settings.json"
+        fi
+    fi
+fi
+
+# Merge global memory: copy global-CLAUDE.md as CLAUDE.md if it doesn't exist,
+# otherwise overwrite when changed (same always-override behavior as settings).
+if [ -f "$SCRIPT_DIR/global-CLAUDE.md" ]; then
+    target_memory="$CLAUDE_DIR/CLAUDE.md"
+    if [ ! -f "$target_memory" ]; then
+        cp "$SCRIPT_DIR/global-CLAUDE.md" "$target_memory"
+        echo "  Installed CLAUDE.md (new)"
+    else
+        if diff -q "$SCRIPT_DIR/global-CLAUDE.md" "$target_memory" > /dev/null 2>&1; then
+            echo "  CLAUDE.md unchanged"
+        else
+            cp "$SCRIPT_DIR/global-CLAUDE.md" "$target_memory"
+            echo "  Updated CLAUDE.md"
         fi
     fi
 fi

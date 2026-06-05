@@ -22,7 +22,8 @@
       "WebFetch",
       "WebSearch",
       "Skill(*)",
-      "Read(~/.cargo/**)"
+      "Read(~/.cargo/**)",
+      "Read(~/.octo-code/**)"
     ],
     "ask": [
       "Bash(sudo *)"
@@ -64,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -e '.tool_input.run_in_background == true' >/dev/null 2>&1 && printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Background Bash is disabled by octo-skills base-settings policy. Re-run the command in the foreground (omit run_in_background).\"}}' || true"
+            "command": "jq -e '.tool_input.run_in_background == true' >/dev/null 2>&1 && printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Background Bash is disabled by octo-skills global-settings policy. Re-run the command in the foreground (omit run_in_background).\"}}' || true"
           }
         ]
       }
@@ -95,6 +96,18 @@
           {
             "type": "command",
             "command": "( flock -x -w 5 9; jq -c --arg aid \"$OCTO_AGENT_ID\" '. + {aid:$aid}' >> \"$OCTO_HOOK_FILE\" ) 9>\"$OCTO_HOOK_FILE.lock\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 15,
+            "command": "report() { printf '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":%s}}' \"$(printf '%s' \"$1\" | jq -Rs .)\"; }; git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0; git remote get-url origin >/dev/null 2>&1 || exit 0; export GIT_TERMINAL_PROMPT=0; git fetch --quiet origin 2>/dev/null || { report \"git sync skipped: fetch failed (offline?)\"; exit 0; }; git rev-parse @{u} >/dev/null 2>&1 || exit 0; set -- $(git rev-list --left-right --count @{u}...HEAD 2>/dev/null); behind=${1:-0}; ahead=${2:-0}; if [ \"$behind\" = 0 ]; then exit 0; elif [ \"$ahead\" = 0 ]; then git merge --ff-only @{u} >/dev/null 2>&1 && report \"git sync: pulled $behind commit(s)\" || report \"GIT PULL FAILED: $behind behind but fast-forward blocked (local uncommitted changes?). Resolve this FIRST before other work.\"; else report \"GIT PULL FAILED: branch diverged (local $ahead / upstream $behind), not fast-forwardable. Resolve this FIRST before other work; do not blind-merge.\"; fi"
           }
         ]
       }

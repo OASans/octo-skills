@@ -5,8 +5,9 @@ Shared Claude Code skills, available in ALL projects once installed.
 ## Repo layout
 
 - `skills/<name>/SKILL.md` — one directory per skill. This is the source of truth.
-- `base-settings.json` — shared Claude Code settings (env vars, permissions, hooks).
-- `install.sh` — copies `skills/*` to `~/.claude/skills/` and syncs `base-settings.json` → `~/.claude/settings.json`. Run after any edit.
+- `global-settings.json` — shared Claude Code settings (env vars, permissions, hooks). Installs to `~/.claude/settings.json`.
+- `global-CLAUDE.md` — shared user-level memory (global rules applied in every project). Installs to `~/.claude/CLAUDE.md`. Edit this file, not the installed copy.
+- `install.sh` — copies `skills/*` to `~/.claude/skills/`, and always overwrites `~/.claude/settings.json` from `global-settings.json` and `~/.claude/CLAUDE.md` from `global-CLAUDE.md`. Run after any edit.
 
 ## Skills
 
