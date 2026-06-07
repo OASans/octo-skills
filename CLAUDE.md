@@ -20,7 +20,7 @@ Shared Claude Code skills, available in ALL projects once installed.
 | `/pull` | Workflow | Pull and sync with remote |
 | `/commit-for-batch` | Internal | Commit for batch subagents. Consumed by `/yz-batch` |
 | `/yz-batch` | Execution | Execute tasks from a tracker file via sequential subagents |
-| `/yz-memory` | Memory | Two-tier memory system orchestrator (short-term + long-term) |
+| `/octo-memory` | Memory | Two-tier memory system orchestrator (short-term + long-term) |
 | `/memory-short-term` | Memory | Capture daily learnings to short-term memory |
 | `/memory-long-term` | Memory | Consolidate short-term into long-term topics |
 | `/octo-share-image` | Integration | Share an image to the OctoCode Slack channel via media bridge |
@@ -30,7 +30,7 @@ Shared Claude Code skills, available in ALL projects once installed.
 - `/coding-guide` is a shared reference consumed by `/review` and `/plan-refactor`. When the coding guide changes, both skills pick up the new version automatically.
 - `/review` is **structure-driven by `/coding-guide`**: each `##` major section is one review domain reviewed by one dedicated sub-agent (criteria partitioned, no overlap). Adding a `##` section to the coding guide adds a review agent with no edit to `/review`. Keep `##` sections coherent and their `*Review focus:*` line accurate.
 - `/yz-batch` consumes `/commit-for-batch` internally for committing after each task.
-- `/yz-memory` orchestrates `/memory-short-term` and `/memory-long-term`.
+- `/octo-memory` orchestrates `/memory-short-term` and `/memory-long-term`.
 - `/plan-refactor` produces tracker files consumed by `/yz-batch`.
 
 ## Editing Skills

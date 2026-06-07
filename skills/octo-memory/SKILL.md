@@ -1,5 +1,5 @@
 ---
-name: yz-memory
+name: octo-memory
 description: >
   Check and update the project's two-tier memory: long-term knowledge skills
   plus a local short-term buffer. Use after completing a task, when the user
@@ -27,6 +27,6 @@ This skill is an orchestrator — it dispatches to the right sub-skill based on 
 - **There are changes and *every* one is docs/skill-only** — prose documentation (README, CHANGELOG, `docs/`, comments) and/or skill-definition files (`skills/**/SKILL.md`, `.claude/skills/**`) — **and** the conversation surfaced nothing genuinely worth remembering (a real decision, gotcha, pattern, or preference — judge honestly, don't rationalize a reason to write): report `SKIPPED (docs/skill-only, nothing to remember)` and stop. This mirrors the `/push` Phase 0 gate so memory can't over-trigger when invoked directly. **Use your own judgement** — a clearly valuable, hard-to-reconstruct learning still gets captured even if the diff is docs/skill-only.
 - **Otherwise** → proceed to step 1.
 
-1. **Consolidation gate**: Run `bash ~/.claude/skills/yz-memory/consolidation-due.sh`. On **DUE** (exit 1), run `/memory-long-term` — promote new short-term into `knowledge-*` skills, sweep stale ones. On **DONE** (exit 0), skip; don't load `/memory-long-term`. The cheap check avoids loading the full skill body just to find today's consolidation already ran.
+1. **Consolidation gate**: Run `bash ~/.claude/skills/octo-memory/consolidation-due.sh`. On **DUE** (exit 1), run `/memory-long-term` — promote new short-term into `knowledge-*` skills, sweep stale ones. On **DONE** (exit 0), skip; don't load `/memory-long-term`. The cheap check avoids loading the full skill body just to find today's consolidation already ran.
 2. **Record new knowledge**: If you learned something reusable during this conversation (non-obvious patterns, gotchas, architectural decisions, debugging insights), run `/memory-short-term` to capture it. Skip if nothing non-obvious was learned.
 3. **Fix stale topics**: If you noticed a `knowledge-*` skill is wrong during your work, fix it inline and capture the correction via `/memory-short-term`.

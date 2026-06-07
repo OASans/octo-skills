@@ -32,7 +32,7 @@ git pull
 | `/pull` | Pull and sync with remote |
 | `/commit-for-batch` | Commit for batch subagents (internal, used by `/yz-batch`) |
 | `/yz-batch` | Execute tasks from a tracker file via sequential subagents |
-| `/yz-memory` | Two-tier memory system orchestrator (short-term + long-term) |
+| `/octo-memory` | Two-tier memory system orchestrator (short-term + long-term) |
 | `/memory-short-term` | Capture daily learnings to short-term memory |
 | `/memory-long-term` | Consolidate short-term into long-term topics |
 

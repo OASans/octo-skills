@@ -20,7 +20,7 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ## Memory
 
-**Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use the `/yz-memory` skill for all memory operations (it orchestrates `/memory-short-term` capture and `/memory-long-term` consolidation).
+**Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use the `/octo-memory` skill for all memory operations (it orchestrates `/memory-short-term` capture and `/memory-long-term` consolidation).
 
 - **Long-term** — one topic per `.claude/skills/knowledge-<slug>/SKILL.md`, committed and team-shared. Claude Code auto-loads each skill's description (the index) and loads a body on demand — so there's **no `index.md` and no CLAUDE.md `@`-import**; it just loads.
 - **Short-term** — a local buffer at `~/.octo-memory/<repo>/short_term/` (`<repo>` from `git remote get-url origin`), shared across that repo's checkouts on one machine. Never committed, **not loaded into context**; it's only consolidation input, and losing it is fine.
@@ -32,4 +32,4 @@ A project may have its own workflow — follow it. These are additional steps th
 
 1. `git pull` first — start from a clean, synced tree (session-start auto-pull may have done this; confirm).
 2. `/review` — once unit tests pass and build/lint are green, run `/review` ONCE per session (repeat review isn't useful), then fix its findings.
-3. `/yz-memory` — after `/review` findings are fixed and everything's green, update memory.
+3. `/octo-memory` — after `/review` findings are fixed and everything's green, update memory.

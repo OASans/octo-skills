@@ -26,7 +26,7 @@ Inspect the diff (`git diff @{upstream}..HEAD` plus uncommitted) **and the chang
 
 **docs/skill-only** (fastest path) — *every* changed path is prose documentation (README, CHANGELOG, `docs/`, code comments) and/or skill-definition files (`skills/**/SKILL.md`, `.claude/skills/**`), with **no** source, config, dependency, or schema changes mixed in:
 - Skip the review gate → report `SKIPPED (docs/skill-only)`.
-- Skip memory → report `SKIPPED (docs/skill-only)`. Do not run it even if the conversation surfaced learnings — but **name what went uncaptured** in the final report so the user can run `/yz-memory` deliberately.
+- Skip memory → report `SKIPPED (docs/skill-only)`. Do not run it even if the conversation surfaced learnings — but **name what went uncaptured** in the final report so the user can run `/octo-memory` deliberately.
 - Just commit, sync (`git pull --rebase`), and push. Skip build and version bump.
 
 **simple** — not docs/skill-only, but ALL hold:
@@ -52,7 +52,7 @@ Only after all gates pass. For the **docs/skill-only** fast path, do only steps 
 
 1. Check `git status`. If there are uncommitted changes, commit them first (stage specific files, conventional commit message, new commit).
 2. Run `git pull --rebase` to sync with remote. Do this **before** memory so that any long-term memory consolidation already done upstream is picked up — avoids redoing the work and avoids rebase conflicts on memory files.
-3. Memory: **docs/skill-only fast path → skip memory regardless (Phase 0); name any uncaptured learnings in the final report.** **Already run this session and nothing new worth remembering since → `SKIPPED (memory already run this session)`.** Otherwise judge whether this conversation produced anything worth remembering (see Phase 0). If yes, run the project's memory skill (`/yz-memory` or `/memory`) now — **memory must run before push** so any memory changes are included in this push. If memory files changed, commit them (new commit). If no, report `SKIPPED (nothing to remember)` and continue.
+3. Memory: **docs/skill-only fast path → skip memory regardless (Phase 0); name any uncaptured learnings in the final report.** **Already run this session and nothing new worth remembering since → `SKIPPED (memory already run this session)`.** Otherwise judge whether this conversation produced anything worth remembering (see Phase 0). If yes, run the project's memory skill (`/octo-memory` or `/memory`) now — **memory must run before push** so any memory changes are included in this push. If memory files changed, commit them (new commit). If no, report `SKIPPED (nothing to remember)` and continue.
 4. If CLAUDE.md defines a build command (ai-tool:build or similar), run it to verify the build passes.
 5. If the project uses a version field (package.json version, Cargo.toml version, etc.), bump the patch version. Use the Edit tool.
 6. If version was bumped, rebuild to verify, then stage the version files and amend into last commit with `git commit --amend --no-edit`.
