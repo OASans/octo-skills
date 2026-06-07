@@ -1,23 +1,25 @@
 ---
 name: memory-long-term
 description: >
-  Consolidate short-term memory into long-term. Auto-triggered once per day
-  at conversation start, or invoked manually. Promotes valuable knowledge
-  and deprecates stale topics.
+  Consolidate short-term memory into long-term knowledge skills. Auto-triggered
+  once per day at conversation start, or invoked manually. Promotes valuable
+  knowledge into `knowledge-*` skills and deprecates stale ones.
 ---
 
-Consolidate short-term memory into long-term. Auto-triggered once per day at conversation start, or invoked manually. This skill both promotes valuable knowledge and deprecates stale topics — keeping the long-term index lean enough to always read in full.
+Consolidate short-term memory into long-term. Auto-triggered once per day at conversation start, or invoked manually. This skill both promotes valuable knowledge and deprecates stale topics — keeping the auto-loaded knowledge set lean.
 
-**Hot-path note**: `ai_memory/long_term/index.md` is `@`-referenced from CLAUDE.md, so every index line costs context tokens in every session. Topic bodies are read on demand. Optimise for: short index descriptions, fewer-but-better topics, merge-into-existing over new-topic.
+Long-term lives as **project skills**: one topic per `.claude/skills/knowledge-<slug>/SKILL.md`, committed to the repo and shared with the team. Claude Code auto-loads every skill's `name` + `description` each session (that is the always-on "index") and loads a topic body only when the skill is invoked. There is **no** `index.md` and **no** CLAUDE.md `@`-import — the descriptions are the index.
+
+**Hot-path note**: every `knowledge-*` description is always in context (it shares the skill-listing budget), so each topic costs context every session. Bodies load on demand. Optimise for: tight descriptions, fewer-but-better topics, merge-into-existing over new-topic.
 
 ## Promotion criteria — ALL must pass
 
 1. **Reusable across tasks**: Applies to future work, not just the task that generated it.
 2. **Not obvious from code**: Reading the code alone wouldn't teach you this. Extension patterns, non-obvious dependencies, tricky ordering constraints qualify.
 3. **Still accurate**: Referenced files, functions, and patterns must exist right now. Verify with Grep/Glob before promoting.
-4. **Not already documented**: Check doc/, CLAUDE.md, and existing topics. If already captured, update the existing entry instead.
+4. **Not already documented**: Check doc/, CLAUDE.md, and existing `knowledge-*` skills. If already captured, update the existing one instead.
 
-**Default to merge, not new topic.** Each new topic adds one line to the always-loaded index. Before creating `topics/<new-slug>.md`, scan `index.md` for an existing topic the knowledge could extend — even a loose thematic match beats a near-duplicate sibling. New topic only when no existing one is a defensible home.
+**Default to merge, not new topic.** Each new topic adds another always-loaded description to the skill-listing budget. Before creating `knowledge-<new-slug>/`, scan existing `knowledge-*` for one the knowledge could extend — even a loose thematic match beats a near-duplicate sibling. New topic only when no existing one is a defensible home.
 
 ## What gets skipped (stays in short-term only)
 
@@ -32,7 +34,7 @@ A good topic answers two questions: **"What is this?"** and **"How should this c
 
 Each topic should include:
 - **What**: The core knowledge — what this is and why it matters.
-- **How to apply**: Concrete guidance on when and how future agents should use this knowledge. Without this, a topic is trivia — interesting but not actionable.
+- **How to apply**: Concrete guidance on when and how future agents should use this knowledge. Without this, a topic is trivia.
 - **Key files**: File paths relevant to this topic.
 
 Bad example (trivia):
@@ -41,13 +43,17 @@ Bad example (trivia):
 Good example (actionable):
 > "The scheduler runs every 30 minutes via node-cron. When adding new data sources, register them in src/scheduler/jobs.ts — don't create standalone cron entries. The scheduler handles retry logic and rate limiting centrally."
 
-## Topic file format
+## Topic = a knowledge skill
 
-Each topic file in `ai_memory/long_term/topics/<slug>.md` (max 60 lines):
+Each topic is a skill at `.claude/skills/knowledge-<slug>/SKILL.md` (project-level, committed):
 
 ```
-<!-- Last verified: YYYY-MM-DD, commit: <short-hash> -->
-<!-- Source: short_term/YYYY-MM-DD.md -->
+---
+name: knowledge-<slug>
+description: >
+  <trigger sentence — front-loaded keywords + when to load this; <=150 chars>
+user-invocable: false
+---
 
 # <Topic Title>
 
@@ -59,99 +65,84 @@ Each topic file in `ai_memory/long_term/topics/<slug>.md` (max 60 lines):
 
 ## Key Files
 <File paths relevant to this topic>
+
+<!-- Last verified: YYYY-MM-DD, commit: <short-hash> -->
 ```
 
-Adapt section names to the topic. No code snippets unless absolutely load-bearing.
+- `user-invocable: false` → Claude auto-loads it when relevant; it stays out of the user's slash menu.
+- The `description` is **both the trigger and the index line** — it is all the model sees until the skill loads. Use a `>` folded block (handles colons).
+- Body ≤60 lines. No code snippets unless the literal text is load-bearing; a `file.rs:NNN` anchor replaces them.
 
-## Be concise — memory consumes context
+### Writing the description (critical)
 
-The index is loaded into every session; topic files are read on demand. Both cost context tokens. Write the shortest content that still delivers the knowledge:
+The description is fuzzy-matched to decide whether to load the topic, and it is always in context. So:
+- **Front-load specific trigger keywords**, not generic framing. GOOD: "JSON logging — add per-agent log targets, span fields, new sinks; load when touching logging/tracing." BAD: "Helpful information about logging."
+- Keep it **≤150 chars**.
+- Add an **exclusion** when topics are adjacent: "...for log routing, NOT log querying (see knowledge-log-queries)."
 
-- **Index description**: one short sentence (≤80 chars), not a paragraph. The index is on the hot path of every session.
-- **Topic body**: aim for 20-30 lines; the 60-line cap is a hard ceiling, not a target. Cut hedges, background, and restatements.
-- File paths and function names beat prose. If a bullet list works, use bullets.
-- **No code blocks** unless the literal text is load-bearing (env var name, exact wire field name, escape sequence). A `file.rs:NNN` anchor replaces illustrative snippets.
+## Be concise — descriptions cost context
+
+Every `knowledge-*` description is always loaded; bodies load on demand. Both cost tokens.
+- **Description**: one tight trigger sentence (≤150 chars). It is on the hot path of every session.
+- **Body**: aim for 20–30 lines; 60-line hard cap. Cut hedges, background, restatements.
+- File paths and function names beat prose; use bullets where they work.
+- **No code blocks** unless the literal text is load-bearing (env var, wire field, escape sequence). A `file.rs:NNN` anchor replaces illustrative snippets.
 - Drop session/debugging narrative — the rule is the memory, not the path that found it.
-- If a topic can't be stated concisely in one sitting, it's probably two topics — split it. If two existing topics overlap, merge them and delete the loser.
+- If a topic cannot be stated concisely, it is probably two topics — split. If two overlap, merge and delete the loser.
 
 ## Steps
 
-This skill has two independent parts. **Always run Part A.** Run Part B only if today's consolidation hasn't been done yet.
+Consolidation is a **daily** pass, gated per machine. Promotion is criteria-based only — short-term is no longer loaded into sessions, so there is no "promote what I used this session" step.
 
-### Part A: Promote session-validated short-term entries (always run)
+### Resolve paths
 
-Short-term entries prove their value by being *used*. If an existing short-term entry (one that was already on disk before this session — NOT one you or `/memory-short-term` just wrote in this session) was consulted during this session and actually shaped the work, that's signal it deserves long-term promotion.
+```
+url=$(git remote get-url origin 2>/dev/null)
+key=${url##*/}; key=${key%.git}
+[ -n "$key" ] || { echo "ERROR: no git 'origin' remote; set one so memory can be keyed per project"; exit 1; }
+st="$HOME/.octo-memory/$key/short_term"      # local short-term buffer (read-only here)
+flag="$HOME/.octo-memory/$key/tracker.md"    # last_processed_date — per machine
+```
 
-1. Recall which existing short-term entries you read or referenced during this session. If none, skip to Part B.
-2. For each such entry:
-   - **Filter out newly-added entries**: Entries written during this session stay in short-term — they'll be evaluated during normal consolidation. This part is only for entries that pre-dated the session.
-   - Evaluate against the promotion criteria above (reusable / not obvious / still accurate / not already documented).
-   - If it passes: promote it now — create a new topic or merge into an existing one. Follow the same topic format and verification rules as Part B.
-   - If it fails: leave it in short-term untouched.
-3. Report which entries were evaluated and the outcome.
+### Gate (skip if already done today)
 
-### Part B: Daily consolidation (skip if already done today)
-
-1. Read `ai_memory/long_term/tracker.md` to find `last_processed_date`. Create tracker if missing.
-2. **If `last_processed_date` == today, skip Part B entirely** — consolidation has already happened for today. Report "consolidation already done today" and stop.
-3. Otherwise, proceed with Phases 1–3 below.
+1. Read `last_processed_date` from `$flag` (create `$flag` if missing).
+2. **If `last_processed_date` == today, stop** — consolidation already ran on this machine today. Report "already done today".
+3. Otherwise proceed.
 
 #### Phase 1: Promote new knowledge
 
-1. List files in `ai_memory/short_term/` newer than `last_processed_date`. If none, skip to Phase 2.
-2. **Context loading**: Read short-term files from the last 5 days (not just unprocessed ones). Already-processed entries provide context for writing better long-term topics. Only *promote* entries newer than `last_processed_date`.
-3. For each unprocessed `##` entry, classify:
-   - **New topic**: No existing long-term topic covers this. Create topic file + add index line.
-   - **Update existing**: Adds to an existing topic. Read the topic file, merge new info, update `Last verified`.
-   - **Ephemeral**: No lasting value. Skip.
-4. **Verify** each new/updated topic: Grep/Glob to confirm referenced files and functions still exist.
+1. List capture files under `$st/` in date folders newer than `last_processed_date` (`$st/YYYY-MM-DD/*.md`). If none, skip to Phase 2.
+2. **Context loading**: read the last ~5 days of captures (already-processed ones give context for better topics). Only *promote* entries newer than `last_processed_date`.
+3. For each `##` entry, classify against the promotion criteria:
+   - **New topic**: no existing `knowledge-*` covers it → create `.claude/skills/knowledge-<slug>/SKILL.md`.
+   - **Update existing**: extends an existing topic → read that skill, merge, bump `Last verified`.
+   - **Ephemeral**: no lasting value → skip.
+4. **Verify** each new/updated topic with Grep/Glob — referenced files/functions must exist.
 
 #### Phase 2: Staleness sweep
 
-Review every existing topic in the index. For each topic:
+Review every existing `.claude/skills/knowledge-*` skill:
+1. Read the skill body; identify its key references (files, functions, patterns).
+2. Grep/Glob each reference. If gone, one quick search for a rename/move.
+3. Check the pattern is still used, and that it is not now covered by doc/ or CLAUDE.md.
 
-1. **Read the topic file** and identify its key references (files, functions, patterns).
-2. **Grep/Glob** for each key reference. If a reference is gone, briefly search for renames/moves (one grep, not a deep dive).
-3. **Check if the pattern is still used**: If the topic describes an approach, verify the codebase still uses it.
-4. **Check for redundancy**: If doc/ or CLAUDE.md now covers this knowledge, the topic adds nothing.
+**Deprecate** (delete the `knowledge-<slug>/` folder) if ANY hold:
+- **Dead references**: key files/functions gone and not moved.
+- **Superseded**: the pattern was replaced.
+- **Documented elsewhere**: now fully covered in doc/, CLAUDE.md, or code.
+- **Absorbed**: merged into another topic.
 
-**Deprecate** (remove from index + delete topic file) if ANY of these are true:
-- **Dead references**: Key files/functions no longer exist and weren't moved — the code was deleted or rewritten.
-- **Superseded**: The pattern described has been replaced by a different approach in the codebase.
-- **Documented elsewhere**: Knowledge is now fully captured in doc/, CLAUDE.md, or code comments.
-- **Absorbed**: Content was merged into another topic during an earlier consolidation.
-
-If a topic is partially stale (some references dead, core knowledge still valid), update it instead of deprecating.
+If partially stale (some refs dead, core still valid), update instead of deleting.
 
 #### Phase 3: Finalize
 
-1. Update `tracker.md`: set `last_processed_date` to today, log what was processed. Keep only the last 10 log entries — delete older ones.
-2. **Update the `latest.md` symlink**: point `ai_memory/short_term/latest.md` at the most recent `YYYY-MM-DD.md` file in `ai_memory/short_term/` (by filename, not mtime). Use a **relative** symlink so it survives clones and path moves: `ln -sfn <YYYY-MM-DD>.md ai_memory/short_term/latest.md`. Skip if no dated short-term files exist. CLAUDE.md `@`-references this symlink so a session always has the previous day's memory loaded.
-3. Report summary: N entries processed, M new topics, K updates, J skipped, L deprecated (with reasons).
+1. Set `last_processed_date` to today in `$flag`; log what was processed (keep the last 10 log lines).
+2. Report: N entries processed, M new topics, K updates, J skipped, L deprecated (with reasons).
 
 ## Long-term operations reference
 
-**Add**: Create `topics/<slug>.md` + add `- [slug](topics/slug.md) -- description` to `index.md` under appropriate category.
-**Update**: Merge new info into existing topic file, bump `Last verified` date. Keep under 60 lines.
-**Delete**: Remove index line + delete topic file. Log reason in tracker.
-**Merge**: Combine related topics into one, delete originals, update index.
-
-## Index format
-
-`ai_memory/long_term/index.md` entries grouped by category:
-
-```
-# Long-Term Memory Index
-
-## Patterns
-- [slug](topics/slug.md) -- one sentence description
-
-## Architecture
-- [slug](topics/slug.md) -- one sentence description
-
-## Debugging
-- [slug](topics/slug.md) -- one sentence description
-
-## Workflow
-- [slug](topics/slug.md) -- one sentence description
-```
+- **Add**: create `.claude/skills/knowledge-<slug>/SKILL.md` (frontmatter + body). Its description joins the auto-loaded index automatically — nothing else to edit.
+- **Update**: merge into the existing skill body, bump `Last verified`. Keep ≤60 lines.
+- **Delete**: remove the `knowledge-<slug>/` folder.
+- **Merge**: fold related topics into one skill, delete the others.

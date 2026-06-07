@@ -20,7 +20,11 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ## Memory
 
-**Ignore the default Claude Code memory system.** Use the `/yz-memory` skill for all memory operations (it orchestrates `/memory-short-term` capture and `/memory-long-term` consolidation). Two-tier layout per project under `ai_memory/`: long-term topics indexed by `ai_memory/long_term/index.md`; short-term daily notes in `ai_memory/short_term/`, with `latest.md` a symlink to the most recent day (refreshed by `/memory-long-term`). Auto-loading is via each project's own CLAUDE.md `@`-importing the index and latest short-term — those import lines stay project-local, since the paths resolve against the project root, not this file.
+**Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use the `/yz-memory` skill for all memory operations (it orchestrates `/memory-short-term` capture and `/memory-long-term` consolidation).
+
+- **Long-term** — one topic per `.claude/skills/knowledge-<slug>/SKILL.md`, committed and team-shared. Claude Code auto-loads each skill's description (the index) and loads a body on demand — so there's **no `index.md` and no CLAUDE.md `@`-import**; it just loads.
+- **Short-term** — a local buffer at `~/.octo-memory/<repo>/short_term/` (`<repo>` from `git remote get-url origin`), shared across that repo's checkouts on one machine. Never committed, **not loaded into context**; it's only consolidation input, and losing it is fine.
+- **Consolidation** — once per day per machine (flag at `~/.octo-memory/<repo>/tracker.md`): `/memory-long-term` promotes valuable short-term into `knowledge-*` skills and prunes stale ones.
 
 ## Workflow
 

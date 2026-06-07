@@ -6,7 +6,7 @@ description: >
   separately via `/memory-long-term`.
 ---
 
-Write reusable knowledge to today's short-term memory file. Low barrier — write often. This is the capture step; consolidation into long-term happens separately via `/memory-long-term`.
+Write reusable knowledge to the project's short-term memory — a **local** capture buffer in a per-project home store (never committed, not loaded into any session's context). Low barrier — write often. This is the capture step; `/memory-long-term` later reads it to consolidate the valuable parts into long-term.
 
 ## When to write
 
@@ -35,10 +35,18 @@ Write reusable knowledge to today's short-term memory file. Low barrier — writ
 
 ## Steps
 
-1. Determine today's date and the target file: `ai_memory/short_term/YYYY-MM-DD.md`
-2. If `ai_memory/short_term/` does not exist, create it: `mkdir -p ai_memory/short_term`
-3. If today's file does not exist, create it.
-4. Append a new entry using this format:
+Short-term lives in a **per-project home store**, shared across every checkout of this repo on this machine and **never committed**. Resolve the location first (errors if there's no `origin` remote — fix that first, the store must be keyed per project):
+
+```
+url=$(git remote get-url origin 2>/dev/null)
+key=${url##*/}; key=${key%.git}
+[ -n "$key" ] || { echo "ERROR: no git 'origin' remote; set one (git remote add origin <url>) so memory can be keyed per project"; exit 1; }
+dir="$HOME/.octo-memory/$key/short_term/$(date +%F)"
+mkdir -p "$dir"
+```
+
+1. Write each capture to a **new, uniquely-named file** in `$dir` (e.g. `$dir/$(date +%H%M%S)-$$-$RANDOM.md`). One file per capture means concurrent agents in sibling checkouts never clobber each other — no locks needed.
+2. Use the entry format below. If you capture several related things this session, reuse the file you just created (its path is in your context) and append more `## <topic>` blocks to it.
 
 ```
 ## <Topic Title>
@@ -47,12 +55,11 @@ Write reusable knowledge to today's short-term memory file. Low barrier — writ
 Keep it concise but complete enough to be useful months later.>
 ```
 
-5. Each entry starts with `## <topic>` on its own line. No YAML, no metadata. Just knowledge.
-6. Multiple entries per day are fine — append to the same file.
+3. Each entry starts with `## <topic>` on its own line. No YAML, no metadata. Just knowledge.
 
-## Be concise — memory consumes context
+## Be concise
 
-Today's short-term file is `@`-referenced from CLAUDE.md, so every line lands in every future session. **Compress aggressively.** Aim for **≤1 line per fact**. A productive day legitimately produces more entries — that's fine; what's not fine is one entry that bloats to 15 lines because the writer leaned on a four-paragraph template.
+Short-term is **not** loaded into sessions — `/memory-long-term` reads it once at consolidation. So compress for *signal*, not context budget: aim for **≤1 line per fact**. A productive day legitimately produces more entries — that's fine; what's not fine is one entry that bloats to 15 lines because the writer leaned on a four-paragraph template. Tight entries consolidate cleanly; bloated ones bury the rule.
 
 ### Entry shape
 
@@ -81,7 +88,7 @@ Skip the **Symptom: / Cause: / Fix:** scaffold — it implies four paragraphs an
 - Drop narrative ("we tried…, then realized…", "Agent B traced…", "Phase A shipped with…") — keep only the conclusion.
 - Drop framing-word subsections: **Symptom:**, **Cause:**, **Fix:**, **Subtleties:**, **Verified on:**, **Drive-by:**, **Tests:**. Fold any load-bearing detail into prose; drop the rest. One `**Rule:**` line at the end is fine; don't sprinkle three.
 - No restatement of the task that produced the memory.
-- **Merge, don't multiply**: if the new insight extends a topic already written today, edit that entry instead of appending a new `##` header. Three entries on the same streaming-Whisper subsystem belong under one heading.
+- **Merge within your session**: if several insights this session relate, append them under one `##` heading in the capture file you already created rather than spawning many files. Cross-session dedup is `/memory-long-term`'s job.
 
 ### Before / after
 
