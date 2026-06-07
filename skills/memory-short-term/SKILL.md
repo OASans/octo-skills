@@ -1,9 +1,9 @@
 ---
 name: memory-short-term
 description: >
-  Write reusable knowledge to today's short-term memory file. Low barrier —
-  write often. This is the capture step; consolidation into long-term happens
-  separately via `/memory-long-term`.
+  Write reusable knowledge to the project's short-term memory — a local,
+  uncommitted capture buffer. Low barrier, write often. This is the capture
+  step; `/memory-long-term` consolidates it into long-term separately.
 ---
 
 Write reusable knowledge to the project's short-term memory — a **local** capture buffer in a per-project home store (never committed, not loaded into any session's context). Low barrier — write often. This is the capture step; `/memory-long-term` later reads it to consolidate the valuable parts into long-term.
