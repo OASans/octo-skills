@@ -25,6 +25,17 @@ echo "Installing shared Claude config to: $CLAUDE_DIR"
 # Ensure target directories exist
 mkdir -p "$CLAUDE_DIR/skills"
 
+# Prune skills that are no longer in this package, so the global skills dir
+# mirrors this package EXACTLY: a skill removed here is removed there on install.
+for installed_dir in "$CLAUDE_DIR/skills"/*/; do
+    [ -d "$installed_dir" ] || continue   # no-match glob; nothing installed yet
+    installed_name="$(basename "$installed_dir")"
+    if [ ! -d "$SCRIPT_DIR/skills/$installed_name" ]; then
+        rm -rf "$installed_dir"
+        echo "  Removed stale skill: $installed_name"
+    fi
+done
+
 # Copy skills (each skill is a directory with SKILL.md and optional supporting files)
 for skill_dir in "$SCRIPT_DIR/skills"/*/; do
     skill_name="$(basename "$skill_dir")"
