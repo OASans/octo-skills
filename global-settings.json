@@ -23,8 +23,7 @@
       "WebFetch",
       "WebSearch",
       "Skill(*)",
-      "Read(~/.cargo/**)",
-      "Read(~/.octo-code/**)"
+      "Read"
     ],
     "ask": [
       "Bash(sudo *)"
