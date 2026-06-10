@@ -21,7 +21,6 @@ Shared Claude Code skills, available in ALL projects once installed.
 | `/octo-memory` | Memory | Two-tier memory system orchestrator (short-term + long-term) |
 | `/octo-memory-short-term` | Memory | Capture daily learnings to short-term memory |
 | `/octo-memory-long-term` | Memory | Consolidate short-term into long-term topics |
-| `/octo-share-image` | Integration | Share an image to the OctoCode Slack channel via media bridge |
 
 ## Skill Relationships
 
