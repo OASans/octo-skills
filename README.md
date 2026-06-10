@@ -24,15 +24,15 @@ git pull
 
 | Skill | Description |
 |-------|-------------|
-| `/coding-guide` | Shared coding guide — source of truth for code quality standards |
-| `/review` | Code review with 3 parallel sub-agents (consumes `/coding-guide`) |
+| `/octo-coding-guide` | Shared coding guide — source of truth for code quality standards |
+| `/octo-review` | Code review with 3 parallel sub-agents (consumes `/octo-coding-guide`) |
 | `/design` | Feature design spec generator |
 | `/octo-commit` | Primary commit path: verify the CLAUDE.md workflow, then write a meaningful + compact commit (never pushes) |
 | `/push` | Push committed work to remote: sync, then push (commit with `/octo-commit` first) |
 | `/pull` | Pull and sync with remote |
 | `/octo-memory` | Two-tier memory system orchestrator (short-term + long-term) |
-| `/memory-short-term` | Capture daily learnings to short-term memory |
-| `/memory-long-term` | Consolidate short-term into long-term topics |
+| `/octo-memory-short-term` | Capture daily learnings to short-term memory |
+| `/octo-memory-long-term` | Consolidate short-term into long-term topics |
 
 ### Settings (`~/.claude/settings.json`)
 

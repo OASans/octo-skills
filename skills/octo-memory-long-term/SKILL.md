@@ -1,5 +1,5 @@
 ---
-name: memory-long-term
+name: octo-memory-long-term
 description: >
   Consolidate short-term memory into long-term knowledge skills. Auto-triggered
   once per day at conversation start, or invoked manually. Promotes valuable

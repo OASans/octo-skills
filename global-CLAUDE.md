@@ -6,7 +6,7 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ### Before start
 - If the session-start context shows "GIT PULL FAILED", fix the git state before anything else (ask first if resolution could lose commits).
-- ALWAYS read `/coding-guide` (or the project's equivalent skills) before planning or coding.
+- ALWAYS read `/octo-coding-guide` (or the project's equivalent skills) before planning or coding.
 
 ### During dev
 - Branch discipline — NEVER create a branch or open a PR; you're the only worker in this checkout, so commit directly on the default branch (`main`/`master`).
@@ -20,18 +20,18 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ## Memory
 
-**Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use the `/octo-memory` skill for all memory operations (it orchestrates `/memory-short-term` capture and `/memory-long-term` consolidation).
+**Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use the `/octo-memory` skill for all memory operations (it orchestrates `/octo-memory-short-term` capture and `/octo-memory-long-term` consolidation).
 
 - **Long-term** — one topic per `.claude/skills/knowledge-<slug>/SKILL.md`, committed and team-shared. Claude Code auto-loads each skill's description (the index) and loads a body on demand — so there's **no `index.md` and no CLAUDE.md `@`-import**; it just loads.
 - **Short-term** — a local buffer at `~/.octo-memory/<repo>/short_term/` (`<repo>` from `git remote get-url origin`), shared across that repo's checkouts on one machine. Never committed, **not loaded into context**; it's only consolidation input, and losing it is fine.
-- **Consolidation** — once per day per machine (flag at `~/.octo-memory/<repo>/tracker.md`): `/memory-long-term` promotes valuable short-term into `knowledge-*` skills and prunes stale ones.
+- **Consolidation** — once per day per machine (flag at `~/.octo-memory/<repo>/tracker.md`): `/octo-memory-long-term` promotes valuable short-term into `knowledge-*` skills and prunes stale ones.
 
 ## Workflow
 
 A project may have its own workflow — follow it. These are additional steps that MUST be done for every change (project-specific build/test/lint commands and extra gates like E2E live in the project's CLAUDE.md, not here):
 
 1. `git pull` first — start from a clean, synced tree (session-start auto-pull may have done this; confirm).
-2. `/review` — once unit tests pass and build/lint are green, run `/review` ONCE per session (repeat review isn't useful), then fix its findings.
-3. `/octo-memory` — after `/review` findings are fixed and everything's green, update memory.
+2. `/octo-review` — once unit tests pass and build/lint are green, run `/octo-review` ONCE per session (repeat review isn't useful), then fix its findings.
+3. `/octo-memory` — after `/octo-review` findings are fixed and everything's green, update memory.
 
 Land the change with `/octo-commit` — it verifies this list was followed, writes the commit, and pulls to resolve conflicts. It never pushes; push separately with `/push` when you're ready to share (usually rarer than committing).

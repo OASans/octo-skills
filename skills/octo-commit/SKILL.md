@@ -44,7 +44,8 @@ Triage decides only which steps are **required** vs **validly skippable** — it
 
 For each step, self-assess from **this session's** evidence whether it was followed **for the current change**:
 
-- A step that already ran this session counts **only if no material code changed after it**. If code changed since (e.g. `/review` ran, then you edited more), the step is **stale** — it counts as not-followed for the delta.
+- **`/octo-review` and `/octo-memory` are once-per-session steps** — run each at most once per session (repeat runs aren't useful). One run this session is all this gate looks for; don't re-run them just to tick the box.
+- A step that already ran this session counts **only if no material code changed after it**. If code changed since (e.g. `/octo-review` ran, then you edited more), the step is **stale** — it counts as not-followed for the delta.
 - A valid triage skip (review on a docs/skill-only or simple change) counts as followed; report the reason.
 - Memory (`/octo-memory`) is required only if the conversation produced something worth remembering — judge honestly. Nothing to remember → followed (report `SKIPPED (nothing to remember)`).
 

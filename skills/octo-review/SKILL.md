@@ -1,5 +1,5 @@
 ---
-name: review
+name: octo-review
 description: >
   Code review. Spawns parallel read-only sub-agents that independently review
   from different perspectives. Use when the user asks for a code review, or
@@ -10,11 +10,11 @@ Code review. Spawns parallel read-only sub-agents that independently collect the
 
 Designed for use by both humans and AI agents. Run this at the end of any coding workflow before committing.
 
-**The coding guide drives the fan-out.** Each `##` major section in `/coding-guide` is one review domain reviewed by one dedicated sub-agent. The number of agents tracks the guide: add a `##` section there and this skill spawns one more agent automatically, with no edit here. Each agent reviews **only** its assigned section, so domains are partitioned with no overlap.
+**The coding guide drives the fan-out.** Each `##` major section in `/octo-coding-guide` is one review domain reviewed by one dedicated sub-agent. The number of agents tracks the guide: add a `##` section there and this skill spawns one more agent automatically, with no edit here. Each agent reviews **only** its assigned section, so domains are partitioned with no overlap.
 
 ## Steps
 
-1. **Determine the review domains.** Run `/coding-guide` and list its top-level `##` section headings — ignore the `# Coding Guide` title and every `###` sub-heading. Each `##` section is one review domain. Before spawning, the main agent does **only** this read plus the file-name detection in Step 2 — do **not** collect the full diff or read project files yourself; the sub-agents do all of that.
+1. **Determine the review domains.** Run `/octo-coding-guide` and list its top-level `##` section headings — ignore the `# Coding Guide` title and every `###` sub-heading. Each `##` section is one review domain. Before spawning, the main agent does **only** this read plus the file-name detection in Step 2 — do **not** collect the full diff or read project files yourself; the sub-agents do all of that.
 
 2. **Detect changed files; skip if documentation-only.** List changed paths only — *not* diff content — with `git diff --name-only` and `git diff --cached --name-only`.
 
@@ -32,7 +32,7 @@ Designed for use by both humans and AI agents. Run this at the end of any coding
 
    > You are a code reviewer. You are READ-ONLY — never modify code. Perform these steps in order:
    >
-   > 1. Run `/coding-guide` to load the shared coding guide. Also check CLAUDE.md for any additional project-level coding guide and read that too if found.
+   > 1. Run `/octo-coding-guide` to load the shared coding guide. Also check CLAUDE.md for any additional project-level coding guide and read that too if found.
    > 2. Your review criteria are **only the rules under your assigned `##` section** (given to you below) — including every `###` group and bullet within it. Do not review against other sections; another agent owns each of those. If a project-level CLAUDE.md adds rules that fall in your domain, include those too. If no coding guide exists, fall back to general software engineering best practices for your domain only.
    > 3. Collect all uncommitted changes by running: `git diff` (unstaged) and `git diff --cached` (staged). If both are empty, return: "Nothing to review." and stop.
    > 4. Read each changed file in full to understand surrounding context (not just the diff hunks).

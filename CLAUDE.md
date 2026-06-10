@@ -13,23 +13,23 @@ Shared Claude Code skills, available in ALL projects once installed.
 
 | Skill | Type | Description |
 |-------|------|-------------|
-| `/coding-guide` | Reference | Shared coding guide — source of truth for code quality standards |
-| `/review` | Workflow | Code review; one parallel sub-agent per `/coding-guide` major section. Consumes `/coding-guide` |
+| `/octo-coding-guide` | Reference | Shared coding guide — source of truth for code quality standards |
+| `/octo-review` | Workflow | Code review; one parallel sub-agent per `/octo-coding-guide` major section. Consumes `/octo-coding-guide` |
 | `/octo-commit` | Workflow | Primary commit path: verify the CLAUDE.md workflow was followed, then write a meaningful + compact commit. Never pushes |
 | `/push` | Workflow | Push committed work to remote: sync, then push. Commit with `/octo-commit` first |
 | `/pull` | Workflow | Pull and sync with remote |
 | `/octo-memory` | Memory | Two-tier memory system orchestrator (short-term + long-term) |
-| `/memory-short-term` | Memory | Capture daily learnings to short-term memory |
-| `/memory-long-term` | Memory | Consolidate short-term into long-term topics |
+| `/octo-memory-short-term` | Memory | Capture daily learnings to short-term memory |
+| `/octo-memory-long-term` | Memory | Consolidate short-term into long-term topics |
 | `/octo-share-image` | Integration | Share an image to the OctoCode Slack channel via media bridge |
 
 ## Skill Relationships
 
-- `/coding-guide` is a shared reference consumed by `/review`. When the coding guide changes, `/review` picks up the new version automatically.
-- `/review` is **structure-driven by `/coding-guide`**: each `##` major section is one review domain reviewed by one dedicated sub-agent (criteria partitioned, no overlap). Adding a `##` section to the coding guide adds a review agent with no edit to `/review`. Keep `##` sections coherent and their `*Review focus:*` line accurate.
-- `/octo-commit` is **structure-driven by CLAUDE.md's `## Workflow`**: it verifies every workflow step (e.g. `/review`, `/octo-memory`) was followed before committing, and stops + hands back if one was skipped. Add a step to the workflow and `/octo-commit` enforces it with no edit here. It is the primary commit path and never pushes.
+- `/octo-coding-guide` is a shared reference consumed by `/octo-review`. When the coding guide changes, `/octo-review` picks up the new version automatically.
+- `/octo-review` is **structure-driven by `/octo-coding-guide`**: each `##` major section is one review domain reviewed by one dedicated sub-agent (criteria partitioned, no overlap). Adding a `##` section to the coding guide adds a review agent with no edit to `/octo-review`. Keep `##` sections coherent and their `*Review focus:*` line accurate.
+- `/octo-commit` is **structure-driven by CLAUDE.md's `## Workflow`**: it verifies every workflow step (e.g. `/octo-review`, `/octo-memory`) was followed before committing, and stops + hands back if one was skipped. Add a step to the workflow and `/octo-commit` enforces it with no edit here. It is the primary commit path and never pushes.
 - `/push` is the separate, rarer push step: it syncs and pushes already-committed work, and sends you to `/octo-commit` if the tree isn't a clean set of gated commits.
-- `/octo-memory` orchestrates `/memory-short-term` and `/memory-long-term`.
+- `/octo-memory` orchestrates `/octo-memory-short-term` and `/octo-memory-long-term`.
 
 ## Editing Skills
 

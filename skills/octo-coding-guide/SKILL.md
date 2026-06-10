@@ -1,5 +1,5 @@
 ---
-name: coding-guide
+name: octo-coding-guide
 description: >
   Print the shared coding guide. Inline skill — no sub-agents. Use as a
   reference for code reviews, implementation decisions, and plan evaluation.
@@ -8,9 +8,9 @@ description: >
 # Coding Guide
 
 > **Structure contract.** Each `##` section below is a *review domain*. The
-> `/review` skill spawns exactly one parallel sub-agent per `##` section, and
+> `/octo-review` skill spawns exactly one parallel sub-agent per `##` section, and
 > that agent reviews the diff **only** against the rules in its section. Add a
-> `##` section here and `/review` automatically gains an agent — no edit to the
+> `##` section here and `/octo-review` automatically gains an agent — no edit to the
 > review skill is needed. `###` headings are rule groups within a domain. Keep
 > every domain to one coherent focus so its agent stays sharp, and keep the
 > `*Review focus:*` line accurate — it is the agent's mission statement.
