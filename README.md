@@ -29,8 +29,8 @@ git pull
 | `/design` | Feature design spec generator |
 | `/octo-commit` | Primary commit path: verify the CLAUDE.md workflow, then write a meaningful + compact commit (never pushes) |
 | `/octo-memory` | Two-tier memory system orchestrator (short-term + long-term) |
-| `/octo-memory-short-term` | Capture daily learnings to short-term memory |
-| `/octo-memory-long-term` | Consolidate short-term into long-term topics |
+| `octo-memory-short-term` | Internal sub-step of `/octo-memory` — append one capture to short-term |
+| `octo-memory-long-term` | Internal sub-step of `/octo-memory` — consolidate short-term into long-term |
 
 ### Settings (`~/.claude/settings.json`)
 

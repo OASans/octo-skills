@@ -1,12 +1,12 @@
 ---
 name: octo-memory-short-term
 description: >
-  Write reusable knowledge to the project's short-term memory — a local,
-  uncommitted capture buffer. Low barrier, write often. This is the capture
-  step; `/octo-memory-long-term` consolidates it into long-term separately.
+  Sub-step of `/octo-memory`: append one capture to the local short-term
+  buffer. Driven by the orchestrator — run `/octo-memory`, not this directly.
+user-invocable: false
 ---
 
-Write reusable knowledge to the project's short-term memory — a **local** capture buffer in a per-project home store (never committed, not loaded into any session's context). Low barrier — write often. This is the capture step; `/octo-memory-long-term` later reads it to consolidate the valuable parts into long-term.
+Write reusable knowledge to the project's short-term memory — a **local** capture buffer in a per-project home store (never committed, not loaded into any session's context). Low barrier — write often. This is the capture step; `octo-memory-long-term` later reads it to consolidate the valuable parts into long-term.
 
 ## When to write
 
@@ -59,7 +59,7 @@ Keep it concise but complete enough to be useful months later.>
 
 ## Be concise
 
-Short-term is **not** loaded into sessions — `/octo-memory-long-term` reads it once at consolidation. So compress for *signal*, not context budget: aim for **≤1 line per fact**. A productive day legitimately produces more entries — that's fine; what's not fine is one entry that bloats to 15 lines because the writer leaned on a four-paragraph template. Tight entries consolidate cleanly; bloated ones bury the rule.
+Short-term is **not** loaded into sessions — `octo-memory-long-term` reads it once at consolidation. So compress for *signal*, not context budget: aim for **≤1 line per fact**. A productive day legitimately produces more entries — that's fine; what's not fine is one entry that bloats to 15 lines because the writer leaned on a four-paragraph template. Tight entries consolidate cleanly; bloated ones bury the rule.
 
 ### Entry shape
 
@@ -88,7 +88,7 @@ Skip the **Symptom: / Cause: / Fix:** scaffold — it implies four paragraphs an
 - Drop narrative ("we tried…, then realized…", "Agent B traced…", "Phase A shipped with…") — keep only the conclusion.
 - Drop framing-word subsections: **Symptom:**, **Cause:**, **Fix:**, **Subtleties:**, **Verified on:**, **Drive-by:**, **Tests:**. Fold any load-bearing detail into prose; drop the rest. One `**Rule:**` line at the end is fine; don't sprinkle three.
 - No restatement of the task that produced the memory.
-- **Merge within your session**: if several insights this session relate, append them under one `##` heading in the capture file you already created rather than spawning many files. Cross-session dedup is `/octo-memory-long-term`'s job.
+- **Merge within your session**: if several insights this session relate, append them under one `##` heading in the capture file you already created rather than spawning many files. Cross-session dedup is `octo-memory-long-term`'s job.
 
 ### Before / after
 

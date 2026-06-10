@@ -1,12 +1,13 @@
 ---
 name: octo-memory-long-term
 description: >
-  Consolidate short-term memory into long-term knowledge skills. Auto-triggered
-  once per day at conversation start, or invoked manually. Promotes valuable
-  knowledge into `knowledge-*` skills and deprecates stale ones.
+  Sub-step of `/octo-memory`: the daily consolidation pass that promotes
+  short-term captures into `knowledge-*` skills and prunes stale ones. Gated
+  and driven by the orchestrator.
+user-invocable: false
 ---
 
-Consolidate short-term memory into long-term. Auto-triggered once per day at conversation start, or invoked manually. This skill both promotes valuable knowledge and deprecates stale topics — keeping the auto-loaded knowledge set lean.
+Consolidate short-term memory into long-term. `/octo-memory` runs this once per day via its consolidation gate (`consolidation-due.sh`); it is not invoked on its own. This skill both promotes valuable knowledge and deprecates stale topics — keeping the auto-loaded knowledge set lean.
 
 Long-term lives as **project skills**: one topic per `.claude/skills/knowledge-<slug>/SKILL.md`, committed to the repo and shared with the team. Claude Code auto-loads every skill's `name` + `description` each session (that is the always-on "index") and loads a topic body only when the skill is invoked. There is **no** `index.md` and **no** CLAUDE.md `@`-import — the descriptions are the index.
 
@@ -137,8 +138,8 @@ If partially stale (some refs dead, core still valid), update instead of deletin
 
 #### Phase 3: Finalize
 
-1. Set `last_processed_date` to today in `$flag`; log what was processed (keep the last 10 log lines).
-2. Report: N entries processed, M new topics, K updates, J skipped, L deprecated (with reasons).
+1. Stamp the watermark: `bash ~/.claude/skills/octo-memory/mark-consolidated.sh` — it writes `last_processed_date: <today>` (the file's only line). No model writes the tracker by hand.
+2. Report **in-session** (not to the file): N entries processed, M new topics, K updates, J skipped, L deprecated (with reasons).
 
 ## Long-term operations reference
 

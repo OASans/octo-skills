@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Tells whether daily long-term consolidation needs to run for the CURRENT repo.
-#   exit 1 + "DUE ..."   -> run /octo-memory-long-term
+#   exit 1 + "DUE ..."   -> run octo-memory-long-term
 #   exit 0 + "DONE ..."  -> already consolidated today; skip
 #   exit 2 + "ERROR ..." -> no 'origin' remote (memory can't be keyed per project)
-# Cheap on purpose: lets the orchestrator skip loading the heavy /octo-memory-long-term
+# Cheap on purpose: lets the orchestrator skip loading the heavy octo-memory-long-term
 # skill on the ~every session where consolidation already ran today.
 
 url=$(git remote get-url origin 2>/dev/null)
