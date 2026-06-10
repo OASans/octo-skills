@@ -33,3 +33,5 @@ A project may have its own workflow — follow it. These are additional steps th
 1. `git pull` first — start from a clean, synced tree (session-start auto-pull may have done this; confirm).
 2. `/review` — once unit tests pass and build/lint are green, run `/review` ONCE per session (repeat review isn't useful), then fix its findings.
 3. `/octo-memory` — after `/review` findings are fixed and everything's green, update memory.
+
+Land the change with `/octo-commit` — it verifies this list was followed, writes the commit, and pulls to resolve conflicts. It never pushes; push separately with `/push` when you're ready to share (usually rarer than committing).

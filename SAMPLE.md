@@ -39,7 +39,7 @@ Expansion is on request: stop at the resolution; do NOT append "want me to elabo
 
 Closure (task done): outcome + identifier (SHA/version) + gate/memory status + anything needing attention; nothing re-enumerated; one message, at the end only.
 
-Process narration — the harness shows tool calls; don't narrate what it shows: NO tool-call preamble ("Now I'll… / Let me… / Time to…"), NO standing-workflow checklist recitation (§Workflow steps as DONE/NOT-DONE), NO mid-stream "now summarizing" / progress commentary. Two carve-outs (user-read, keep): (1) a genuine deviation/failure/result — surface it WHEN it happens, never swallow it; (2) a one-clause heads-up at an interruptible judgment call ("going with X over Y — proceeding"). Long autonomous runs (yz-batch / multi-phase): zero progress narration by default; only these two.
+Process narration — the harness shows tool calls; don't narrate what it shows: NO tool-call preamble ("Now I'll… / Let me… / Time to…"), NO standing-workflow checklist recitation (§Workflow steps as DONE/NOT-DONE), NO mid-stream "now summarizing" / progress commentary. Two carve-outs (user-read, keep): (1) a genuine deviation/failure/result — surface it WHEN it happens, never swallow it; (2) a one-clause heads-up at an interruptible judgment call ("going with X over Y — proceeding"). Long autonomous runs (multi-phase): zero progress narration by default; only these two.
 
 ## AI Tools
 

@@ -26,12 +26,10 @@ git pull
 |-------|-------------|
 | `/coding-guide` | Shared coding guide — source of truth for code quality standards |
 | `/review` | Code review with 3 parallel sub-agents (consumes `/coding-guide`) |
-| `/plan-refactor` | Analyze codebase, refresh refactoring backlog (consumes `/coding-guide`) |
 | `/design` | Feature design spec generator |
-| `/push` | Push workflow with pre-flight checklist |
+| `/octo-commit` | Primary commit path: verify the CLAUDE.md workflow, then write a meaningful + compact commit (never pushes) |
+| `/push` | Push committed work to remote: sync, then push (commit with `/octo-commit` first) |
 | `/pull` | Pull and sync with remote |
-| `/commit-for-batch` | Commit for batch subagents (internal, used by `/yz-batch`) |
-| `/yz-batch` | Execute tasks from a tracker file via sequential subagents |
 | `/octo-memory` | Two-tier memory system orchestrator (short-term + long-term) |
 | `/memory-short-term` | Capture daily learnings to short-term memory |
 | `/memory-long-term` | Consolidate short-term into long-term topics |
