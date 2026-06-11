@@ -49,18 +49,33 @@ for skill_dir in "$SCRIPT_DIR/skills"/*/; do
     echo "  Installed skill: $skill_name"
 done
 
-# Merge settings: copy global-settings.json as settings.json if it doesn't exist,
-# otherwise show a diff so the user can decide
+# Merge settings: install global-settings.json as settings.json, substituting the
+# /__HOME__ path placeholder with the real home dir (same install-or-overwrite
+# behavior as the global-CLAUDE.md block below).
+#
+# Why the placeholder: Claude Code permission allow-rule paths are matched
+# literally by picomatch and do NOT expand ~, and a single leading / is
+# project-root-relative (not the filesystem root). So an out-of-tree allow path
+# like the ~/.octo-memory memory store must be an absolute path with a // prefix
+# (// => absolute, then Claude Code strips one slash). global-settings.json keeps
+# it portable as /__HOME__/... — $HOME already starts with /, so the expansion
+# yields the required //home/... double-slash form. The substitution uses bash
+# parameter expansion; patsub_replacement is disabled first so a literal & (or |,
+# \) in $HOME is kept verbatim instead of meaning "the matched text" (bash 5.0+) —
+# the sed equivalent would mis-expand & and break on a | delimiter.
 if [ -f "$SCRIPT_DIR/global-settings.json" ]; then
     target_settings="$CLAUDE_DIR/settings.json"
+    settings_src="$(cat "$SCRIPT_DIR/global-settings.json")"
+    shopt -u patsub_replacement 2>/dev/null || true
+    rendered_settings="${settings_src//__HOME__/$HOME}"
     if [ ! -f "$target_settings" ]; then
-        cp "$SCRIPT_DIR/global-settings.json" "$target_settings"
+        printf '%s\n' "$rendered_settings" > "$target_settings"
         echo "  Installed settings.json (new)"
     else
-        if diff -q "$SCRIPT_DIR/global-settings.json" "$target_settings" > /dev/null 2>&1; then
+        if [ "$rendered_settings" = "$(cat "$target_settings")" ]; then
             echo "  Settings unchanged"
         else
-            cp "$SCRIPT_DIR/global-settings.json" "$target_settings"
+            printf '%s\n' "$rendered_settings" > "$target_settings"
             echo "  Updated settings.json"
         fi
     fi

@@ -27,7 +27,12 @@
       "Read",
       "Edit(/**)",
       "Write(/**)",
-      "Write(~/.octo-memory/**)"
+      "Edit(/__HOME__/.octo-memory/**)",
+      "Write(/__HOME__/.octo-memory/**)",
+      "Edit(//tmp/**)",
+      "Write(//tmp/**)",
+      "Edit(//var/tmp/**)",
+      "Write(//var/tmp/**)"
     ],
     "ask": [
       "Bash(sudo *)"
