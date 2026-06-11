@@ -15,7 +15,8 @@
     "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "500000"
   },
   "additionalDirectories": [
-    "~/.cargo"
+    "~/.cargo",
+    "~/.octo-memory"
   ],
   "permissions": {
     "allow": [
@@ -23,7 +24,10 @@
       "WebFetch",
       "WebSearch",
       "Skill(*)",
-      "Read"
+      "Read",
+      "Edit(/**)",
+      "Write(/**)",
+      "Write(~/.octo-memory/**)"
     ],
     "ask": [
       "Bash(sudo *)"
