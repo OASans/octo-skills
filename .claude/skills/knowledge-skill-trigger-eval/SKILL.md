@@ -18,8 +18,9 @@ Measuring whether a skill's description triggers (skill-creator `run_eval.py` / 
 - For a real number: run with a long `--timeout` (~150s) and low `--num-workers` (3-4). Faster: skip the harness and read one `claude -p` trace — if the first tool is `Skill`, it triggers.
 - During the eval, move the installed same-name skill aside (`mv ~/.claude/skills/<name>` away, trap-restore on exit) so it can't out-compete the proxy.
 - Gate/commit-type skills are hard to measure this way (Claude can often act directly); a single qualitative trace beats a noisy harness pass.
+- **Skill families:** eval triggering only on the user-invocable entrypoint (the orchestrator). Internal `user-invocable: false` sub-skills are invoked by name, not user phrasing, so a "does it fire" eval is the wrong test — judge them on description clarity, and give each a bland "sub-step of /X, driven by the orchestrator" lead so it doesn't compete with the orchestrator for the trigger.
 
 ## Key Files
 - skill-creator plugin: `scripts/run_eval.py`, `scripts/run_loop.py`
 
-<!-- Last verified: 2026-06-10, commit: 656045f -->
+<!-- Last verified: 2026-06-11, commit: 1a76995 -->
