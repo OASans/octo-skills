@@ -6,7 +6,7 @@ description: >
 user-invocable: false
 ---
 
-Write reusable knowledge to the project's short-term memory — a **local** capture buffer in a per-project home store (never committed, not loaded into any session's context). Low barrier — write often. This is the capture step; `octo-memory-long-term` later reads it to consolidate the valuable parts into long-term.
+Write reusable knowledge to the project's short-term memory — a **local** capture buffer in a per-project home store (never committed, not loaded into any session's context). Low barrier — write often. This is the capture step; `octo-memory-long-term` later reads it to consolidate the valuable parts into long-term. Most captures are evidence, not memory yet — a brand-new long-term topic normally requires the same knowledge to be captured again by a later session, so write freely and let recurrence decide.
 
 ## What to capture
 
@@ -45,7 +45,7 @@ mkdir -p "$dir"
 Keep it concise but complete enough to be useful months later.>
 ```
 
-3. Each entry starts with `## <topic>` on its own line. No YAML, no metadata. Just knowledge.
+3. Each entry starts with `## <topic>` on its own line — append `(user-asked)` to the heading when the user explicitly told you to remember this; consolidation promotes tagged entries without waiting for recurrence. No YAML, no other metadata. Just knowledge.
 
 ## Be concise
 
@@ -74,6 +74,7 @@ No fixed template. Two natural shapes:
 - **No code blocks** — a `file.rs:NNN` anchor replaces them (full path at first mention, short anchor like `mouse.rs:320` after). Sole exceptions: env-var names, exact wire field names, escape sequences whose literal characters matter.
 - **Drop narrative and framing scaffolds** — no "we tried…, then realized…", no **Symptom:/Cause:/Fix:/Verified on:** subsections. Keep the conclusion; fold any load-bearing detail into prose. One closing `**Rule:**` is fine, don't sprinkle three. The urge to write Symptom→Cause→Fix usually means a bug-fix post-mortem — the commit is the memory; don't write it.
 - **Merge within your session**: append related insights under one `##` heading in the file you already created (see Steps); cross-session dedup is `octo-memory-long-term`'s job.
+- **Recapture across sessions**: never skip a capture because an earlier session probably wrote the same thing — you can't see the buffer, and an independent re-capture is exactly the recurrence evidence that promotes knowledge to long-term. Only same-session insights merge; independent sessions count separately.
 
 ### Before / after
 

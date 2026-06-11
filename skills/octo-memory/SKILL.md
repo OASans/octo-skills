@@ -31,5 +31,5 @@ This skill is an orchestrator — it dispatches to the right sub-skill based on 
 - **Otherwise** → proceed to step 1.
 
 1. **Consolidation gate**: Run `bash ~/.claude/skills/octo-memory/consolidation-due.sh`. On **DUE** (exit 1), run `octo-memory-long-term` — promote new short-term into `knowledge-*` skills, sweep stale ones. On **DONE** (exit 0), skip; don't load `octo-memory-long-term`. The cheap check avoids loading the full skill body just to find today's consolidation already ran.
-2. **Record new knowledge**: If you learned something reusable during this conversation (non-obvious patterns, gotchas, architectural decisions, debugging insights), run `octo-memory-short-term` to capture it. Skip if nothing non-obvious was learned.
+2. **Record new knowledge**: If you learned something reusable during this conversation (non-obvious patterns, gotchas, architectural decisions, debugging insights), run `octo-memory-short-term` to capture it. Capture even when an earlier session probably noted the same thing — independent re-captures are the recurrence signal that long-term promotion runs on. Skip if nothing non-obvious was learned.
 3. **Fix stale topics**: If you noticed a `knowledge-*` skill is wrong during your work, fix it inline and capture the correction via `octo-memory-short-term`.

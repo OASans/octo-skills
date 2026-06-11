@@ -19,8 +19,13 @@ Long-term lives as **project skills**: one topic per `.claude/skills/knowledge-<
 2. **Not obvious from code**: Reading the code alone wouldn't teach you this. Extension patterns, non-obvious dependencies, tricky ordering constraints qualify.
 3. **Still accurate**: Referenced files, functions, and patterns must exist right now. Verify with Grep/Glob before promoting.
 4. **Not already documented**: Check doc/, CLAUDE.md, and existing `knowledge-*` skills. If already captured, update the existing one instead.
+5. **Recurred** (gates **new topics** only): the same knowledge appears in ≥2 independent captures — different capture files, matched by meaning not wording, both in PROMOTE or one in PROMOTE + a twin in CONTEXT. One session deeming something important is a weak signal; the same lesson independently resurfacing is the proof it's load-bearing — and a new topic is the expensive move (another always-loaded description). Two lanes skip this criterion:
+   - **User-asked** — heading tagged `(user-asked)`: the user explicitly said to remember it; their judgment outranks recurrence.
+   - **Update to an existing topic**: the slot already earned its place; keeping it accurate is maintenance, not promotion.
 
-Fails any test → it **stays in short-term only**: bug-fix details (commits + tests own those), one-task context, anything obvious from code or doc/, temporary workarounds.
+   Escape hatch (rare): promote a first occurrence only when losing it risks real damage or rework **and** the situation is too rare to recur within the CONTEXT window (e.g. a release-process landmine). Justify it in the report.
+
+Fails 1–4 → it **stays in short-term only**: bug-fix details (commits + tests own those), one-task context, anything obvious from code or doc/, temporary workarounds. Passes 1–4 but not 5 → **hold**: leave the capture file untouched — it resurfaces as CONTEXT on later runs and promotes the day a twin arrives; if it never recurs it silently ages out of the window. That decay is the noise filter working, not a loss.
 
 **Default to merge, not new topic.** Each new topic adds another always-loaded description to the skill-listing budget. Before creating `knowledge-<new-slug>/`, scan existing `knowledge-*` for one the knowledge could extend — even a loose thematic match beats a near-duplicate sibling. New topic only when no existing one is a defensible home.
 
@@ -86,11 +91,12 @@ Consolidation is a **daily** pass. `octo-memory` already gated it via `consolida
 
 #### Phase 1: Promote new knowledge
 
-1. Run `bash ~/.claude/skills/octo-memory/collect-captures.sh`. It emits one blob with two sections: **PROMOTE** (captures in `[last_processed_date, today)` — the exactly-once promote set) and **CONTEXT** (the prior ~5 already-processed days, for context only). The script owns the date range so you never re-derive it by hand — see its header for why the bounds are `>= watermark` and `< today`. If PROMOTE is empty, skip to Phase 2.
-2. For each `##` entry in **PROMOTE**, classify against the promotion criteria (lean on CONTEXT to write better topics, but never promote CONTEXT entries):
-   - **New topic**: no existing `knowledge-*` covers it → create `.claude/skills/knowledge-<slug>/SKILL.md`.
+1. Run `bash ~/.claude/skills/octo-memory/collect-captures.sh`. It emits one blob with two sections: **PROMOTE** (captures in `[last_processed_date, today)` — the exactly-once promote set) and **CONTEXT** (the prior ~5 already-processed capture-days — the recurrence lookback, plus context for writing better topics). The script owns the date range so you never re-derive it by hand — see its header for why the bounds are `>= watermark` and `< today`. If PROMOTE is empty, skip to Phase 2.
+2. For each `##` entry in **PROMOTE**, classify against the promotion criteria. Scan PROMOTE and CONTEXT for twins — another independent capture of the same knowledge makes the entry *recurred*. Never promote a CONTEXT entry on its own; when a recurred PROMOTE entry earns a topic, folding supporting detail from its twins into the body is fine.
+   - **New topic**: recurred (or an exempt lane) and no existing `knowledge-*` covers it → create `.claude/skills/knowledge-<slug>/SKILL.md`.
    - **Update existing**: extends an existing topic → read that skill, merge, bump `Last verified`.
-   - **Ephemeral**: no lasting value → skip.
+   - **Hold**: passes criteria 1–4 but hasn't recurred → do nothing; the file stays in the buffer and resurfaces as CONTEXT next run.
+   - **Ephemeral**: fails 1–4, no lasting value → skip.
 3. **Verify** each new/updated topic with Grep/Glob — referenced files/functions must exist.
 
 #### Phase 2: Staleness sweep
@@ -111,4 +117,4 @@ If partially stale (some refs dead, core still valid), update instead of deletin
 #### Phase 3: Finalize
 
 1. Stamp the watermark: `bash ~/.claude/skills/octo-memory/mark-consolidated.sh` — it writes `last_processed_date: <today>` (the file's only line). No model writes the tracker by hand.
-2. Report **in-session** (not to the file): N entries processed, M new topics, K updates, J skipped, L deprecated (with reasons).
+2. Report **in-session** (not to the file): N entries processed, M new topics, K updates, H held awaiting recurrence, J skipped, L deprecated (with reasons).

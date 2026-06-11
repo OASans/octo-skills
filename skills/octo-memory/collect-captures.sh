@@ -4,7 +4,9 @@
 # date range by hand:
 #   PROMOTE — folders in [last_processed_date, today): the exactly-once promote set.
 #   CONTEXT — the ~5 most recent already-processed day-folders (date < watermark):
-#             read-only context for writing better topics; do NOT promote.
+#             read-only: the recurrence lookback (a PROMOTE entry with a twin here
+#             has recurred → promotable) plus context for writing better topics;
+#             never promote CONTEXT entries on their own.
 #
 # Why PROMOTE's bounds are `>= watermark` and `< today`:
 #   >= watermark (include the boundary day): a capture written later on a day that
@@ -46,13 +48,13 @@ days=$(for d in "$st"/*/; do
   [[ "$b" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && echo "$b"
 done | sort)
 
-echo "## PROMOTE  (captures in [$wm, $today) — classify and promote these)"
+echo "## PROMOTE  (captures in [$wm, $today) — classify these: promote / update / hold / skip)"
 for day in $days; do
   [[ ! "$day" < "$wm" ]] && [[ "$day" < "$today" ]] && emit_dir "$st/$day/"
 done
 
 echo
-echo "## CONTEXT  (the ~5 most recent already-processed days, date < $wm — context only, do NOT promote)"
+echo "## CONTEXT  (the ~5 most recent already-processed days, date < $wm — recurrence lookback: a PROMOTE entry with a twin here has recurred; do NOT promote these directly)"
 for day in $(echo "$days" | while read -r d; do [ -n "$d" ] && [[ "$d" < "$wm" ]] && echo "$d"; done | tail -5); do
   emit_dir "$st/$day/"
 done
