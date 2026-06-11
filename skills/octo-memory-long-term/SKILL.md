@@ -93,33 +93,16 @@ Every `knowledge-*` description is always loaded; bodies load on demand. Both co
 
 ## Steps
 
-Consolidation is a **daily** pass, gated per machine. Promotion is criteria-based only — short-term is no longer loaded into sessions, so there is no "promote what I used this session" step.
-
-### Resolve paths
-
-```
-url=$(git remote get-url origin 2>/dev/null)
-key=${url##*/}; key=${key%.git}
-[ -n "$key" ] || { echo "ERROR: no git 'origin' remote; set one so memory can be keyed per project"; exit 1; }
-st="$HOME/.octo-memory/$key/short_term"      # local short-term buffer (read-only here)
-flag="$HOME/.octo-memory/$key/tracker.md"    # last_processed_date — per machine
-```
-
-### Gate (skip if already done today)
-
-1. Read `last_processed_date` from `$flag` (create `$flag` if missing).
-2. **If `last_processed_date` == today, stop** — consolidation already ran on this machine today. Report "already done today".
-3. Otherwise proceed.
+Consolidation is a **daily** pass. `octo-memory` already gated it via `consolidation-due.sh` and loads this skill **only on DUE** — whether to run today is already decided, so there is no skip-check here. Each script below resolves its own paths from the `origin` remote, so there is nothing to set up. Promotion is criteria-based only — short-term is not loaded into sessions, so there is no "promote what I used this session" step.
 
 #### Phase 1: Promote new knowledge
 
-1. List capture files under `$st/` in date folders newer than `last_processed_date` (`$st/YYYY-MM-DD/*.md`). If none, skip to Phase 2.
-2. **Context loading**: read the last ~5 days of captures (already-processed ones give context for better topics). Only *promote* entries newer than `last_processed_date`.
-3. For each `##` entry, classify against the promotion criteria:
+1. Run `bash ~/.claude/skills/octo-memory/collect-captures.sh`. It emits one blob with two sections: **PROMOTE** (captures in `[last_processed_date, today)` — the exactly-once promote set) and **CONTEXT** (the prior ~5 already-processed days, for context only). The script owns the date range so you never re-derive it by hand — see its header for why the bounds are `>= watermark` and `< today`. If PROMOTE is empty, skip to Phase 2.
+2. For each `##` entry in **PROMOTE**, classify against the promotion criteria (lean on CONTEXT to write better topics, but never promote CONTEXT entries):
    - **New topic**: no existing `knowledge-*` covers it → create `.claude/skills/knowledge-<slug>/SKILL.md`.
    - **Update existing**: extends an existing topic → read that skill, merge, bump `Last verified`.
    - **Ephemeral**: no lasting value → skip.
-4. **Verify** each new/updated topic with Grep/Glob — referenced files/functions must exist.
+3. **Verify** each new/updated topic with Grep/Glob — referenced files/functions must exist.
 
 #### Phase 2: Staleness sweep
 
