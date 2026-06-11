@@ -20,29 +20,19 @@ Long-term lives as **project skills**: one topic per `.claude/skills/knowledge-<
 3. **Still accurate**: Referenced files, functions, and patterns must exist right now. Verify with Grep/Glob before promoting.
 4. **Not already documented**: Check doc/, CLAUDE.md, and existing `knowledge-*` skills. If already captured, update the existing one instead.
 
+Fails any test → it **stays in short-term only**: bug-fix details (commits + tests own those), one-task context, anything obvious from code or doc/, temporary workarounds.
+
 **Default to merge, not new topic.** Each new topic adds another always-loaded description to the skill-listing budget. Before creating `knowledge-<new-slug>/`, scan existing `knowledge-*` for one the knowledge could extend — even a loose thematic match beats a near-duplicate sibling. New topic only when no existing one is a defensible home.
 
-## What gets skipped (stays in short-term only)
+## What makes a good topic
 
-- Bug fix details (captured by commits + regression tests)
-- Task-specific context (what was tried/failed during one task)
-- Information obvious from reading the code or doc/
-- Temporary workarounds that will be removed
+A topic answers two questions: **what is this** and **how should it change my behavior**. The second separates knowledge from trivia — without concrete "when/how to apply" guidance, don't promote it. (The body structure — What / How to Apply / Key Files — is in the template below.)
 
-## Topic quality guide
-
-A good topic answers two questions: **"What is this?"** and **"How should this change my behavior?"**
-
-Each topic should include:
-- **What**: The core knowledge — what this is and why it matters.
-- **How to apply**: Concrete guidance on when and how future agents should use this knowledge. Without this, a topic is trivia.
-- **Key files**: File paths relevant to this topic.
-
-Bad example (trivia):
+Bad (trivia):
 > "The scheduler runs every 30 minutes."
 
-Good example (actionable):
-> "The scheduler runs every 30 minutes via node-cron. When adding new data sources, register them in src/scheduler/jobs.ts — don't create standalone cron entries. The scheduler handles retry logic and rate limiting centrally."
+Good (actionable):
+> "The scheduler runs every 30 minutes via node-cron. Register new data sources in src/scheduler/jobs.ts — don't add standalone cron entries; the scheduler centralizes retry and rate limiting."
 
 ## Topic = a knowledge skill
 
@@ -81,11 +71,10 @@ The description is fuzzy-matched to decide whether to load the topic, and it is 
 - Keep it **≤150 chars**.
 - Add an **exclusion** when topics are adjacent: "...for log routing, NOT log querying (see knowledge-log-queries)."
 
-## Be concise — descriptions cost context
+## Be concise — long-term costs context
 
-Every `knowledge-*` description is always loaded; bodies load on demand. Both cost tokens.
-- **Description**: one tight trigger sentence (≤150 chars). It is on the hot path of every session.
-- **Body**: aim for 20–30 lines; 60-line hard cap. Cut hedges, background, restatements.
+Every `knowledge-*` description is always loaded; bodies load on demand. Both cost tokens. Description rules are above (*Writing the description*); for the body:
+- Aim for 20–30 lines; 60-line hard cap. Cut hedges, background, restatements.
 - File paths and function names beat prose; use bullets where they work.
 - **No code blocks** unless the literal text is load-bearing (env var, wire field, escape sequence). A `file.rs:NNN` anchor replaces illustrative snippets.
 - Drop session/debugging narrative — the rule is the memory, not the path that found it.
@@ -123,10 +112,3 @@ If partially stale (some refs dead, core still valid), update instead of deletin
 
 1. Stamp the watermark: `bash ~/.claude/skills/octo-memory/mark-consolidated.sh` — it writes `last_processed_date: <today>` (the file's only line). No model writes the tracker by hand.
 2. Report **in-session** (not to the file): N entries processed, M new topics, K updates, J skipped, L deprecated (with reasons).
-
-## Long-term operations reference
-
-- **Add**: create `.claude/skills/knowledge-<slug>/SKILL.md` (frontmatter + body). Its description joins the auto-loaded index automatically — nothing else to edit.
-- **Update**: merge into the existing skill body, bump `Last verified`. Keep ≤60 lines.
-- **Delete**: remove the `knowledge-<slug>/` folder.
-- **Merge**: fold related topics into one skill, delete the others.

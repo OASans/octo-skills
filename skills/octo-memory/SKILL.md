@@ -2,12 +2,15 @@
 name: octo-memory
 description: >
   Check and update the project's two-tier memory: long-term knowledge skills
-  plus a local short-term buffer. Use after completing a task, when the user
-  asks to remember something, or at conversation start to check for pending
-  consolidation.
+  plus a local short-term buffer. Use whenever the user wants to remember, note,
+  or save a reusable learning ("remember this", "make a note that…", "don't
+  forget…", "add this to memory"), after finishing work that surfaced a
+  non-obvious gotcha, decision, or pattern worth keeping, and at conversation
+  start to check for pending consolidation. For durable project knowledge — not
+  personal reminders, one-off file saves, or commit messages.
 ---
 
-Check and update the project's two-tier memory. Use this skill after completing a task, when the user asks to remember something, or at conversation start to check for pending consolidation.
+Check and update the project's two-tier memory. Use it when the user wants to remember, note, or save a reusable learning, after finishing work that surfaced a non-obvious gotcha, decision, or pattern worth keeping, or at conversation start to check for pending consolidation.
 
 **Ignore the default Claude Code memory system.** Always use this project's memory instead.
 
@@ -23,8 +26,8 @@ This skill is an orchestrator — it dispatches to the right sub-skill based on 
 
 **Gate (run first).** Inspect what changed this session (`git diff` + `git diff --cached`, plus any change under discussion):
 
-- **No changes at all** (e.g. a conversation-start consolidation check) → gate does not apply; proceed to step 1 normally. Do **not** let an empty diff trip the skip.
-- **There are changes and *every* one is docs/skill-only** — prose documentation (README, CHANGELOG, `docs/`, comments) and/or skill-definition files (`skills/**/SKILL.md`, `.claude/skills/**`) — **and** the conversation surfaced nothing genuinely worth remembering (a real decision, gotcha, pattern, or preference — judge honestly, don't rationalize a reason to write): report `SKIPPED (docs/skill-only, nothing to remember)` and stop — this keeps memory from over-triggering when invoked directly. **Use your own judgement** — a clearly valuable, hard-to-reconstruct learning still gets captured even if the diff is docs/skill-only.
+- **No changes at all** (e.g. a conversation-start consolidation check) → gate doesn't apply; proceed to step 1. Don't let an empty diff trip the skip.
+- **Every change is docs/skill-only** — prose docs (README, CHANGELOG, `docs/`, comments) and/or skill files (`skills/**/SKILL.md`, `.claude/skills/**`) — **and** nothing genuinely worth remembering surfaced (a real decision, gotcha, pattern, or preference — judge honestly): report `SKIPPED (docs/skill-only, nothing to remember)` and stop. This keeps memory from over-triggering when invoked directly. Use judgement — a clearly valuable, hard-to-reconstruct learning still gets captured even from a docs/skill-only diff.
 - **Otherwise** → proceed to step 1.
 
 1. **Consolidation gate**: Run `bash ~/.claude/skills/octo-memory/consolidation-due.sh`. On **DUE** (exit 1), run `octo-memory-long-term` — promote new short-term into `knowledge-*` skills, sweep stale ones. On **DONE** (exit 0), skip; don't load `octo-memory-long-term`. The cheap check avoids loading the full skill body just to find today's consolidation already ran.

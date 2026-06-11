@@ -8,29 +8,19 @@ user-invocable: false
 
 Write reusable knowledge to the project's short-term memory — a **local** capture buffer in a per-project home store (never committed, not loaded into any session's context). Low barrier — write often. This is the capture step; `octo-memory-long-term` later reads it to consolidate the valuable parts into long-term.
 
-## When to write
+## What to capture
 
-- **After spawning subagents**: Findings from Agent tool research are expensive to re-discover. Capture key takeaways before they leave context.
-- **After deep exploration**: If you read many files, grepped across the codebase, or used Explore agents — that effort produced knowledge worth preserving.
-- **After user teaches you something non-obvious**: If the user corrects you or explains a gotcha, that's exactly the kind of knowledge future conversations need.
-- **General rule**: If it took significant work to learn, it belongs in short-term memory.
-
-## What qualifies
+If it took significant work to learn, it belongs here — takeaways from subagent/Explore runs, hard-won exploration, a gotcha the user just taught you. Concretely:
 
 - Implementation patterns others would need to replicate or extend
-- Non-obvious gotchas or debugging insights
+- Non-obvious gotchas, debugging insights, or tricky integration points (how X connects to Y)
 - Architecture decisions and their rationale
-- Integration points between modules (how X connects to Y)
-- Things that took significant exploration to discover
 
-## What does NOT qualify
+## What to skip
 
-- Task-specific progress or status updates
-- Obvious code changes self-evident from reading the code
-- Things fully captured by commit messages or regression tests
-- **Bug-fix post-mortems** — if the load-bearing content is one bug's symptom→cause→fix, the commit + regression test ARE the memory. Don't write the entry just because debugging took effort.
-- **Session/subagent narrative** — "Agent B caught X", "rebase conflict resolved by…", "Phase A shipped with…". Describe the rule, not the session that produced it.
-- **Code blocks that paraphrase a file:line** — if `file.rs:NNN` points at the canonical version, your snippet is duplication that rots.
+- Task progress or status, and anything self-evident from reading the code
+- Anything a commit message or regression test already captures — especially **bug-fix post-mortems** (one bug's symptom→cause→fix: the commit + test ARE the memory; don't write it just because debugging was hard)
+- **Session/subagent narrative** ("Agent B caught X", "Phase A shipped with…") — describe the rule, not the session that produced it
 - Temporary workarounds that will be removed
 
 ## Steps
@@ -59,7 +49,7 @@ Keep it concise but complete enough to be useful months later.>
 
 ## Be concise
 
-Short-term is **not** loaded into sessions — `octo-memory-long-term` reads it once at consolidation. So compress for *signal*, not context budget: aim for **≤1 line per fact**. A productive day legitimately produces more entries — that's fine; what's not fine is one entry that bloats to 15 lines because the writer leaned on a four-paragraph template. Tight entries consolidate cleanly; bloated ones bury the rule.
+Short-term is **not** loaded into sessions — `octo-memory-long-term` reads it once at consolidation. So compress for *signal*: aim for **≤1 line per fact**. A busy day legitimately produces many entries — fine; what's not fine is one entry bloated to 15 lines off a four-paragraph template. Tight entries consolidate cleanly; bloated ones bury the rule.
 
 ### Entry shape
 
@@ -78,17 +68,12 @@ No fixed template. Two natural shapes:
 <One sentence stating the invariant, with `file.rs:NNN` anchor>. <One sentence on what depends on it.>
 ```
 
-Skip the **Symptom: / Cause: / Fix:** scaffold — it implies four paragraphs and reliably produces bloat. If you can't compress to ~5 lines, ask whether the entry is a bug-fix post-mortem in disguise (the commit is the memory; don't write it).
-
 ### Rules
 
-- Lead with the knowledge, not preamble ("X does Y when Z" — not "I learned that…").
-- **No code blocks.** A `file.rs:NNN` anchor replaces them. Sole exceptions: env-var names, exact wire field names, escape sequences whose literal characters matter. Yaml/bash/Swift/Rust illustrative snippets — all out.
-- File paths: full path once per entry at first mention, short anchor (`mouse.rs:320`) after.
-- Drop narrative ("we tried…, then realized…", "Agent B traced…", "Phase A shipped with…") — keep only the conclusion.
-- Drop framing-word subsections: **Symptom:**, **Cause:**, **Fix:**, **Subtleties:**, **Verified on:**, **Drive-by:**, **Tests:**. Fold any load-bearing detail into prose; drop the rest. One `**Rule:**` line at the end is fine; don't sprinkle three.
-- No restatement of the task that produced the memory.
-- **Merge within your session**: if several insights this session relate, append them under one `##` heading in the capture file you already created rather than spawning many files. Cross-session dedup is `octo-memory-long-term`'s job.
+- Lead with the knowledge — not preamble or a restatement of the task that produced it ("X does Y when Z", not "I learned that…").
+- **No code blocks** — a `file.rs:NNN` anchor replaces them (full path at first mention, short anchor like `mouse.rs:320` after). Sole exceptions: env-var names, exact wire field names, escape sequences whose literal characters matter.
+- **Drop narrative and framing scaffolds** — no "we tried…, then realized…", no **Symptom:/Cause:/Fix:/Verified on:** subsections. Keep the conclusion; fold any load-bearing detail into prose. One closing `**Rule:**` is fine, don't sprinkle three. The urge to write Symptom→Cause→Fix usually means a bug-fix post-mortem — the commit is the memory; don't write it.
+- **Merge within your session**: append related insights under one `##` heading in the file you already created (see Steps); cross-session dedup is `octo-memory-long-term`'s job.
 
 ### Before / after
 
