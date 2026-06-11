@@ -7,7 +7,7 @@ Shared Claude Code skills, available in ALL projects once installed.
 - `skills/<name>/SKILL.md` — one directory per skill. This is the source of truth.
 - `global-settings.json` — shared Claude Code settings (env vars, permissions, hooks). Installs to `~/.claude/settings.json`.
 - `global-CLAUDE.md` — shared user-level memory (global rules applied in every project). Installs to `~/.claude/CLAUDE.md`. Edit this file, not the installed copy.
-- `install.sh` — copies `skills/*` to `~/.claude/skills/`, and always overwrites `~/.claude/settings.json` from `global-settings.json` and `~/.claude/CLAUDE.md` from `global-CLAUDE.md`. Run after any edit.
+- `install.sh` — copies `skills/*` to `~/.claude/skills/`, and always overwrites `~/.claude/settings.json` from `global-settings.json` and `~/.claude/CLAUDE.md` from `global-CLAUDE.md`. Idempotent — always safe to run directly. Deploy any edit by running `./install.sh`, not by hand-copying files; its Swift-LSP / Node-Playwright steps are guarded no-ops when those are already present.
 
 ## Skills
 
