@@ -15,17 +15,30 @@ disable-model-invocation: true
 
 **Explicitly invoked only.** This is enforced, not just convention: the `disable-model-invocation: true` frontmatter flag keeps the skill out of the model's tool list, so the agent can never auto-invoke it — not via `/octo-commit`, `/octo-review`, `/octo-memory`, or context. It stays user-invocable, so a person runs it on demand with `/octo-blueprint` (optionally naming a target path).
 
+**The blueprint drives the fan-out.** Each `###` dimension in **The Blueprint** is one grading domain handled by one dedicated sub-agent, and the agent count tracks the blueprint: add a `###` dimension and one more agent spawns automatically, with no edit to the steps. A dimension is the unit of parallelism because its rules share one artifact (a file, a folder) — a single agent reads that artifact once and grades every rule against it, where splitting finer would only re-read the same thing. Each agent grades **only** its dimension, so domains are partitioned with no overlap; the main agent never inspects the package, it just fans out and merges. To parallelize a heavy dimension further, split it into two `###` dimensions — each then runs as its own agent for free.
+
 ## Steps
 
 1. **Pick the target.** The current project root by default, or a path the user named with the invocation.
-2. **Load the blueprint.** Read **The Blueprint** below. If it defines no dimensions yet (the skeleton state), there is nothing to grade — report *"The blueprint is not yet defined."* and stop.
-3. **Grade every rule.** Walk each rule in each `###` dimension. For each, inspect the package (read files, run quick checks) and mark it **met / partial / unmet / N/A**.
-4. **Turn gaps into action items.** For every *partial* or *unmet* rule, write one action item per the format below — each with a concrete "Do" the next agent can act on without re-deriving the rule.
-5. **Report.** Output the prioritized action-item list. This skill is **read-only**: it proposes the work; it never edits the package. Implementing the items is a separate step (the user, or another agent).
+2. **Load the blueprint and list its dimensions.** Read **The Blueprint** below and collect its `###` dimension headings. If it defines no dimensions yet (the skeleton state), there is nothing to grade — report *"The blueprint is not yet defined."* and stop.
+3. **Grade dimensions in parallel — one sub-agent per `###` dimension.** Spawn one read-only Sonnet 4.6 sub-agent per dimension (subagent_type: general-purpose, model: sonnet), all in a single message so they run concurrently. Each receives the shared base instructions below, plus the target path and exactly one `###` dimension — its heading, *what good looks like* line, and every rule and nested criterion, verbatim — as its assigned domain.
+
+   **Base instructions (shared by all agents):**
+
+   > You grade one dimension of a package against a blueprint. You are READ-ONLY — you propose work, you never edit the package. Do these in order:
+   >
+   > 1. Your criteria are **only the rules in your assigned `###` dimension** (given below) — every rule and every nested criterion. Do not grade against other dimensions; another agent owns each of those.
+   > 2. Inspect the target package at the given path. **Verify each rule against the real artifact** — open the script, run its `--help`, `wc -l` the file — never trust a name or a doc line. If you need broader context, spawn an Explore sub-agent (model: sonnet) to search; don't guess.
+   > 3. Grade each rule **met / partial / unmet / N/A**. Use N/A only when the rule's precondition doesn't hold (e.g. a Rust-only rule in a repo with no Rust), and say why.
+   > 4. For every *partial* or *unmet* rule, draft one action item: a suggested priority (P0 blocking · P1 important · P2 polish), a one-line imperative title, the gap (what the rule wants vs. what the package has — name the path), and a concrete **Do** the next agent can act on without re-deriving the rule.
+   >
+   > Return a structured list headed by your dimension name: every rule's verdict, then the drafted action item for each gap.
+4. **Merge and prioritize.** Collect all agents' results into one report: compute the met/total tally across every dimension, order the action items P0 → P1 → P2 (using each agent's suggested priority, normalized across dimensions), and deduplicate where two dimensions flag the same path (keep the higher-priority item).
+5. **Report.** Output the prioritized action-item list per the format below. This skill is **read-only**: it proposes the work; it never edits the package. Implementing the items is a separate step (the user, or another agent).
 
 ## Output — action items
 
-Lead with a one-line verdict: the met/total tally and the action-item count (e.g. `12/18 rules met — 6 action items`).
+Lead with a one-line verdict: the met/total tally — N/A rules drop out of the denominator, noted separately — plus the action-item count (e.g. `12/15 rules met (3 N/A) — 6 action items`).
 
 Then a prioritized checkbox list, one item per *partial* or *unmet* rule:
 
@@ -99,6 +112,34 @@ Then a prioritized checkbox list, one item per *partial* or *unmet* rule:
 - **No markdown tables** — the reader is an agent, not a human.
   - No `|`-delimited tables anywhere in CLAUDE.md.
   - Use nested bullets or short prose instead — they parse and diff cleaner and don't misalign when edited.
+
+### ai_tools/
+
+*What good looks like: the `ai_tools/` folder is the package's runnable harness — a complete set of wrapper scripts for every common task (clean, build, test, e2e) so an agent runs one short command instead of rebuilding a long one, and the script path is always the handle. (Scope: this dimension grades the folder itself; the CLAUDE.md `## AI Tools` section that catalogs the scripts is graded by the CLAUDE.md dimension.)*
+
+**Shape — each tool is one script or one folder, same handle either way:**
+
+- **A tool is either a flat `<tool>.sh` or a `<tool>/` folder fronted by `index.sh`** — pick by how much the task fans out; the caller invokes the same path regardless.
+  - Single-step, single-language task → one script (e.g. `ai_tools/clean.sh`).
+  - Fans out per language or component → a folder: `ai_tools/build/index.sh` does everything, with one runnable `build_<lang>.sh` beside it per source (`build_rs.sh`, `build_ts.sh`, `build_py.sh`).
+  - **`index.sh` is the front door** — it runs the whole set so the caller never needs to know which sub-scripts exist; each per-source script stays individually runnable for a single-language pass.
+  - **`index.sh` fails fast** — when any sub-script exits non-zero it aborts there and propagates that exit code (e.g. `set -e`); it never swallows the error or runs on to the next source, so a failed build can't read as green.
+
+**Required tools — every package ships these five:**
+
+- **`clean.sh`** (or `clean/`) — removes build artifacts and bundles for *every* language in the package, not just one.
+  - Covers each language present: Rust `target/` and binaries, Python `__pycache__`/`*.pyc`/`.venv`, Node `node_modules`/`dist`, plus any other generated output the repo produces.
+  - **Verify by reading the script, not the name** — open it and confirm it actually deletes each language's artifacts the repo contains; a package with a Python source but a clean that only sweeps Rust is a gap.
+- **`build.sh`** (or `build/`) — builds all sources from one handle.
+  - Polyglot repos use the folder form: one `build_<lang>.sh` per source (`build_rs.sh`, `build_ts.sh`), each independently runnable, with `index.sh` chaining them all.
+- **`test.sh`** (or `test/`) — runs the full unit-test suite from one handle; fans out per language like build when the repo is polyglot.
+- **`style/`** (always a folder) — `index.sh` runs format, lint, and a file-size check over every source.
+  - **Always a folder, never a flat `style.sh`** — it bundles several concerns (format, lint, file-size check, and their per-language variants), too many for one script.
+  - Covers `format.sh` and `lint.sh`, or language-oriented `format_rs.sh`/`format_py.sh` and `lint_rs.sh`/`lint_py.sh` when polyglot, all chained by `index.sh`.
+  - **Both format and lint auto-fix, then fail on the remainder** — each runs in write/fix mode to apply every fix it can, then exits non-zero if anything unfixable is left, so style problems surface as a hard failure instead of silent drift.
+  - **`file_size_check.sh` caps non-test source files at 500 lines** — it hard-fails (exit non-zero), not an informational report, on any non-test service-code file (`.rs`, `.ts`, …) over the cap; large files are slow and costly for an agent to edit, so going over usually signals the architecture needs splitting or a refactor. Test files are exempt.
+  - **Rust tests live in separate files from service code (when the project has Rust)** — a `style/` check fails if test code sits inline in a service file; Rust tests go in their own `*_tests.rs` files beside the code they cover, never `#[cfg(test)]` blocks inside the service file. Keeping tests out of service files holds those files under the size cap and leaves room to grow service coverage. N/A when the project has no Rust.
+- **`e2e_test.sh`** (or `e2e_test/`) — runs the full end-to-end suite from one handle, kept separate from the unit suite (different runtime and cost).
 
 <!--
 TEMPLATE — copy per new dimension; write each rule as a bullet with nested criteria:
