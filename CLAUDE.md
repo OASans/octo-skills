@@ -16,7 +16,7 @@ Shared Claude Code skills, available in ALL projects once installed.
 | `/octo-coding-guide` | Reference | Shared coding guide — source of truth for code quality standards |
 | `/octo-review` | Workflow | Code review; one parallel sub-agent per `/octo-coding-guide` major section. Consumes `/octo-coding-guide` |
 | `/octo-commit` | Workflow | Primary commit path: verify the CLAUDE.md workflow was followed, then write a meaningful + compact commit. Never pushes |
-| `/octo-standard` | Standard | Definition of a good AI-agent-native package + a review that grades the current package and returns action items. Explicitly-invoked only; never auto-runs. Rules are an empty skeleton for now |
+| `/octo-blueprint` | Blueprint | Definition of a good AI-agent-native package + a review that grades the current package and returns action items. Explicitly-invoked only; never auto-runs. Rules are an empty skeleton for now |
 | `/octo-memory` | Memory | Two-tier memory system orchestrator (short-term + long-term) |
 | `octo-memory-short-term` | Memory (internal) | Append one capture to short-term; invoked by `/octo-memory`, not directly |
 | `octo-memory-long-term` | Memory (internal) | Consolidate short-term into long-term topics; invoked by `/octo-memory`, not directly |
@@ -27,7 +27,7 @@ Shared Claude Code skills, available in ALL projects once installed.
 - `/octo-review` is **structure-driven by `/octo-coding-guide`**: each `##` major section is one review domain reviewed by one dedicated sub-agent (criteria partitioned, no overlap). Adding a `##` section to the coding guide adds a review agent with no edit to `/octo-review`. Keep `##` sections coherent and their `*Review focus:*` line accurate.
 - `/octo-commit` is **structure-driven by CLAUDE.md's `## Workflow`**: it verifies every workflow step (e.g. `/octo-review`, `/octo-memory`) was followed before committing, and stops + hands back if one was skipped. Add a step to the workflow and `/octo-commit` enforces it with no edit here. It is the primary commit path and never pushes.
 - `/octo-memory` orchestrates the internal `octo-memory-short-term` and `octo-memory-long-term` sub-skills (`user-invocable: false` — hidden from the slash menu, invoked only by the orchestrator by name).
-- `/octo-standard` is **explicitly-invoked only** — enforced by the `disable-model-invocation: true` frontmatter flag (the agent can't auto-invoke it; a human runs `/octo-standard`), so it is never part of the `## Workflow`. It is self-contained: it carries the package standard (organized as `###` dimensions under *The Standard*) and the review that turns gaps into action items. Unlike `/octo-review` (which grades a code diff against `/octo-coding-guide`), it grades a whole package against the standard. The standard's rules are intentionally empty for now (skeleton); fill them in as `###` dimensions.
+- `/octo-blueprint` is **explicitly-invoked only** — enforced by the `disable-model-invocation: true` frontmatter flag (the agent can't auto-invoke it; a human runs `/octo-blueprint`), so it is never part of the `## Workflow`. It is self-contained: it carries the package blueprint (organized as `###` dimensions under *The Blueprint*) and the review that turns gaps into action items. Unlike `/octo-review` (which grades a code diff against `/octo-coding-guide`), it grades a whole package against the blueprint. The blueprint's rules are intentionally empty for now (skeleton); fill them in as `###` dimensions.
 
 ## Editing Skills
 

@@ -1,24 +1,24 @@
 ---
-name: octo-standard
+name: octo-blueprint
 description: >
   The definition of a good AI-agent-native package, plus a review that grades the
   current package against it and returns a prioritized list of action items to
-  close the gaps. Run it on demand with `/octo-standard` (optionally naming a path).
+  close the gaps. Run it on demand with `/octo-blueprint` (optionally naming a path).
 disable-model-invocation: true
 ---
 
-# Octo Standard
+# Octo Blueprint
 
-`/octo-standard` is the team's definition of a good **AI-agent-native package** — and a review that measures a package against it and returns a list of action items.
+`/octo-blueprint` is the team's definition of a good **AI-agent-native package** — and a review that measures a package against it and returns a list of action items.
 
-**Why a standard, not a template.** You can't keep a new package good by copying files from a model package: the exemplar's files drift, so every copy is stale the day after. Rules migrate where files can't. Encode *what good looks like* once — here — and any package can be graded against it on demand. Writing the code to satisfy a rule is cheap; an agent can do it — **as long as it knows the precise, concrete feedback**. This skill produces that feedback.
+**Why a blueprint, not a template.** You can't keep a new package good by copying files from a model package: the exemplar's files drift, so every copy is stale the day after. Rules migrate where files can't. Encode *what good looks like* once — here — and any package can be graded against it on demand. Writing the code to satisfy a rule is cheap; an agent can do it — **as long as it knows the precise, concrete feedback**. This skill produces that feedback.
 
-**Explicitly invoked only.** This is enforced, not just convention: the `disable-model-invocation: true` frontmatter flag keeps the skill out of the model's tool list, so the agent can never auto-invoke it — not via `/octo-commit`, `/octo-review`, `/octo-memory`, or context. It stays user-invocable, so a person runs it on demand with `/octo-standard` (optionally naming a target path).
+**Explicitly invoked only.** This is enforced, not just convention: the `disable-model-invocation: true` frontmatter flag keeps the skill out of the model's tool list, so the agent can never auto-invoke it — not via `/octo-commit`, `/octo-review`, `/octo-memory`, or context. It stays user-invocable, so a person runs it on demand with `/octo-blueprint` (optionally naming a target path).
 
 ## Steps
 
 1. **Pick the target.** The current project root by default, or a path the user named with the invocation.
-2. **Load the standard.** Read **The Standard** below. If it defines no dimensions yet (the skeleton state), there is nothing to grade — report *"The standard is not yet defined."* and stop.
+2. **Load the blueprint.** Read **The Blueprint** below. If it defines no dimensions yet (the skeleton state), there is nothing to grade — report *"The blueprint is not yet defined."* and stop.
 3. **Grade every rule.** Walk each rule in each `###` dimension. For each, inspect the package (read files, run quick checks) and mark it **met / partial / unmet / N/A**.
 4. **Turn gaps into action items.** For every *partial* or *unmet* rule, write one action item per the format below — each with a concrete "Do" the next agent can act on without re-deriving the rule.
 5. **Report.** Output the prioritized action-item list. This skill is **read-only**: it proposes the work; it never edits the package. Implementing the items is a separate step (the user, or another agent).
@@ -39,7 +39,7 @@ Then a prioritized checkbox list, one item per *partial* or *unmet* rule:
 - No item without a concrete **Do** — a finding the next agent can't act on isn't an action item.
 - Cite paths so the fix is locatable; keep each item to a few lines.
 
-## The Standard
+## The Blueprint
 
 > **Structure contract.** Each `###` below is one **dimension** of a good
 > AI-agent-native package (e.g. its docs, tests, CI, agent affordances, memory,
@@ -87,11 +87,11 @@ Then a prioritized checkbox list, one item per *partial* or *unmet* rule:
   - **Every-session essentials only — the one place always-loaded beats a skill.** Include a line only if *most* dev tasks need it. The deep dive (full log routing, every query idiom, archive behavior) stays conditional → a `knowledge-*` skill.
 - **Additional notes** — a capped catch-all for the rare project-specific must-know that fits no section above. Recommended heading: **`Additional notes`**.
   - **≤5 bullet points, hard** — each a single project-specific rule with no better home (e.g. *"update `scripts/install_deps.sh` when adding a dependency"*).
-  - **Overflow is a signal, not room to grow** — past five, don't expand it: the overflow either is a recurring concern that earns its own section (a deliberate edit to this standard) or is conditional knowledge → a `knowledge-*` skill. The cap forces the choice.
+  - **Overflow is a signal, not room to grow** — past five, don't expand it: the overflow either is a recurring concern that earns its own section (a deliberate edit to this blueprint) or is conditional knowledge → a `knowledge-*` skill. The cap forces the choice.
 
 **Whole-file discipline:**
 
-- **Only the sections this standard names — a closed set.** A CLAUDE.md contains exactly the sections above and no ad-hoc ones; an unlisted heading is itself a finding. Growing the set is a deliberate edit to *this standard*, never a one-off in a package.
+- **Only the sections this blueprint names — a closed set.** A CLAUDE.md contains exactly the sections above and no ad-hoc ones; an unlisted heading is itself a finding. Growing the set is a deliberate edit to *this blueprint*, never a one-off in a package.
   - Content that fits no section goes in **Additional notes** (capped at five); when that overflows, the overflow earns its own section here or moves to a `knowledge-*` skill — the file never sprouts an unsanctioned heading.
 - **No knowledge, no doc index** — CLAUDE.md holds operational essentials an agent needs early and often; it's never a place for knowledge or a catalogue of where knowledge lives.
   - Per-topic knowledge belongs in on-demand `knowledge-*` skills — their descriptions self-index every session, their bodies load only when relevant — so don't inline knowledge here, and don't list skills or docs as a reference shelf (CLAUDE.md is always-loaded; conditional content is the wrong fit).
