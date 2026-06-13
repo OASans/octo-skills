@@ -89,6 +89,7 @@ Then a prioritized checkbox list, one item per *partial* or *unmet* rule:
   - **Exactly two subsections, split by cost — and only these two.** The cheap gates get rerun constantly while the expensive ones run once, so the split keeps a slow suite from blocking fast iteration. Any other one-off gate (version bump, dependency-manifest update) folds into the nearer subsection or the file's notes — never a third subsection.
     - **`Dev loop`** — the fast, cheap gates (build → unit tests → lint/format) as a tight loop: edit → run them in order → fix what's red → rerun, never advancing past a red gate. Rerun on every change; state the exit condition plainly as *every fast gate green*.
     - **`Verification`** — the expensive, slow gates (E2E, integration, coverage), run once the dev loop is green. It's the final pre-review check and what proves the change *meets its requirement*, not merely that the harness is healthy. Conditional gates name their trigger (e.g. a suite that runs only when its subsystem changed).
+  - **Steps as a bullet list, not prose** — within each subsection the gates are listed one per line as bullets, in run order (a bullet for `ai_tools/build.sh`, then `ai_tools/test.sh`, then `ai_tools/style/`), with the loop discipline and exit condition as their own bullets — never collapsed into a prose run-on like *"run build → test → style, fix red, exit green"*. An agent ticks a checklist gate by gate; a sentence buries a gate and can't be checked off.
   - **Gates run through the package's `ai_tools/` harness** — name the must-run gate by its `ai_tools/` handle, not raw commands; don't re-document it or list its variants — which concrete script(s) a gate maps to lives in the AI Tools catalog.
   - **Exit = ready for review** — both subsections green means the change satisfies the harness and meets its requirement; only then does it hand off to the global review-and-commit. The section sits before that approval step and doesn't restate it.
 - **Module map** — a directory-level map of *only* the major, most-valuable paths, so a cold agent finds the places that matter without searching. Recommended heading: **`Module Map`**.
@@ -125,11 +126,8 @@ Then a prioritized checkbox list, one item per *partial* or *unmet* rule:
   - **`index.sh` is the front door** — it runs the whole set so the caller never needs to know which sub-scripts exist; each per-source script stays individually runnable for a single-language pass.
   - **`index.sh` fails fast** — when any sub-script exits non-zero it aborts there and propagates that exit code (e.g. `set -e`); it never swallows the error or runs on to the next source, so a failed build can't read as green.
 
-**Required tools — every package ships these five:**
+**Required tools — every package ships these four:**
 
-- **`clean.sh`** (or `clean/`) — removes build artifacts and bundles for *every* language in the package, not just one.
-  - Covers each language present: Rust `target/` and binaries, Python `__pycache__`/`*.pyc`/`.venv`, Node `node_modules`/`dist`, plus any other generated output the repo produces.
-  - **Verify by reading the script, not the name** — open it and confirm it actually deletes each language's artifacts the repo contains; a package with a Python source but a clean that only sweeps Rust is a gap.
 - **`build.sh`** (or `build/`) — builds all sources from one handle.
   - Polyglot repos use the folder form: one `build_<lang>.sh` per source (`build_rs.sh`, `build_ts.sh`), each independently runnable, with `index.sh` chaining them all.
 - **`test.sh`** (or `test/`) — runs the full unit-test suite from one handle; fans out per language like build when the repo is polyglot.
@@ -140,6 +138,20 @@ Then a prioritized checkbox list, one item per *partial* or *unmet* rule:
   - **`file_size_check.sh` caps non-test source files at 500 lines** — it hard-fails (exit non-zero), not an informational report, on any non-test service-code file (`.rs`, `.ts`, …) over the cap; large files are slow and costly for an agent to edit, so going over usually signals the architecture needs splitting or a refactor. Test files are exempt.
   - **Rust tests live in separate files from service code (when the project has Rust)** — a `style/` check fails if test code sits inline in a service file; Rust tests go in their own `*_tests.rs` files beside the code they cover, never `#[cfg(test)]` blocks inside the service file. Keeping tests out of service files holds those files under the size cap and leaves room to grow service coverage. N/A when the project has no Rust.
 - **`e2e_test.sh`** (or `e2e_test/`) — runs the full end-to-end suite from one handle, kept separate from the unit suite (different runtime and cost).
+
+**Recommended tools — ship when useful, not enforced:**
+
+- **`clean.sh`** (or `clean/`) — removes build artifacts and bundles for *every* language in the package, not just one. **Recommended, not forced for now** — its absence is **not** a gap (mark N/A); grade the criteria below only when the package actually ships it.
+  - Covers each language present: Rust `target/` and binaries, Python `__pycache__`/`*.pyc`/`.venv`, Node `node_modules`/`dist`, plus any other generated output the repo produces.
+  - **Verify by reading the script, not the name** — open it and confirm it actually deletes each language's artifacts the repo contains; a package with a Python source but a clean that only sweeps Rust is a gap.
+
+**Language-specific tools — shipped when that language is present:**
+
+- **`clean_rust_old_binaries.sh`** (Rust only) — prunes *stale* Rust build artifacts older than a day, and runs itself after every commit so `target/` doesn't grow without bound between full cleans. Distinct from a full `clean.sh`: that wipes all artifacts on demand; this drops only the old ones, automatically.
+  - **Sweeps by age, keeps today's** — runs `cargo sweep --time 1` at the project root: deletes build artifacts older than one day while keeping anything built or touched today. It is not a full clean and touches no other language.
+  - **Wired to the post-commit hook** — the git post-commit hook (e.g. `.cargo-husky/hooks/post-commit`) invokes it after every commit, fire-and-forget (backgrounded, off the commit path) so cleanup is automatic and never delays the commit. Verify by reading the hook that it actually calls the script, not merely that the script exists.
+  - **Never installs on the commit path** — the hook guards on `cargo-sweep` already being present and skips silently when it's absent, so a commit can't trigger a `cargo install`; the script itself auto-installs `cargo-sweep` only on a manual run.
+  - **N/A when the project has no Rust.**
 
 <!--
 TEMPLATE — copy per new dimension; write each rule as a bullet with nested criteria:
