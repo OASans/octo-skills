@@ -13,11 +13,11 @@ user-invocable: false
 - **Settings/env vars can be silently dead.** A removed or never-implemented key is a no-op, not an error — it fails quiet.
 
 ## How to Apply
-- Express any auto-compact threshold in **tokens**, never a percent. `global-settings.json` sets `CLAUDE_CODE_AUTO_COMPACT_WINDOW=500000` (≈ the old "50%" intent on the 1M-context model).
+- Express any auto-compact threshold in **tokens**, never a percent. In `global-settings.json`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is the highest-priority override — a token count sized as a fraction of the model's context window. (The concrete number lives in the settings file, not here, so this note doesn't go stale.)
 - Before trusting any Claude Code setting/env var, **grep the installed binary for the literal string**. Resolve the binary via `which claude`, readlink to the real install (a non-stripped ELF, e.g. under `~/.local/share/claude/versions/<ver>`), then grep the name. Absent string = no-op. This is how the dead PCT_OVERRIDE was caught.
 
 ## Key Files
-- `global-settings.json` — env block (`CLAUDE_CODE_AUTO_COMPACT_WINDOW` ~line 15)
+- `global-settings.json` — `env` block (`CLAUDE_CODE_AUTO_COMPACT_WINDOW`)
 - installed binary — resolve via `which claude`
 
 <!-- Last verified: 2026-06-10, commit: 656045f -->
