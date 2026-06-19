@@ -1,19 +1,28 @@
 ---
 name: octo-coding-guide
+guide-scope: code
 description: >
-  Print the shared coding guide. Inline skill — no sub-agents. Use as a
-  reference for code reviews, implementation decisions, and plan evaluation.
+  Print the shared coding guide for source code. Inline skill — no sub-agents.
+  Use as a reference for code reviews, implementation decisions, and plan evaluation.
 ---
 
 # Coding Guide
 
-> **Structure contract.** Each `##` section below is a *review domain*. The
-> `/octo-review` skill spawns exactly one parallel sub-agent per `##` section, and
-> that agent reviews the diff **only** against the rules in its section. Add a
-> `##` section here and `/octo-review` automatically gains an agent — no edit to the
-> review skill is needed. `###` headings are rule groups within a domain. Keep
-> every domain to one coherent focus so its agent stays sharp, and keep the
-> `*Review focus:*` line accurate — it is the agent's mission statement.
+> **Guide family.** This is one guide in a family of scoped guides (`octo-*-guide`),
+> each carrying a `guide-scope` in its frontmatter that says which changed files it
+> covers. This guide's scope is `code` — source in any language, plus config, manifests,
+> and build/CI scripts. Sibling guides cover other change kinds (e.g. `octo-rust-guide`
+> for `**/*.rs`, `octo-doc-guide` for `**/*.md`). A change is reviewed against every
+> guide whose scope its files touch, so scopes may overlap (a Rust file gets this guide
+> *and* the Rust guide). Keep each guide to its own scope — do not duplicate another
+> guide's rules here.
+>
+> **Structure contract.** Each `##` section below is a self-contained *review
+> domain*: a single coherent focus, reviewable **only** against the rules within it,
+> with no overlap onto another domain. `###` headings are rule groups inside a domain.
+> Keep the `*Review focus:*` line accurate — it states the domain's one job in a
+> sentence. A consumer (e.g. a review skill) may treat each `##` section as an
+> independent unit, so domains must stay self-contained and non-overlapping.
 
 ## Design & Structure
 
@@ -93,21 +102,3 @@ Flag only real defects that would cause incorrect behavior — not hypotheticals
 - **Consistent Error-Handling Style**: use the same error strategy as the surrounding layer. Don't introduce a new error mechanism for a single call site when the rest of the layer does it differently.
 - **API & Contract Adherence**: respect existing function/module contracts — signatures, invariants, return conventions, ordering guarantees. A change must not silently break assumptions made by callers, especially in the same files.
 - **Change Is Covered**: behavioral changes ship with matching test updates. New code paths get new test cases; modified behavior gets updated assertions. Flag missing or now-stale coverage for **this** change specifically (general coverage goals belong to the Correctness domain).
-
-## Rust Guidance
-
-*Review focus: where the change touches Rust, does it follow this codebase's conventions for test layout, pattern matching, and global state?*
-
-> **Applies only to projects containing Rust.** If the change under review touches no `.rs` files — or the project has no Rust at all — this domain has nothing to flag: report no issues and stop.
-
-### Test Layout
-
-- **Sibling Test Files**: Unit tests live in a sibling file, never an inline `mod tests` block. In `foo.rs` write `#[cfg(test)] #[path = "foo_tests.rs"] mod tests;` and put the tests in `foo_tests.rs`.
-
-### Pattern Matching
-
-- **Match Ergonomics over `ref`**: Borrow at the scrutinee — `if let Some(x) = &expr` / `match &expr` — instead of `ref` bindings inside the pattern. `ref` is legacy pre-2018 style.
-
-### Global State
-
-- **No New Interior-Mutable Globals**: Don't add `static` items with interior-mutability types (`OnceLock`, `OnceCell`, `Lazy(Lock)?`, `Mutex`, `RwLock`, `Atomic*`). Hold state in a struct and pass it through. Pre-existing grandfathered globals are exempt; do not add more.

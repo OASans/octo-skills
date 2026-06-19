@@ -6,51 +6,61 @@ description: >
   as the final step before committing.
 ---
 
-Code review. Spawns parallel read-only sub-agents that independently collect the diff, read the coding guide, and review from different perspectives — keeping the main agent's context clean. Returns findings only; does not fix code.
+Code review. Spawns parallel read-only sub-agents that independently collect the diff, read their assigned guide, and review from different perspectives — keeping the main agent's context clean. Returns findings only; does not fix code.
 
 Designed for use by both humans and AI agents. Run this at the end of any coding workflow before committing.
 
-**The coding guide drives the fan-out.** Each `##` major section in `/octo-coding-guide` is one review domain reviewed by one dedicated sub-agent. The number of agents tracks the guide: add a `##` section there and this skill spawns one more agent automatically, with no edit here. Each agent reviews **only** its assigned section, so domains are partitioned with no overlap.
+**The guide family drives the fan-out.** Review criteria live in a family of scoped guide skills (`octo-*-guide` — e.g. `octo-coding-guide`, `octo-rust-guide`, `octo-doc-guide`). Each guide declares a `guide-scope` in its frontmatter (which changed files it covers) and contains one or more `##` review domains. This skill discovers the guides, keeps the ones whose scope the diff actually touches, and spawns one read-only sub-agent per `##` domain within them. Each agent reviews **only** its one domain, so domains are partitioned with no overlap. Add a `##` domain to a guide, or add a whole new guide skill, and the fan-out grows automatically — no edit here.
+
+The result: a change is reviewed only against the guides that fit it. A `.rs` change is reviewed by `octo-coding-guide` (general code) **and** `octo-rust-guide`; a `.md` change is reviewed by `octo-doc-guide` only — code-correctness rules never fire on prose. Scope matching is by file category/glob, never a guess about whether a violation is likely, so no applicable domain is ever dropped.
 
 ## Steps
 
-1. **Determine the review domains.** Run `/octo-coding-guide` and list its top-level `##` section headings — ignore the `# Coding Guide` title and every `###` sub-heading. Each `##` section is one review domain. Before spawning, the main agent does **only** this read plus the file-name detection in Step 2 — do **not** collect the full diff or read project files yourself; the sub-agents do all of that.
+1. **Discover the guides.** Search `~/.claude/skills/*/SKILL.md` and the project's `.claude/skills/*/SKILL.md` for files whose frontmatter contains a `guide-scope:` key — each is a guide. For each, note its `guide-scope` value and its top-level `##` domain headings (ignore the `#` title and every `###` sub-heading). Before spawning, the main agent does **only** this read plus the file detection in Step 2 — do **not** collect the full diff or read project files yourself; the sub-agents do all of that.
 
-2. **Detect changed files; skip if documentation-only.** List changed paths only — *not* diff content — with `git diff --name-only` and `git diff --cached --name-only`.
+2. **Detect and classify changed files (paths only, not diff content)** with `git diff --name-only` and `git diff --cached --name-only`. Keep the list with each file's category; Step 3 matches it against each guide's `guide-scope`.
 
-   - **No changes at all** → return `Nothing to review.` and stop. Do not spawn agents.
+   - **No changes at all** → return `Nothing to review.` and stop.
    - **Classify each changed file by purpose, not extension:**
-     - *Documentation* — human-facing prose whose change alters no program, tool, skill, or build behavior (e.g. `README`, `CHANGELOG`, `CONTRIBUTING`, `LICENSE`, prose under `docs/`).
-     - *Code* — anything that changes behavior: source in any language; **skill definitions and prompt files such as `skills/**/SKILL.md` (here markdown *is* the deliverable, not docs)**; config and manifests (`Cargo.toml`, `package.json`, `*.toml/yaml/yml/json`, lockfiles, `Dockerfile`); CI/build/scripts (`.github/`, `Makefile`, `*.sh`).
-     - When unsure, classify as code. Skipping is the exception; the default is to review.
-   - **Every changed file is documentation** → return `Skipped: documentation-only change — no code files modified.`, list the changed files, and stop. Do **not** spawn agents.
-   - **Any code file is present** → proceed to Step 3. The change is reviewed normally (agents still see the full diff, doc files included).
+     - *doc* — Markdown and prose documents (`*.md`, `*.txt`, `*.rst`), whatever their job (README, design/handover doc, `SKILL.md`, `CLAUDE.md`).
+     - *code* — anything that changes program, tool, or build behavior: source in any language; config and manifests (`Cargo.toml`, `package.json`, `*.toml/yaml/yml/json`, lockfiles, `Dockerfile`); CI/build/scripts (`.github/`, `Makefile`, `*.sh`).
+     - *asset* — binary or generated artifacts no guide reviews (images, fonts, compiled output).
+     - When unsure between *code* and *asset*, classify as *code*.
 
-3. **Spawn one parallel Sonnet 4.6 sub-agent per `##` section** (subagent_type: general-purpose, model: sonnet), all in a single message so they run concurrently. Each agent receives the shared base instructions below plus exactly one `##` section (its heading, `*Review focus:*` line, and all `###` groups/bullets, verbatim) as its assigned domain.
+3. **Match guides to the change, then spawn one parallel Sonnet 4.6 sub-agent per `##` domain of every applicable guide** (subagent_type: general-purpose, model: sonnet), all in a single message so they run concurrently.
+
+   **Match first.** A guide is applicable if its `guide-scope` matches at least one changed file:
+   - scope keyword `code` → matches any file in the *code* category.
+   - scope glob (e.g. `**/*.rs`, `**/*.md`) → matches files whose path matches the glob.
+
+   Guides may overlap — a `.rs` file matches both `octo-coding-guide` (`code`) and `octo-rust-guide` (`**/*.rs`); that is intended. Spawn agents only for the `##` domains of applicable guides; silently skip the rest.
+
+   - **No guide is applicable** (e.g. only *asset* files changed) → return `Skipped: no reviewable files — nothing matches any guide scope.`, list the changed files, and stop.
+
+   Each agent is given exactly one `##` domain (its heading, `*Review focus:*` line, and all `###` groups/bullets, verbatim) plus the **in-scope files** for its guide (the changed files its guide's scope matched) and the shared base instructions below.
 
    **Base instructions (shared by all agents):**
 
-   > You are a code reviewer. You are READ-ONLY — never modify code. Perform these steps in order:
+   > You are a code reviewer. You are READ-ONLY — never modify anything. Perform these steps in order:
    >
-   > 1. Run `/octo-coding-guide` to load the shared coding guide. Also check CLAUDE.md for any additional project-level coding guide and read that too if found.
-   > 2. Your review criteria are **only the rules under your assigned `##` section** (given to you below) — including every `###` group and bullet within it. Do not review against other sections; another agent owns each of those. If a project-level CLAUDE.md adds rules that fall in your domain, include those too. If no coding guide exists, fall back to general software engineering best practices for your domain only.
-   > 3. Collect all uncommitted changes by running: `git diff` (unstaged) and `git diff --cached` (staged). If both are empty, return: "Nothing to review." and stop.
-   > 4. Read each changed file in full to understand surrounding context (not just the diff hunks).
-   > 5. If you need broader context to assess an issue (e.g., how a function is used elsewhere, whether a pattern matches the rest of the codebase), spawn an Explore subagent (model: sonnet) to search for it. Don't guess — verify.
-   > 6. Review the diff against every rule in your assigned section.
+   > 1. Your review criteria are **only the rules in your assigned `##` domain** (given to you below) — including every `###` group and bullet within it. Do not review against other domains; another agent owns each of those. Also check the project's CLAUDE.md for any project-level rules that fall in your domain, and include those too.
+   > 2. Collect the uncommitted changes: `git diff` (unstaged) and `git diff --cached` (staged). Review only your in-scope files (listed for you below); ignore changes to files outside your guide's scope — another agent or guide owns those.
+   > 3. Read each in-scope file in full to understand surrounding context (not just the diff hunks).
+   > 4. If you need broader context to assess an issue (e.g. how a function is used elsewhere, whether a pattern matches the rest of the codebase), spawn an Explore subagent (model: sonnet) to search for it. Don't guess — verify.
+   > 5. Review the in-scope changes against every rule in your assigned domain.
    >
-   > For each violation: cite exact file:line, name the violated principle (section + bullet name), and give a specific description of the issue. Skip principles with no violations.
+   > For each violation: cite exact file:line, name the violated principle (domain + bullet name), and give a specific description of the issue. Skip principles with no violations.
    >
    > **Do NOT flag false positives.** The following are NOT issues:
    > - Things a compiler, linter, or test suite would catch (type errors, unused imports, formatting)
    > - Pedantic nitpicks a senior engineer wouldn't flag
-   > - General quality suggestions not tied to a specific coding guide principle (e.g. "consider adding docs")
+   > - General quality suggestions not tied to a specific guide principle (e.g. "consider adding docs")
    > - Intentional functionality changes that are clearly part of the broader change
-   > - Style preferences not explicitly called out in the coding guide
+   > - Style preferences not explicitly called out in the guide
    >
-   > Return your findings as a structured list headed by your assigned section name. If you find no issues, return: "No issues found."
+   > Return your findings as a structured list headed by your assigned domain name. If you find no issues, return: "No issues found."
 
-4. Present all agents' findings as a unified review. Group by file, deduplicate overlapping findings, and label each issue with the domain (the `##` section name) that flagged it.
+4. Present all agents' findings as a unified review. Group by file, deduplicate overlapping findings, and label each issue with the domain (the `##` heading) and guide that flagged it.
 
 ## Writing large results to a file
 
