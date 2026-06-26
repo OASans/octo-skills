@@ -4,13 +4,18 @@ description: >
   The primary path for committing — use for ANY request to commit, save, check
   in, record, or land changes ("commit this", "commit my changes", "save my
   work", "git commit", "create a commit", "wrap up and commit"), even when the
-  word "commit" isn't used. Verifies the project's CLAUDE.md workflow ran, then
-  writes one meaningful, compact commit message, commits on the default branch,
-  and pulls to resolve conflicts. Stops and hands back if a required workflow
-  step was skipped. Does not push (a separate step).
+  word "commit" isn't used. A compound ask like "commit and push" or "commit and
+  create a CR" still triggers this skill — the extra step doesn't mean skip
+  straight to committing; run the gate first, then do the rest. Verifies the
+  project's CLAUDE.md workflow ran, then writes one meaningful, compact commit
+  message, commits on the default branch, and pulls to resolve conflicts. Stops
+  and hands back if a required workflow step was skipped. Does not push (a
+  separate step).
 ---
 
 Commit a finished change the right way: confirm the project's workflow actually ran, then record the change with a message a future agent can learn from. This is the **primary commit path — use it whenever you commit.** If in plan mode, exit first.
+
+**A compound request is a trigger, not a license to skip the gate.** "Commit and push", "commit and open a CR/PR", "commit and ship" — the trailing action doesn't override the verification: still run the gate (step 2) first, commit only if it passes, then carry on with the rest. The gate is never optional because the user named a downstream step.
 
 `octo-commit` is a **gate plus a committer**, not a do-everything runner:
 
