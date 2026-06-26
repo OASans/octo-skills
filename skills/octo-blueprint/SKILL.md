@@ -129,8 +129,10 @@ Then a prioritized checkbox list, one item per *partial* or *unmet* rule:
 **Required tools — every package ships these four:**
 
 - **`build.sh`** (or `build/`) — builds all sources from one handle.
-  - Polyglot repos use the folder form: one `build_<lang>.sh` per source (`build_rs.sh`, `build_ts.sh`), each independently runnable, with `index.sh` chaining them all.
-- **`test.sh`** (or `test/`) — runs the full unit-test suite from one handle; fans out per language like build when the repo is polyglot.
+  - **One language → a flat `build.sh`; two or more → it MUST be a `build/` folder**, never a flat script that branches across languages.
+  - **The folder holds `index.sh` plus one `build_<lang>.sh` per language** (`build_rs.sh`, `build_ts.sh`, …): each per-language script builds **only** its own language and stays independently runnable, while `index.sh` is the front door that chains them all (fail-fast, per *Shape* above).
+- **`test.sh`** (or `test/`) — runs the full unit-test suite from one handle.
+  - **Same polyglot rule as build**: one language → a flat `test.sh`; two or more → a `test/` folder with `index.sh` plus one `test_<lang>.sh` per language, each running **only** its own language's tests and individually runnable.
 - **`style/`** (always a folder) — `index.sh` runs format, lint, and a file-size check over every source.
   - **Always a folder, never a flat `style.sh`** — it bundles several concerns (format, lint, file-size check, and their per-language variants), too many for one script.
   - Covers `format.sh` and `lint.sh`, or language-oriented `format_rs.sh`/`format_py.sh` and `lint_rs.sh`/`lint_py.sh` when polyglot, all chained by `index.sh`.
@@ -147,10 +149,10 @@ Then a prioritized checkbox list, one item per *partial* or *unmet* rule:
 
 **Language-specific tools — shipped when that language is present:**
 
-- **`clean_rust_old_binaries.sh`** (Rust only) — prunes *stale* Rust build artifacts older than a day, and runs itself after every commit so `target/` doesn't grow without bound between full cleans. Distinct from a full `clean.sh`: that wipes all artifacts on demand; this drops only the old ones, automatically.
+- **`clean_rust_old_binaries.sh`** (Rust only) — prunes *stale* Rust build artifacts older than a day, and runs before the build so `target/` doesn't grow without bound between full cleans. Distinct from a full `clean.sh`: that wipes all artifacts on demand; this drops only the old ones, automatically.
   - **Sweeps by age, keeps today's** — runs `cargo sweep --time 1` at the project root: deletes build artifacts older than one day while keeping anything built or touched today. It is not a full clean and touches no other language.
-  - **Wired to the post-commit hook** — the git post-commit hook (e.g. `.cargo-husky/hooks/post-commit`) invokes it after every commit, fire-and-forget (backgrounded, off the commit path) so cleanup is automatic and never delays the commit. Verify by reading the hook that it actually calls the script, not merely that the script exists.
-  - **Never installs on the commit path** — the hook guards on `cargo-sweep` already being present and skips silently when it's absent, so a commit can't trigger a `cargo install`; the script itself auto-installs `cargo-sweep` only on a manual run.
+  - **Runs before the Rust build** — `build_rs.sh` (or the Rust step of `build/index.sh`) invokes it before compiling, so stale artifacts are pruned on every build. Verify by reading the build script that it actually calls the cleanup, not merely that the script exists.
+  - **Never blocks the build on an install** — the cleanup guards on `cargo-sweep` already being present and skips silently when it's absent, so a build can't trigger a `cargo install`; the script auto-installs `cargo-sweep` only on a direct manual run.
   - **N/A when the project has no Rust.**
 
 <!--
