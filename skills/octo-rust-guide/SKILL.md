@@ -3,7 +3,7 @@ name: octo-rust-guide
 guide-scope: "**/*.rs"
 description: >
   Print the shared Rust guide — this codebase's Rust-specific conventions for
-  test layout, pattern matching, and global state. Inline skill — no sub-agents.
+  test layout, pattern matching, global state, and module layout. Inline skill — no sub-agents.
   Use as a reference for Rust code reviews, implementation decisions, and plan evaluation.
 ---
 
@@ -23,7 +23,7 @@ description: >
 
 ## Rust Guidance
 
-*Review focus: where the change touches Rust, does it follow this codebase's conventions for test layout, pattern matching, and global state?*
+*Review focus: where the change touches Rust, does it follow this codebase's conventions for test layout, pattern matching, global state, and module layout?*
 
 ### Test Layout
 
@@ -36,3 +36,7 @@ description: >
 ### Global State
 
 - **No New Interior-Mutable Globals**: Don't add `static` items with interior-mutability types (`OnceLock`, `OnceCell`, `Lazy(Lock)?`, `Mutex`, `RwLock`, `Atomic*`). Hold state in a struct and pass it through. Pre-existing grandfathered globals are exempt; do not add more.
+
+### Module Layout
+
+- **`mod.rs` Is Declaration-Only**: A `mod.rs` holds only module wiring — `mod`/`pub use`/`pub mod` declarations and re-exports — never functions, types, or other logic; put those in a sibling or child module. Because it carries no logic, a `mod.rs` needs no unit tests (it is exempt from the **Sibling Test Files** rule).
