@@ -86,6 +86,8 @@ type(scope): imperative summary           ← always; ≤ ~70 chars; scans in `g
 
 Type: `feat|fix|refactor|test|docs|chore|perf|style|ci|build`. Scope = area, omit if broad. Summary imperative, lowercase, no period.
 
+**Summary must stand on its own — never a plan/roadmap codename.** A task label like "Sequencer task 6" or "phase B" is meaningless to anyone reading `git log`; say what the task actually did (`feat(parser): stream tokens incrementally`, not `feat: phase B`). True even for a tiny step in a planned sequence — mention the codename only *after* a meaningful summary, if at all.
+
 **How much to write:**
 1. Write the `type(scope): summary`.
 2. Can a future agent reconstruct the *why* from the diff? **No** → add a 1–3 sentence why. **Yes** → stop, subject-only.
