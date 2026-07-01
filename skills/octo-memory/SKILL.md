@@ -19,6 +19,7 @@ Check and update the project's two-tier memory. Use it when the user wants to re
 - **Long-term** — one topic per `.claude/skills/knowledge-<slug>/SKILL.md` (project-level, committed). Descriptions auto-load every session (the index); bodies load on demand. No `index.md`, no CLAUDE.md `@`-import.
 - **Short-term** — local capture buffer at `~/.octo-memory/<key>/short_term/<date>/` (`<key>` = repo name from `git remote get-url origin`). Never committed, not loaded into context; read only by `octo-memory-long-term`.
 - **Consolidation flag** — `~/.octo-memory/<key>/tracker.md` (`last_processed_date`, per machine).
+- **Usage log** — `~/.octo-memory/<key>/usage.log`: one line per knowledge-topic load, appended by a global hook; consolidation folds it into per-topic `usage.md` sidecars (script-owned) as its retention signal.
 
 ## Steps
 

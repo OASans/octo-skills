@@ -6,14 +6,9 @@
 # Cheap on purpose: lets the orchestrator skip loading the heavy octo-memory-long-term
 # skill on the ~every session where consolidation already ran today.
 
-url=$(git remote get-url origin 2>/dev/null)
-key=${url##*/}; key=${key%.git}
-if [ -z "$key" ]; then
-  echo "ERROR: no 'origin' remote — set one (git remote add origin <url>) so memory can be keyed per project" >&2
-  exit 2
-fi
+. "$(dirname "${BASH_SOURCE[0]}")/store-path.sh"   # sets: key, store (exit 2 if no origin)
 
-flag="$HOME/.octo-memory/$key/tracker.md"
+flag="$store/tracker.md"
 last=$(grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$flag" 2>/dev/null | head -1)
 
 if [ "$last" = "$(date +%F)" ]; then

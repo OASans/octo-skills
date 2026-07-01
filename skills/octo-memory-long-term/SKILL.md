@@ -101,6 +101,10 @@ Every `knowledge-*` description is always loaded; bodies load on demand. Both co
 - Drop session/debugging narrative — the rule is the memory, not the path that found it.
 - If a topic cannot be stated concisely, it is probably two topics — split. If two overlap, merge and delete the loser.
 
+## Usage telemetry
+
+Every knowledge-topic load is logged by a global PostToolUse hook to `~/.octo-memory/<key>/usage.log` (machine-local, shared across checkouts). Each topic dir also carries a **script-owned sidecar** `usage.md` (`last-loaded:` + `loads:`, committed) — retention evidence, not knowledge: never hand-edit it, never cite it in a topic body. `usage-stats.sh` prints per-topic totals (Phase 2 reads this); `usage-stats.sh --stamp` folds new log lines into the sidecars and trims the log (Phase 3 runs this). After a one-time bootstrap (`loads: 0`), a sidecar changes only when its topic is actually loaded — a long-unchanged sidecar is itself the disuse signal. Only Skill-tool loads are counted (direct file Reads aren't), so treat `loads` as a coarse signal and judge retention on `last-loaded`.
+
 ## Steps
 
 Consolidation is a **daily** pass. `octo-memory` already gated it via `consolidation-due.sh` and loads this skill **only on DUE** — whether to run today is already decided, so there is no skip-check here. Each script below resolves its own paths from the `origin` remote, so there is nothing to set up. Promotion is criteria-based only — short-term is not loaded into sessions, so there is no "promote what I used this session" step.
@@ -118,7 +122,7 @@ Consolidation is a **daily** pass. `octo-memory` already gated it via `consolida
 
 #### Phase 2: Staleness sweep
 
-Review every existing `.claude/skills/knowledge-*` skill:
+Run `bash ~/.claude/skills/octo-memory/usage-stats.sh` once — per-topic `loads` + `last-loaded` (see *Usage telemetry*). Then review every existing `.claude/skills/knowledge-*` skill:
 1. Read the skill body; identify its key references (files, functions, patterns).
 2. Grep/Glob each reference. If gone, one quick search for a rename/move.
 3. Check the pattern is still used, and that it is not now covered by doc/ or CLAUDE.md.
@@ -129,9 +133,12 @@ Review every existing `.claude/skills/knowledge-*` skill:
 - **Documented elsewhere**: now fully covered in doc/, CLAUDE.md, or code.
 - **Absorbed**: merged into another topic.
 
+**Unused** (usage-based, gentler than deletion): `last-loaded: never` or >90 days ago, on a topic that has had its chance (created >30 days ago per git). The knowledge may still be accurate, so don't just delete the slot — **merge** its one load-bearing rule into a sibling topic, or **demote**: append its distilled entry as a normal capture file in today's short-term folder, then delete the topic; if it matters again it recurs and re-earns the slot. Keeping an unused topic is allowed (e.g. rare-but-damaging release knowledge) — justify it in the report. Recently-loaded topics are never deprecated on usage grounds; the other Deprecate criteria still apply to them, though frequent loads warrant a harder rename-search before concluding a reference is dead.
+
 If partially stale (some refs dead, core still valid), update instead of deleting.
 
 #### Phase 3: Finalize
 
-1. Stamp the watermark: `bash ~/.claude/skills/octo-memory/mark-consolidated.sh` — it writes `last_processed_date: <today>` (the file's only line). No model writes the tracker by hand.
-2. Report **in-session** (not to the file): N entries processed, M new topics, K updates, H held (awaiting recurrence or left contested), R refuted, J skipped, L deprecated (with reasons).
+1. Stamp usage: `bash ~/.claude/skills/octo-memory/usage-stats.sh --stamp` — folds the load log into each topic's `usage.md` sidecar and trims the log. No model writes sidecars by hand.
+2. Stamp the watermark: `bash ~/.claude/skills/octo-memory/mark-consolidated.sh` — it writes `last_processed_date: <today>` (the file's only line). No model writes the tracker by hand.
+3. Report **in-session** (not to the file): N entries processed, M new topics, K updates, H held (awaiting recurrence or left contested), R refuted, J skipped, L deprecated (with reasons), U unused topics handled (merged / demoted / kept-with-reason).

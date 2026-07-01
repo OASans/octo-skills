@@ -20,15 +20,10 @@
 
 export LC_ALL=C   # deterministic YYYY-MM-DD comparison and sort
 
-url=$(git remote get-url origin 2>/dev/null)
-key=${url##*/}; key=${key%.git}
-if [ -z "$key" ]; then
-  echo "ERROR: no 'origin' remote — set one (git remote add origin <url>) so memory can be keyed per project" >&2
-  exit 2
-fi
+. "$(dirname "${BASH_SOURCE[0]}")/store-path.sh"   # sets: key, store (exit 2 if no origin)
 
-st="$HOME/.octo-memory/$key/short_term"
-flag="$HOME/.octo-memory/$key/tracker.md"
+st="$store/short_term"
+flag="$store/tracker.md"
 today=$(date +%F)
 wm=$(grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' "$flag" 2>/dev/null | head -1)
 wm=${wm:-0000-00-00}   # missing / empty / first run -> epoch (promote all complete days)

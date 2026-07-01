@@ -76,6 +76,15 @@
             "command": "( flock -x -w 5 9; jq -c --arg aid \"$OCTO_AGENT_ID\" '. + {aid:$aid}' >> \"$OCTO_HOOK_FILE\" ) 9>\"$OCTO_HOOK_FILE.lock\" 2>/dev/null || true"
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "skill=$(jq -r '.tool_input.skill // empty' 2>/dev/null); case \"$skill\" in knowledge-*) url=$(git remote get-url origin 2>/dev/null); key=${url##*/}; key=${key%.git}; if [ -n \"$key\" ]; then store=\"$HOME/.octo-memory/$key\"; mkdir -p \"$store\" 2>/dev/null; ( flock -x -w 5 9; echo \"$(date +%F) $skill\" >> \"$store/usage.log\" ) 9>\"$store/usage.log.lock\" 2>/dev/null || true; fi;; esac"
+          }
+        ]
       }
     ],
     "Stop": [
