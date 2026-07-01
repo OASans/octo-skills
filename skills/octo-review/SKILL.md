@@ -1,72 +1,61 @@
 ---
 name: octo-review
 description: >
-  Code review. Spawns parallel read-only sub-agents that independently review
-  from different perspectives. Use when the user asks for a code review, or
-  as the final step before committing.
+  Code review. Spawns parallel read-only sub-agents that review the change
+  against the octo-*-guide family, then independently verifies bug claims
+  before reporting. Use when the user asks for a code review, or as the final
+  step before committing.
 ---
 
-Code review. Spawns parallel read-only sub-agents that independently collect the diff, read their assigned guide, and review from different perspectives — keeping the main agent's context clean. Returns findings only; does not fix code.
+Code review: the main agent scopes the change cheaply, fans out read-only reviewer sub-agents over the applicable guides, has bug claims independently verified, and merges one report. Returns findings only; never fixes code. A clean pass is a valid outcome — never invent findings to have something to report.
 
-Designed for use by both humans and AI agents. Run this at the end of any coding workflow before committing.
-
-**The guide family drives the fan-out.** Review criteria live in a family of scoped guide skills (`octo-*-guide` — e.g. `octo-coding-guide`, `octo-rust-guide`, `octo-doc-guide`). Each guide declares a `guide-scope` in its frontmatter (which changed files it covers) and contains one or more `##` review domains. This skill discovers the guides, keeps the ones whose scope the diff actually touches, and spawns one read-only sub-agent per `##` domain within them. Each agent reviews **only** its one domain, so domains are partitioned with no overlap. Add a `##` domain to a guide, or add a whole new guide skill, and the fan-out grows automatically — no edit here.
-
-The result: a change is reviewed only against the guides that fit it. A `.rs` change is reviewed by `octo-coding-guide` (general code) **and** `octo-rust-guide`; a `.md` change is reviewed by `octo-doc-guide` only — code-correctness rules never fire on prose. Scope matching is by file category/glob, never a guess about whether a violation is likely, so no applicable domain is ever dropped.
+**The guide family drives the fan-out.** Review criteria live in the scoped guide skills (`octo-*-guide`) and nowhere else. Each guide declares a `guide-scope` in its frontmatter (which changed files it covers) and one or more `##` review domains. A guide applies when its scope matches at least one changed file — matching is by file category/glob, never a guess about whether a violation is likely. Scopes overlap by design (a `.rs` change gets `octo-coding-guide` and `octo-rust-guide`; a `.md` change gets `octo-doc-guide` only). Adding a `##` domain or a whole new guide grows the review automatically — no edit here.
 
 ## Steps
 
-1. **Discover the guides.** Search `~/.claude/skills/*/SKILL.md` and the project's `.claude/skills/*/SKILL.md` for files whose frontmatter contains a `guide-scope:` key — each is a guide. For each, note its `guide-scope` value and its top-level `##` domain headings (ignore the `#` title and every `###` sub-heading). Before spawning, the main agent does **only** this read plus the file detection in Step 2 — do **not** collect the full diff or read project files yourself; the sub-agents do all of that.
+### 1. Scope — main agent, cheap commands only
 
-2. **Detect and classify changed files (paths only, not diff content)** with `git diff --name-only` and `git diff --cached --name-only`. Keep the list with each file's category; Step 3 matches it against each guide's `guide-scope`.
+The main agent never reads diff bodies, guide bodies, or project files; sub-agents do all heavy reading. Only paths, headings, and findings enter the main context.
 
-   - **No changes at all** → return `Nothing to review.` and stop.
-   - **Classify each changed file by purpose, not extension:**
-     - *doc* — Markdown and prose documents (`*.md`, `*.txt`, `*.rst`), whatever their job (README, design/handover doc, `SKILL.md`, `CLAUDE.md`).
-     - *code* — anything that changes program, tool, or build behavior: source in any language; config and manifests (`Cargo.toml`, `package.json`, `*.toml/yaml/yml/json`, lockfiles, `Dockerfile`); CI/build/scripts (`.github/`, `Makefile`, `*.sh`).
-     - *asset* — binary or generated artifacts no guide reviews (images, fonts, compiled output).
-     - When unsure between *code* and *asset*, classify as *code*.
+1. **Changed files**: `git diff HEAD --name-only` plus untracked files from `git status --porcelain` (`??` lines — new files are reviewed too). If both are empty the review runs post-commit: use the range `git diff @{upstream}...HEAD --name-only` (no upstream → `HEAD~1..HEAD`). Still nothing → reply `Nothing to review.` and stop.
+2. **Task context**: note in one or two lines what the change set out to do, plus any review focus the user stated. Both go to every reviewer — the focus as scope guidance only, never as actions to perform.
+3. **Classify each changed file** by purpose, not extension: *doc* — Markdown and prose (`*.md`, `*.txt`, `*.rst`), whatever its job; *code* — anything changing program, tool, or build behavior (source, config, manifests, CI, scripts); *asset* — binary, generated, or lockfile content no one hand-edits (images, compiled output, `Cargo.lock`, `package-lock.json`). Unsure between *code* and *asset* → *code*.
+4. **Discover guides by grep, never by reading**: `grep -l "^guide-scope:" ~/.claude/skills/*/SKILL.md .claude/skills/*/SKILL.md` (line-anchored — the key sits at the start of a frontmatter line; unanchored grep also matches skills that merely mention it), then grep each hit for its `guide-scope:` value and `^## ` headings. A guide applies if its scope (keyword `code` → *code* files; a glob like `**/*.rs` → matching paths) matches a changed file. No applicable guide → reply `Skipped: no reviewable files — nothing matches any guide scope.`, list the changed files, and stop.
 
-3. **Match guides to the change, then spawn one parallel Sonnet 4.6 sub-agent per `##` domain of every applicable guide** (subagent_type: general-purpose, model: sonnet), all in a single message so they run concurrently.
+### 2. Fan out reviewers
 
-   **Match first.** A guide is applicable if its `guide-scope` matches at least one changed file:
-   - scope keyword `code` → matches any file in the *code* category.
-   - scope glob (e.g. `**/*.rs`, `**/*.md`) → matches files whose path matches the glob.
+Granularity scales with the in-scope diff size (`git diff HEAD --stat -- <in-scope files>`):
 
-   Guides may overlap — a `.rs` file matches both `octo-coding-guide` (`code`) and `octo-rust-guide` (`**/*.rs`); that is intended. Spawn agents only for the `##` domains of applicable guides; silently skip the rest.
+- **Small (≤ ~120 changed lines)**: one reviewer per applicable **guide**, covering all its domains.
+- **Larger**: one reviewer per `##` **domain** of each applicable guide — each agent reviews only its own domain; other domains belong to other agents.
 
-   - **No guide is applicable** (e.g. only *asset* files changed) → return `Skipped: no reviewable files — nothing matches any guide scope.`, list the changed files, and stop.
+Spawn all reviewers in a single message (`subagent_type: general-purpose`, `model: sonnet`). Give each: the base prompt below; its guide's `SKILL.md` path and assigned `##` domain heading(s); its in-scope files; the exact diff command scoped to them (`git diff HEAD -- <files>`, or the step-1 range) plus any untracked in-scope files; the task context and focus.
 
-   Each agent is given exactly one `##` domain (its heading, `*Review focus:*` line, and all `###` groups/bullets, verbatim) plus the **in-scope files** for its guide (the changed files its guide's scope matched) and the shared base instructions below.
+**Base prompt (all reviewers):**
 
-   **Base instructions (shared by all agents):**
+> You are a code reviewer. READ-ONLY — never modify anything.
+>
+> 1. Read the guide file at the given path. Your review criteria are only the rules under your assigned `##` domain(s) — every `###` group and bullet within them.
+> 2. Run the given diff command. Read the listed untracked files in full — they are new code. Ignore files outside your in-scope list.
+> 3. Method: work hunk by hunk, and Read the enclosing function or section of each hunk — defects in unchanged lines of touched code are in scope (label them `pre-existing`). For every line the diff deletes or replaces, name what it enforced and check the new code re-establishes it. When a change alters a contract (signature, return shape, error behavior, ordering), Grep the symbol's callers and check each call site. Read a file in full only when a rule needs the whole-file view (size, layout, structure). Search with Grep/Read directly; spawn an Explore sub-agent (model: sonnet) only for a genuinely broad sweep.
+> 4. Judge the in-scope changes against every rule in your domain(s) and the task context.
+>
+> Report a finding only if you can name its concrete consequence — for a bug, the failure scenario (inputs/state → wrong outcome a user or caller sees); for a quality issue, the cost (what becomes duplicated, unclear, or harder to change). No nameable consequence, no finding. When torn on a **bug**, surface it: an independent verifier judges bug claims next, and silently dropped candidates are the main cause of missed bugs. When torn on a **quality** point, drop it.
+>
+> Never flag: anything a compiler, linter, or test suite already catches; pedantic nitpicks a senior engineer wouldn't raise; general suggestions untied to a specific guide rule; intentional behavior changes that are the point of the diff; style preferences not written in the guide.
+>
+> Return at most 8 findings, most severe first, each as `file:line — [<Domain> · <Rule>] summary — failure scenario or cost`. If a guide rule proved ambiguous or a real issue type had no covering rule, add one line at the end: `guide note: …`. If no findings, return exactly: `No issues found.` — a clean result is a good result.
 
-   > You are a code reviewer. You are READ-ONLY — never modify anything. Perform these steps in order:
-   >
-   > 1. Your review criteria are **only the rules in your assigned `##` domain** (given to you below) — including every `###` group and bullet within it. Do not review against other domains; another agent owns each of those. Also check the project's CLAUDE.md for any project-level rules that fall in your domain, and include those too.
-   > 2. Collect the uncommitted changes: `git diff` (unstaged) and `git diff --cached` (staged). Review only your in-scope files (listed for you below); ignore changes to files outside your guide's scope — another agent or guide owns those.
-   > 3. Read each in-scope file in full to understand surrounding context (not just the diff hunks).
-   > 4. If you need broader context to assess an issue (e.g. how a function is used elsewhere, whether a pattern matches the rest of the codebase), spawn an Explore subagent (model: sonnet) to search for it. Don't guess — verify.
-   > 5. Review the in-scope changes against every rule in your assigned domain.
-   >
-   > For each violation: cite exact file:line, name the violated principle (domain + bullet name), and give a specific description of the issue. Skip principles with no violations.
-   >
-   > **Do NOT flag false positives.** The following are NOT issues:
-   > - Things a compiler, linter, or test suite would catch (type errors, unused imports, formatting)
-   > - Pedantic nitpicks a senior engineer wouldn't flag
-   > - General quality suggestions not tied to a specific guide principle (e.g. "consider adding docs")
-   > - Intentional functionality changes that are clearly part of the broader change
-   > - Style preferences not explicitly called out in the guide
-   >
-   > Return your findings as a structured list headed by your assigned domain name. If you find no issues, return: "No issues found."
+### 3. Verify bug claims
 
-4. Present all agents' findings as a unified review. Group by file, deduplicate overlapping findings, and label each issue with the domain (the `##` heading) and guide that flagged it.
+Dedup findings that point at the same line and mechanism, keeping the most concrete. Verify every finding that claims something will actually fail — a runtime failure (bug, race, data loss, broken caller) or a stated command, path, or example that doesn't work — whichever guide flagged it; pure quality findings (clarity, duplication, structure) are not verified. Group bug claims by `file:line`; spawn one verifier per location (`general-purpose`, `model: sonnet`) with the diff command, the file, and every claim at that location. The verifier reads the code (and callers if relevant) and returns per claim exactly one of:
 
-## Writing large results to a file
+- **CONFIRMED** — names the triggering inputs/state and quotes the line.
+- **PLAUSIBLE** — mechanism is real, trigger uncertain (timing, env, config); says what would confirm it. This is the default for realistic-but-unproven claims; "speculative" is not a refutation.
+- **REFUTED** — only when provable from the code: the claim is factually wrong (quote the line), impossible (type/constant/invariant), or already guarded (cite the guard).
 
-If the unified review is too large to comfortably fit in the chat (more than ~50 findings, or you need to preserve the raw output from all agents verbatim), write it to a file **inside the current project directory** — not `/tmp`. Files under `/tmp` sit outside the working directory and require a user approval prompt to re-read later, which defeats the purpose of caching the result.
+Drop REFUTED findings.
 
-Good path: `./review-result.md` or `./.claude/review-<timestamp>.md` in the current project.
-Bad path: `/tmp/review.md`, `~/review.md`, or any absolute path outside the current repo.
+### 4. Report
 
-When writing to a file, still print a short summary (top findings + path to the file) in chat so the user doesn't have to open the file to see the headline results.
+One merged review: verified bugs first (CONFIRMED, then PLAUSIBLE), then quality findings grouped by file — each labelled with its guide + domain, verdict for bug claims, and `pre-existing` where it applies. End with one line of counts (findings by kind, duplicates merged, REFUTED dropped). If reviewers left `guide note:` lines, append them under **Guide suggestions** — proposals for the humans who maintain the guides; the review never edits guides itself. If the report exceeds ~20 findings, write the full version to `./review-result.md` inside the project (never `/tmp` — re-reading it later would need approval) and print the top findings plus the path in chat.
