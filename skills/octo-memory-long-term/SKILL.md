@@ -29,15 +29,31 @@ Fails 1–4 → it **stays in short-term only**: bug-fix details (commits + test
 
 **Default to merge, not new topic.** Each new topic adds another always-loaded description to the skill-listing budget. Before creating `knowledge-<new-slug>/`, scan existing `knowledge-*` for one the knowledge could extend — even a loose thematic match beats a near-duplicate sibling. New topic only when no existing one is a defensible home.
 
+## Refutation gate — claims that assert cause or generalization
+
+Criteria 1–5 are positive filters — they ask *does this deserve a slot?* They catch idiosyncrasy (one session over-valuing something) but not **plausible-but-wrong**: a misconception recurs *because* it is plausible to everyone who hits it, so recurrence alone can promote a popular myth. Before promoting any candidate that states a **cause** ("X because Y") or a **generalization** ("always / never Z"), try once to falsify it:
+
+- Is the stated mechanism the real cause, or a coincidence that happened to co-occur?
+- Does the rule hold outside the one context it was seen in, or is it leakage from that setup?
+
+Outcomes:
+- **Confirmed** → promote normally.
+- **Contested** — mechanism neither confirmed nor refuted → **hold**, exactly like a not-yet-recurred entry: don't spend an always-loaded slot on an unconfirmed rule; if it is real it recurs with better evidence.
+- **Refuted** → drop. If the wrong claim is damaging *and* recurring, promote its **correction** as an anti-pattern topic ("X looks true but isn't — actually Y") so recurrence can't resurrect the myth. The correction may take its mechanism from a CONTEXT twin — that is not "promoting a CONTEXT entry on its own" (the refuted PROMOTE entries carry the recurrence); it is recording why they are wrong.
+
+Pure factual or locational captures ("config lives in `config.ts`") assert no cause — they skip this gate; criterion 3's existence-check is enough.
+
 ## What makes a good topic
 
-A topic answers two questions: **what is this** and **how should it change my behavior**. The second separates knowledge from trivia — without concrete "when/how to apply" guidance, don't promote it. (The body structure — What / How to Apply / Key Files — is in the template below.)
+A topic answers two questions — **what is this** and **how should it change my behavior** — plus a third when it asserts a cause or a rule: **why is it true (the mechanism)**. The second separates knowledge from trivia (no concrete "when/how to apply" → don't promote). The third lets a future agent judge whether the rule still holds in a new context, and it is what the Refutation gate checks — a rule with no stated mechanism can be neither applied safely nor attacked. Fold the *why* into What or How to Apply; don't add a section. (Body structure — What / How to Apply / Key Files — is in the template below.)
 
 Bad (trivia):
 > "The scheduler runs every 30 minutes."
 
 Good (actionable):
 > "The scheduler runs every 30 minutes via node-cron. Register new data sources in src/scheduler/jobs.ts — don't add standalone cron entries; the scheduler centralizes retry and rate limiting."
+
+Its closing clause is the *why*: "centralizes retry and rate limiting" is the mechanism — how a future agent knows when the rule applies and when it doesn't.
 
 ## Topic = a knowledge skill
 
@@ -92,10 +108,11 @@ Consolidation is a **daily** pass. `octo-memory` already gated it via `consolida
 #### Phase 1: Promote new knowledge
 
 1. Run `bash ~/.claude/skills/octo-memory/collect-captures.sh`. It emits one blob with two sections: **PROMOTE** (captures in `[last_processed_date, today)` — the exactly-once promote set) and **CONTEXT** (the prior ~5 already-processed capture-days — the recurrence lookback, plus context for writing better topics). The script owns the date range so you never re-derive it by hand — see its header for why the bounds are `>= watermark` and `< today`. If PROMOTE is empty, skip to Phase 2.
-2. For each `##` entry in **PROMOTE**, classify against the promotion criteria. Scan PROMOTE and CONTEXT for twins — another independent capture of the same knowledge makes the entry *recurred*. Never promote a CONTEXT entry on its own; when a recurred PROMOTE entry earns a topic, folding supporting detail from its twins into the body is fine.
-   - **New topic**: recurred (or an exempt lane) and no existing `knowledge-*` covers it → create `.claude/skills/knowledge-<slug>/SKILL.md`.
+2. For each `##` entry in **PROMOTE**, classify against the promotion criteria. Scan PROMOTE and CONTEXT for twins — another independent capture of the same knowledge makes the entry *recurred*. Never promote a CONTEXT entry on its own; when a recurred PROMOTE entry earns a topic, folding supporting detail from its twins into the body is fine. If the entry asserts a cause or generalization, run it through the **Refutation gate** before promoting.
+   - **New topic**: confirmed (or non-causal), recurred (or an exempt lane), and no existing `knowledge-*` covers it → create `.claude/skills/knowledge-<slug>/SKILL.md`.
    - **Update existing**: extends an existing topic → read that skill, merge, bump `Last verified`.
-   - **Hold**: passes criteria 1–4 but hasn't recurred → do nothing; the file stays in the buffer and resurfaces as CONTEXT next run.
+   - **Hold**: passes criteria 1–4 but hasn't recurred, or the gate left it **contested** → do nothing; the file stays in the buffer and resurfaces as CONTEXT next run.
+   - **Refuted**: the gate disproved the claim → skip; promote its correction as an anti-pattern topic only when the myth is damaging and recurring.
    - **Ephemeral**: fails 1–4, no lasting value → skip.
 3. **Verify** each new/updated topic with Grep/Glob — referenced files/functions must exist.
 
@@ -117,4 +134,4 @@ If partially stale (some refs dead, core still valid), update instead of deletin
 #### Phase 3: Finalize
 
 1. Stamp the watermark: `bash ~/.claude/skills/octo-memory/mark-consolidated.sh` — it writes `last_processed_date: <today>` (the file's only line). No model writes the tracker by hand.
-2. Report **in-session** (not to the file): N entries processed, M new topics, K updates, H held awaiting recurrence, J skipped, L deprecated (with reasons).
+2. Report **in-session** (not to the file): N entries processed, M new topics, K updates, H held (awaiting recurrence or left contested), R refuted, J skipped, L deprecated (with reasons).

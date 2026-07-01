@@ -71,6 +71,7 @@ No fixed template. Two natural shapes:
 ### Rules
 
 - Lead with the knowledge — not preamble or a restatement of the task that produced it ("X does Y when Z", not "I learned that…").
+- **State the why for a causal claim** — if the capture asserts "X because Y" or "always/never Z", put the mechanism on the same line. It seeds consolidation's refutation gate, and a claim with no reason is the one most likely to be coincidence.
 - **No code blocks** — a `file.rs:NNN` anchor replaces them (full path at first mention, short anchor like `mouse.rs:320` after). Sole exceptions: env-var names, exact wire field names, escape sequences whose literal characters matter.
 - **Drop narrative and framing scaffolds** — no "we tried…, then realized…", no **Symptom:/Cause:/Fix:/Verified on:** subsections. Keep the conclusion; fold any load-bearing detail into prose. One closing `**Rule:**` is fine, don't sprinkle three. The urge to write Symptom→Cause→Fix usually means a bug-fix post-mortem — the commit is the memory; don't write it.
 - **Merge within your session**: append related insights under one `##` heading in the file you already created (see Steps); cross-session dedup is `octo-memory-long-term`'s job.
