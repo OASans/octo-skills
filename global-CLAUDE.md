@@ -18,6 +18,16 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 - Messages and plans — compact, plain words, easy to read; include only what's needed, skip preamble and recaps.
 - Editing any CLAUDE.md — write compact (no decorative markdown); usually edit only when the user asks.
 
+## Subagents
+
+Delegate to keep the main context small and to parallelize where work truly splits. Subagents see no conversation history — every dispatch prompt must be self-contained (goal, files, contracts, decisions so far, definition of done). Three modes:
+
+- Read fan-out (parallel) — search, investigation, fresh-eyes verification, distilling long output: detail-heavy work where only the conclusion needs to come back.
+- Mechanical write fan-out (parallel) — only fully-specified repeated changes: write the recipe plus one exemplar edit first, agents replicate it over disjoint files, then you build/test and fix the seams. A coupled change is never split in parallel, however big.
+- Staged delegation (sequential) — major multi-stage work that would force repeated auto-compaction: stay a thin orchestrator (plan, contracts, decisions list, stage state — read no file bodies yourself), dispatch each stage once it's spec-complete, worker drives its stage to green build/tests and reports back small. Committed code is the handoff between stages, not summaries.
+
+Keep inline: quick lookups, exploratory debugging where the problem isn't understood yet, and design decisions themselves. Skills with their own orchestration (`/octo-review`) already fan out — don't add more inside them.
+
 ## Memory
 
 **Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use the `/octo-memory` skill for all memory operations (it orchestrates `octo-memory-short-term` capture and `octo-memory-long-term` consolidation).
