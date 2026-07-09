@@ -4,7 +4,7 @@
     "CLAUDE_CODE_NO_FLICKER": "1",
     "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
     "CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION": "false",
-    "API_TIMEOUT_MS": "600000",
+    "API_TIMEOUT_MS": "900000",
     "CLAUDE_STREAM_IDLE_TIMEOUT_MS": "180000",
     "CLAUDE_ENABLE_STREAM_WATCHDOG": "1",
     "CLAUDE_ENABLE_BYTE_WATCHDOG": "1",
@@ -63,6 +63,15 @@
           {
             "type": "command",
             "command": "( flock -x -w 5 9; jq -c --arg aid \"$OCTO_AGENT_ID\" '. + {aid:$aid}' >> \"$OCTO_HOOK_FILE\" ) 9>\"$OCTO_HOOK_FILE.lock\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "model=$(jq -r '.tool_input.model // empty' 2>/dev/null); if [ -z \"$model\" ]; then echo 'Rejected: every Agent/Task spawn MUST pass an explicit \"model\" field (e.g. \"opus\", \"sonnet\", \"haiku\", \"fable\"). Silent model inheritance is disabled — re-issue the call with the model you intend.' >&2; exit 2; fi"
           }
         ]
       }
