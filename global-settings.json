@@ -71,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "model=$(jq -r '.tool_input.model // empty' 2>/dev/null); if [ -z \"$model\" ]; then echo 'Rejected: every Agent/Task spawn MUST pass an explicit \"model\" field (e.g. \"opus\", \"sonnet\", \"haiku\", \"fable\"). Silent model inheritance is disabled — re-issue the call with the model you intend.' >&2; exit 2; fi"
+            "command": "inp=$(cat); model=$(printf '%s' \"$inp\" | jq -r '.tool_input.model // empty'); if [ -z \"$model\" ]; then echo 'Rejected: every Agent/Task spawn MUST pass an explicit \"model\" field (opus|sonnet|haiku|fable). Silent model inheritance is disabled.' >&2; exit 2; fi; printf '%s' \"$inp\" | jq -c --arg m \"$model\" '{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"allow\",updatedInput:(.tool_input + {description:(\"[\"+$m+\"] \"+(.tool_input.description // \"\"))})}}'"
           }
         ]
       }
