@@ -20,7 +20,7 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ## Subagents
 
-Delegate to keep the main context small and to parallelize where work truly splits. Subagents see no conversation history — every dispatch prompt must be self-contained (goal, files, contracts, decisions so far, definition of done). Three modes:
+Delegate to keep the main context small and to parallelize where work truly splits. Subagents see no conversation history — every dispatch prompt must be self-contained (goal, files, contracts, decisions so far, definition of done). `model` is required on every spawn (a hook denies the start if it's missing) — pick the best model for the task: think about how hard it is and match it (cheaper/faster for mechanical or search work, stronger for reasoning-heavy work). Three modes:
 
 - Read fan-out (parallel) — search, investigation, fresh-eyes verification, distilling long output: detail-heavy work where only the conclusion needs to come back.
 - Mechanical write fan-out (parallel) — only fully-specified repeated changes: write the recipe plus one exemplar edit first, agents replicate it over disjoint files, then you build/test and fix the seams. A coupled change is never split in parallel, however big.
