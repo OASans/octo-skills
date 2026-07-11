@@ -1,7 +1,9 @@
 # Codex CLI config managed by octo-skills.
-# install.sh merges the [tui] status_line below into ~/.codex/config.toml,
-# preserving the keys Codex writes itself (theme, trusted projects, hook trust
-# hashes). Edit the line, then run ./install.sh; preview/toggle live with /statusline.
+# install.sh merges these managed keys into ~/.codex/config.toml while preserving
+# the keys Codex writes itself (theme, trusted projects, hook trust hashes).
+
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
 
 [tui]
 # model-with-reasoning = model + thinking effort; context-usage = context-window %

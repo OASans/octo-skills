@@ -1,0 +1,2 @@
+# Ask before running the remove command; all other commands use the global defaults.
+prefix_rule(pattern = ["rm"], decision = "prompt")
