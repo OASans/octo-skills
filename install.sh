@@ -3,12 +3,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Detect target directory
+# Detect target directories. Claude Code lives in ~/.claude (%APPDATA%\Claude on
+# Windows); Codex CLI always uses ~/.codex (CODEX_HOME).
 case "$(uname -s)" in
-    Darwin)
-        CLAUDE_DIR="$HOME/.claude"
-        ;;
-    Linux)
+    Darwin|Linux)
         CLAUDE_DIR="$HOME/.claude"
         ;;
     MINGW*|MSYS*|CYGWIN*)
@@ -19,84 +17,113 @@ case "$(uname -s)" in
         exit 1
         ;;
 esac
+CODEX_DIR="$HOME/.codex"
 
-echo "Installing shared Claude config to: $CLAUDE_DIR"
+echo "Installing shared config to: $CLAUDE_DIR and $CODEX_DIR"
 
-# Ensure target directories exist
-mkdir -p "$CLAUDE_DIR/skills"
+# install_skills <target-skills-dir>: mirror skills/* into the target EXACTLY —
+# a skill removed from this package is removed there on install.
+install_skills() {
+    local target="$1" installed_dir name skill_dir
+    mkdir -p "$target"
+    for installed_dir in "$target"/*/; do
+        [ -d "$installed_dir" ] || continue   # no-match glob; nothing installed yet
+        name="$(basename "$installed_dir")"
+        if [ ! -d "$SCRIPT_DIR/skills/$name" ]; then
+            rm -rf "$installed_dir"
+            echo "  Removed stale skill: $name ($target)"
+        fi
+    done
+    for skill_dir in "$SCRIPT_DIR/skills"/*/; do
+        [ -d "$skill_dir" ] || continue   # no-match glob; nothing to copy (don't wipe the target)
+        name="$(basename "$skill_dir")"
+        rm -rf "$target/$name"
+        cp -r "$skill_dir" "$target/$name"
+    done
+    echo "  Installed skills -> $target"
+}
 
-# Prune skills that are no longer in this package, so the global skills dir
-# mirrors this package EXACTLY: a skill removed here is removed there on install.
-for installed_dir in "$CLAUDE_DIR/skills"/*/; do
-    [ -d "$installed_dir" ] || continue   # no-match glob; nothing installed yet
-    installed_name="$(basename "$installed_dir")"
-    if [ ! -d "$SCRIPT_DIR/skills/$installed_name" ]; then
-        rm -rf "$installed_dir"
-        echo "  Removed stale skill: $installed_name"
+# write_if_changed <content> <dest> <label>: install-or-overwrite, writing only
+# when content differs from what's already there.
+write_if_changed() {
+    local content="$1" dest="$2" label="$3"
+    mkdir -p "$(dirname "$dest")"
+    if [ ! -f "$dest" ]; then
+        printf '%s\n' "$content" > "$dest"
+        echo "  Installed $label (new)"
+    elif [ "$content" = "$(cat "$dest")" ]; then
+        echo "  $label unchanged"
+    else
+        printf '%s\n' "$content" > "$dest"
+        echo "  Updated $label"
     fi
-done
+}
 
-# Copy skills (each skill is a directory with SKILL.md and optional supporting files)
-for skill_dir in "$SCRIPT_DIR/skills"/*/; do
-    skill_name="$(basename "$skill_dir")"
-    target_dir="$CLAUDE_DIR/skills/$skill_name"
-
-    # Remove old version
-    rm -rf "$target_dir"
-
-    # Copy new version
-    cp -r "$skill_dir" "$target_dir"
-    echo "  Installed skill: $skill_name"
-done
-
-# Merge settings: install global-settings.json as settings.json, substituting the
-# /__HOME__ path placeholder with the real home dir (same install-or-overwrite
-# behavior as the global-CLAUDE.md block below).
+# install_file <src> <dest> <label>: render src into dest, substituting the
+# /__HOME__ path placeholder with the real home dir.
 #
 # Why the placeholder: Claude Code permission allow-rule paths are matched
 # literally by picomatch and do NOT expand ~, and a single leading / is
 # project-root-relative (not the filesystem root). So an out-of-tree allow path
 # like the ~/.octo-memory memory store must be an absolute path with a // prefix
-# (// => absolute, then Claude Code strips one slash). global-settings.json keeps
-# it portable as /__HOME__/... — $HOME already starts with /, so the expansion
-# yields the required //home/... double-slash form. The substitution uses bash
-# parameter expansion; patsub_replacement is disabled first so a literal & (or |,
-# \) in $HOME is kept verbatim instead of meaning "the matched text" (bash 5.0+) —
-# the sed equivalent would mis-expand & and break on a | delimiter.
-if [ -f "$SCRIPT_DIR/global-settings.json" ]; then
-    target_settings="$CLAUDE_DIR/settings.json"
-    settings_src="$(cat "$SCRIPT_DIR/global-settings.json")"
+# (// => absolute, then Claude Code strips one slash). Sources keep it portable as
+# /__HOME__/... — $HOME already starts with /, so the expansion yields the required
+# //home/... double-slash form. patsub_replacement is disabled first so a literal &
+# (or |, \) in $HOME is kept verbatim instead of meaning "the matched text" (bash
+# 5.0+) — the sed equivalent would mis-expand & and break on a | delimiter. Files
+# without the placeholder (CLAUDE.md, AGENTS.md) are copied unchanged.
+install_file() {
+    local src="$1" dest="$2" label="$3" content
+    [ -f "$src" ] || return 0
     shopt -u patsub_replacement 2>/dev/null || true
-    rendered_settings="${settings_src//__HOME__/$HOME}"
-    if [ ! -f "$target_settings" ]; then
-        printf '%s\n' "$rendered_settings" > "$target_settings"
-        echo "  Installed settings.json (new)"
-    else
-        if [ "$rendered_settings" = "$(cat "$target_settings")" ]; then
-            echo "  Settings unchanged"
-        else
-            printf '%s\n' "$rendered_settings" > "$target_settings"
-            echo "  Updated settings.json"
-        fi
-    fi
+    content="$(cat "$src")"
+    write_if_changed "${content//__HOME__/$HOME}" "$dest" "$label"
+}
+
+# Skills: same SKILL.md standard for both agents (agentskills.io open spec).
+install_skills "$CLAUDE_DIR/skills"
+install_skills "$CODEX_DIR/skills"
+
+# Global memory / prompt: one source (global-CLAUDE.md) -> Claude CLAUDE.md and
+# Codex AGENTS.md (merged root-first by Codex, same as CLAUDE.md).
+install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"  "CLAUDE.md"
+install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CODEX_DIR/AGENTS.md"   "AGENTS.md"
+
+# Settings. Claude Code settings.json is JSON; Codex config is TOML and does NOT
+# port, so it is maintained separately (not by this script).
+install_file "$SCRIPT_DIR/global-settings.json" "$CLAUDE_DIR/settings.json" "settings.json"
+
+# Codex hooks: derived from the same global-settings.json (single source of truth)
+# so the git-sync logic never drifts. Only the SessionStart hook ports — it's plain
+# git/shell; Claude's other hooks depend on Claude-only env vars (OCTO_AGENT_ID/
+# OCTO_HOOK_FILE) and the Agent/Task tool, which Codex does not set. Needs jq, which
+# the hooks already require at runtime.
+if command -v jq >/dev/null 2>&1; then
+    write_if_changed \
+        "$(jq '{SessionStart: .hooks.SessionStart}' "$SCRIPT_DIR/global-settings.json")" \
+        "$CODEX_DIR/hooks.json" "hooks.json"
+else
+    echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
 fi
 
-# Merge global memory: copy global-CLAUDE.md as CLAUDE.md if it doesn't exist,
-# otherwise overwrite when changed (same always-override behavior as settings).
-if [ -f "$SCRIPT_DIR/global-CLAUDE.md" ]; then
-    target_memory="$CLAUDE_DIR/CLAUDE.md"
-    if [ ! -f "$target_memory" ]; then
-        cp "$SCRIPT_DIR/global-CLAUDE.md" "$target_memory"
-        echo "  Installed CLAUDE.md (new)"
-    else
-        if diff -q "$SCRIPT_DIR/global-CLAUDE.md" "$target_memory" > /dev/null 2>&1; then
-            echo "  CLAUDE.md unchanged"
-        else
-            cp "$SCRIPT_DIR/global-CLAUDE.md" "$target_memory"
-            echo "  Updated CLAUDE.md"
-        fi
+# Install Codex CLI (npm i -g @openai/codex) — the `claude` equivalent binary.
+install_codex_cli() {
+    if command -v codex >/dev/null 2>&1; then
+        echo "  Codex CLI already installed: $(command -v codex)"
+        return
     fi
-fi
+    if command -v npm >/dev/null 2>&1; then
+        echo "  Installing Codex CLI (npm i -g @openai/codex)..."
+        if out="$(npm i -g @openai/codex 2>&1)"; then
+            echo "  Installed Codex CLI: $(command -v codex)"
+        else
+            echo "  WARNING: codex install failed; rerun: npm i -g @openai/codex"
+            printf '%s\n' "$out" | sed 's/^/    /'
+        fi
+    else
+        echo "  WARNING: npm not found. Install Node.js, then: npm i -g @openai/codex"
+    fi
+}
 
 # Install Swift LSP (sourcekit-lsp) — required by swift-lsp plugin
 install_swift_lsp() {
@@ -128,8 +155,6 @@ install_swift_lsp() {
             ;;
     esac
 }
-
-install_swift_lsp
 
 # Install Node.js + pre-cache Playwright MCP & Chromium.
 # Used by project-scoped Playwright MCP servers (e.g. octo-family-doc/.mcp.json).
@@ -169,11 +194,13 @@ install_node_playwright() {
     fi
 }
 
-install_node_playwright
+install_swift_lsp
+install_node_playwright   # ensures node/npm on macOS+brew before the codex step
+install_codex_cli         # uses npm from the step above
 
 echo ""
 echo "Done. Installed skills:"
 ls -1 "$CLAUDE_DIR/skills/"
 echo ""
-echo "These skills are now available in ALL projects via user-level config."
-echo "Project-specific skills go in <project>/.claude/skills/"
+echo "Skills are available in ALL projects for both Claude Code (~/.claude) and Codex (~/.codex)."
+echo "Project-specific skills go in <project>/.claude/skills/ (or <project>/.codex/skills/)."
