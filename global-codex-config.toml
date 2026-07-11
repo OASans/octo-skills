@@ -1,0 +1,9 @@
+# Codex CLI config managed by octo-skills.
+# install.sh merges the [tui] status_line below into ~/.codex/config.toml,
+# preserving the keys Codex writes itself (theme, trusted projects, hook trust
+# hashes). Edit the line, then run ./install.sh; preview/toggle live with /statusline.
+
+[tui]
+# model-with-reasoning = model + thinking effort; context-usage = context-window %
+# used; five-hour-limit / weekly-limit = session-limit usage + reset time.
+status_line = ["model-with-reasoning", "context-usage", "five-hour-limit", "weekly-limit"]

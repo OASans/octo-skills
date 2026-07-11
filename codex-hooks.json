@@ -1,0 +1,55 @@
+{
+  "_comment": "Codex-specific hooks merged over the git-sync SessionStart (which is derived from global-settings.json). These replicate Claude Code's agent-activity logging, but self-source path/id from the stdin payload because Codex does not inject OCTO_HOOK_FILE / OCTO_AGENT_ID. Each event appends its raw hook JSON (plus aid = agent_id||session_id and ts = UTC timestamp) to ~/.octo-activity/codex/<session_id>.jsonl for octo tooling to tail.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "inp=$(cat); sid=$(printf '%s' \"$inp\" | jq -r '.session_id // \"unknown\"'); aid=$(printf '%s' \"$inp\" | jq -r '.agent_id // .session_id // \"unknown\"'); f=\"$HOME/.octo-activity/codex/$sid.jsonl\"; mkdir -p \"$(dirname \"$f\")\"; ( flock -x -w 5 9; printf '%s' \"$inp\" | jq -c --arg aid \"$aid\" --arg ts \"$(date -u +%FT%TZ)\" '. + {aid:$aid, ts:$ts}' >> \"$f\" ) 9>\"$f.lock\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "inp=$(cat); sid=$(printf '%s' \"$inp\" | jq -r '.session_id // \"unknown\"'); aid=$(printf '%s' \"$inp\" | jq -r '.agent_id // .session_id // \"unknown\"'); f=\"$HOME/.octo-activity/codex/$sid.jsonl\"; mkdir -p \"$(dirname \"$f\")\"; ( flock -x -w 5 9; printf '%s' \"$inp\" | jq -c --arg aid \"$aid\" --arg ts \"$(date -u +%FT%TZ)\" '. + {aid:$aid, ts:$ts}' >> \"$f\" ) 9>\"$f.lock\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "inp=$(cat); sid=$(printf '%s' \"$inp\" | jq -r '.session_id // \"unknown\"'); aid=$(printf '%s' \"$inp\" | jq -r '.agent_id // .session_id // \"unknown\"'); f=\"$HOME/.octo-activity/codex/$sid.jsonl\"; mkdir -p \"$(dirname \"$f\")\"; ( flock -x -w 5 9; printf '%s' \"$inp\" | jq -c --arg aid \"$aid\" --arg ts \"$(date -u +%FT%TZ)\" '. + {aid:$aid, ts:$ts}' >> \"$f\" ) 9>\"$f.lock\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "inp=$(cat); sid=$(printf '%s' \"$inp\" | jq -r '.session_id // \"unknown\"'); aid=$(printf '%s' \"$inp\" | jq -r '.agent_id // .session_id // \"unknown\"'); f=\"$HOME/.octo-activity/codex/$sid.jsonl\"; mkdir -p \"$(dirname \"$f\")\"; ( flock -x -w 5 9; printf '%s' \"$inp\" | jq -c --arg aid \"$aid\" --arg ts \"$(date -u +%FT%TZ)\" '. + {aid:$aid, ts:$ts}' >> \"$f\" ) 9>\"$f.lock\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "inp=$(cat); sid=$(printf '%s' \"$inp\" | jq -r '.session_id // \"unknown\"'); aid=$(printf '%s' \"$inp\" | jq -r '.agent_id // .session_id // \"unknown\"'); f=\"$HOME/.octo-activity/codex/$sid.jsonl\"; mkdir -p \"$(dirname \"$f\")\"; ( flock -x -w 5 9; printf '%s' \"$inp\" | jq -c --arg aid \"$aid\" --arg ts \"$(date -u +%FT%TZ)\" '. + {aid:$aid, ts:$ts}' >> \"$f\" ) 9>\"$f.lock\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

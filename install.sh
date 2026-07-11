@@ -93,18 +93,51 @@ install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CODEX_DIR/AGENTS.md"   "AGENTS.md"
 # port, so it is maintained separately (not by this script).
 install_file "$SCRIPT_DIR/global-settings.json" "$CLAUDE_DIR/settings.json" "settings.json"
 
-# Codex hooks: derived from the same global-settings.json (single source of truth)
-# so the git-sync logic never drifts. Only the SessionStart hook ports — it's plain
-# git/shell; Claude's other hooks depend on Claude-only env vars (OCTO_AGENT_ID/
-# OCTO_HOOK_FILE) and the Agent/Task tool, which Codex does not set. Needs jq, which
-# the hooks already require at runtime.
+# Codex hooks.json = the git-sync SessionStart (derived from global-settings.json so
+# it never drifts) merged with codex-hooks.json — the Codex-specific overlay that
+# replicates Claude's agent-activity logging but self-sources its path/id from the
+# stdin session_id (Codex doesn't inject OCTO_HOOK_FILE/OCTO_AGENT_ID). The overlay
+# owns events git-sync doesn't (activity logging), so a shallow event-map merge is
+# safe. Needs jq, which the hooks already require at runtime.
 if command -v jq >/dev/null 2>&1; then
+    git_sync="$(jq -c '{SessionStart: .hooks.SessionStart}' "$SCRIPT_DIR/global-settings.json")"
+    overlay='{}'
+    [ -f "$SCRIPT_DIR/codex-hooks.json" ] && overlay="$(jq -c '.hooks // {}' "$SCRIPT_DIR/codex-hooks.json")"
     write_if_changed \
-        "$(jq '{hooks: {SessionStart: .hooks.SessionStart}}' "$SCRIPT_DIR/global-settings.json")" \
+        "$(jq -n --argjson g "$git_sync" --argjson o "$overlay" '{hooks: ($g + $o)}')" \
         "$CODEX_DIR/hooks.json" "hooks.json"
 else
     echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
 fi
+
+# Codex status line: merge ONLY the [tui] status_line from global-codex-config.toml
+# into ~/.codex/config.toml. Codex writes this file itself (theme, trusted projects,
+# hook trust hashes), so we splice our one managed key instead of overwriting it.
+install_codex_status_line() {
+    local src="$SCRIPT_DIR/global-codex-config.toml" dest="$CODEX_DIR/config.toml" line
+    [ -f "$src" ] || return 0
+    line="$(grep -E '^[[:space:]]*status_line[[:space:]]*=' "$src" | head -1)"
+    [ -n "$line" ] || { echo "  WARNING: no status_line in global-codex-config.toml"; return; }
+    mkdir -p "$CODEX_DIR"
+    if [ ! -f "$dest" ]; then
+        printf '[tui]\n%s\n' "$line" > "$dest"
+        echo "  Installed config.toml status line (new)"
+    elif grep -qF "$line" "$dest"; then
+        echo "  config.toml status line unchanged"
+    elif grep -qE '^[[:space:]]*status_line[[:space:]]*=' "$dest"; then
+        awk -v r="$line" '/^[[:space:]]*status_line[[:space:]]*=/ && !d {print r; d=1; next} {print}' \
+            "$dest" > "$dest.tmp" && mv "$dest.tmp" "$dest"
+        echo "  Updated config.toml status line"
+    elif grep -qE '^\[tui\][[:space:]]*$' "$dest"; then
+        awk -v r="$line" '{print} /^\[tui\][[:space:]]*$/ && !d {print r; d=1}' \
+            "$dest" > "$dest.tmp" && mv "$dest.tmp" "$dest"
+        echo "  Added config.toml status line under [tui]"
+    else
+        printf '\n[tui]\n%s\n' "$line" >> "$dest"
+        echo "  Added config.toml [tui] status line"
+    fi
+}
+install_codex_status_line
 
 # Install Codex CLI (npm i -g @openai/codex) — the `claude` equivalent binary.
 install_codex_cli() {
