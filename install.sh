@@ -115,7 +115,7 @@ else
     echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
 fi
 
-# Codex config: merge managed top-level permissions and [tui] status_line. Codex
+# Codex config: merge managed top-level defaults and [tui] status_line. Codex
 # writes other keys itself, so never overwrite the whole file.
 install_codex_config() {
     local src="$SCRIPT_DIR/global-codex-config.toml" dest="$CODEX_DIR/config.toml" line key
@@ -123,7 +123,7 @@ install_codex_config() {
     mkdir -p "$CODEX_DIR"
     touch "$dest"
 
-    for key in approval_policy sandbox_mode; do
+    for key in approval_policy sandbox_mode model_context_window model_auto_compact_token_limit; do
         line="$(grep -E "^[[:space:]]*$key[[:space:]]*=" "$src" | head -1)"
         [ -n "$line" ] || { echo "  WARNING: no $key in global-codex-config.toml"; continue; }
         awk -v k="$key" -v r="$line" '
@@ -150,7 +150,7 @@ install_codex_config() {
         printf '\n[tui]\n%s\n' "$line" >> "$dest"
         echo "  Added config.toml [tui] status line"
     fi
-    echo "  Updated Codex approval and sandbox defaults"
+    echo "  Updated Codex managed defaults"
 }
 install_codex_config
 
