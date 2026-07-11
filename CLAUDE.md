@@ -5,6 +5,8 @@ Shared Claude Code + Codex skills and config, available in ALL projects once ins
 ## Repo layout
 
 - `skills/<name>/SKILL.md` — one directory per skill. This is the source of truth.
+- `CLAUDE.md` — this file: project memory, and the source of truth for it. `AGENTS.md` is a committed symlink to it, because Claude Code reads only `CLAUDE.md` and Codex reads only `AGENTS.md`. Edit `CLAUDE.md`; never replace the symlink with a copy.
+- `.claude/skills/` — this project's own skills (the `knowledge-*` topics written by `/octo-memory`), and the source of truth for them. `.codex/skills` is a committed symlink to this directory, so both agents load one set. Same rule for any project: keep the skills in `.claude/skills/` and symlink `.codex/skills -> ../.claude/skills`.
 - `global-settings.json` — shared Claude Code settings (env vars, permissions, hooks). Installs to `~/.claude/settings.json`. Also the **single source for Codex's `~/.codex/hooks.json`**: install `jq`-derives the shared events (git-sync + agent-activity logging) from it. OctoCode exports `OCTO_AGENT_ID`/`OCTO_HOOK_FILE` onto the agent pane, so the canonical `$OCTO_AGENT_ID`/`$OCTO_HOOK_FILE` hooks run verbatim in Codex. Claude-only hooks are dropped (Agent/Task model gate, AskUserQuestion/ExitPlanMode, Skill usage logger).
 - `global-CLAUDE.md` — shared user-level memory (global rules applied in every project). Installs to `~/.claude/CLAUDE.md` (Claude Code) and `~/.codex/AGENTS.md` (Codex). Edit this file, not the installed copies.
 - `global-codex-config.toml` — managed Codex `[tui] status_line`. install.sh merges only that key into `~/.codex/config.toml` (Codex owns that file — theme, trusted projects, hook trust hashes — so it's spliced, never overwritten).
