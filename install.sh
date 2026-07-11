@@ -100,7 +100,7 @@ install_file "$SCRIPT_DIR/global-settings.json" "$CLAUDE_DIR/settings.json" "set
 # the hooks already require at runtime.
 if command -v jq >/dev/null 2>&1; then
     write_if_changed \
-        "$(jq '{SessionStart: .hooks.SessionStart}' "$SCRIPT_DIR/global-settings.json")" \
+        "$(jq '{hooks: {SessionStart: .hooks.SessionStart}}' "$SCRIPT_DIR/global-settings.json")" \
         "$CODEX_DIR/hooks.json" "hooks.json"
 else
     echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
@@ -112,16 +112,27 @@ install_codex_cli() {
         echo "  Codex CLI already installed: $(command -v codex)"
         return
     fi
-    if command -v npm >/dev/null 2>&1; then
-        echo "  Installing Codex CLI (npm i -g @openai/codex)..."
-        if out="$(npm i -g @openai/codex 2>&1)"; then
+    if ! command -v npm >/dev/null 2>&1; then
+        echo "  WARNING: npm not found. Install Node.js, then: npm i -g @openai/codex"
+        return
+    fi
+    echo "  Installing Codex CLI (npm i -g @openai/codex)..."
+    # Try unprivileged first (works when npm's global prefix is user-owned, e.g.
+    # macOS/brew). On a root-owned prefix (e.g. apt's /usr/local) npm fails EACCES;
+    # retry once with sudo.
+    if out="$(npm i -g @openai/codex 2>&1)"; then
+        echo "  Installed Codex CLI: $(command -v codex)"
+    elif printf '%s' "$out" | grep -q EACCES && command -v sudo >/dev/null 2>&1; then
+        echo "  npm global prefix needs root; retrying with sudo..."
+        if out="$(sudo npm i -g @openai/codex 2>&1)"; then
             echo "  Installed Codex CLI: $(command -v codex)"
         else
-            echo "  WARNING: codex install failed; rerun: npm i -g @openai/codex"
+            echo "  WARNING: codex install failed; rerun: sudo npm i -g @openai/codex"
             printf '%s\n' "$out" | sed 's/^/    /'
         fi
     else
-        echo "  WARNING: npm not found. Install Node.js, then: npm i -g @openai/codex"
+        echo "  WARNING: codex install failed; rerun: npm i -g @openai/codex"
+        printf '%s\n' "$out" | sed 's/^/    /'
     fi
 }
 
@@ -156,47 +167,72 @@ install_swift_lsp() {
     esac
 }
 
-# Install Node.js + pre-cache Playwright MCP & Chromium.
-# Used by project-scoped Playwright MCP servers (e.g. octo-family-doc/.mcp.json).
-# This only provides the system dependency; it does NOT register the MCP server
-# globally — each project opts in via its own .mcp.json.
-install_node_playwright() {
+# Install Node.js + npm — the runtime for the Codex CLI and Playwright MCP.
+# brew on macOS, the system package manager on Linux (sudo). A failed install is
+# a warning, not fatal — the consumers below degrade to their own warnings.
+install_node() {
     if command -v node >/dev/null 2>&1; then
         echo "  Node.js already installed: $(command -v node) ($(node --version))"
-    else
-        case "$(uname -s)" in
-            Darwin)
-                if command -v brew >/dev/null 2>&1; then
-                    echo "  Installing Node.js via Homebrew..."
-                    brew install node
-                else
-                    echo "  WARNING: node not found and Homebrew unavailable."
-                    echo "           Install Node.js from https://nodejs.org/ to enable Playwright MCP."
-                    return
-                fi
-                ;;
-            Linux)
-                echo "  WARNING: node not found. Install Node.js (https://nodejs.org/) to enable Playwright MCP."
-                return
-                ;;
-            *)
-                echo "  WARNING: node not found. Install Node.js to enable Playwright MCP."
-                return
-                ;;
-        esac
+        return
     fi
+    local pm=""
+    case "$(uname -s)" in
+        Darwin)
+            if command -v brew >/dev/null 2>&1; then
+                echo "  Installing Node.js via Homebrew..."
+                brew install node || echo "  WARNING: brew install node failed."
+            else
+                echo "  WARNING: node not found and Homebrew unavailable. Install from https://nodejs.org/"
+            fi
+            return
+            ;;
+        Linux)
+            if   command -v apt-get >/dev/null 2>&1; then pm="sudo apt-get install -y nodejs npm"
+            elif command -v dnf     >/dev/null 2>&1; then pm="sudo dnf install -y nodejs npm"
+            elif command -v pacman  >/dev/null 2>&1; then pm="sudo pacman -S --noconfirm nodejs npm"
+            elif command -v zypper  >/dev/null 2>&1; then pm="sudo zypper install -y nodejs npm"
+            elif command -v apk     >/dev/null 2>&1; then pm="sudo apk add nodejs npm"
+            fi
+            if [ -n "$pm" ]; then
+                echo "  Installing Node.js ($pm)..."
+                $pm || echo "  WARNING: node install failed; install Node.js from https://nodejs.org/"
+            else
+                echo "  WARNING: node not found and no known package manager. Install from https://nodejs.org/"
+            fi
+            ;;
+        *)
+            echo "  WARNING: node not found. Install Node.js from https://nodejs.org/"
+            ;;
+    esac
+}
 
-    # Pre-cache the MCP package + Chromium so the first project use is fast.
-    if command -v npx >/dev/null 2>&1; then
-        echo "  Pre-caching Playwright MCP + Chromium (one-time)..."
-        npx -y @playwright/mcp@latest --help >/dev/null 2>&1 || true
-        npx -y playwright@latest install chromium >/dev/null 2>&1 || true
+# Pre-cache Playwright MCP + Chromium so the first project use is fast.
+# Used by project-scoped Playwright MCP servers (e.g. octo-family-doc/.mcp.json).
+# This only warms the cache; it does NOT register the MCP server globally — each
+# project opts in via its own .mcp.json. Requires node/npm from install_node.
+install_playwright() {
+    if ! command -v npx >/dev/null 2>&1; then
+        echo "  WARNING: npx not found; skipped Playwright MCP pre-cache."
+        return
     fi
+    # Truly one-time: skip once Chromium is downloaded. Without this guard the
+    # npx ...@latest calls re-resolve from the registry on every install run.
+    local pw_cache="$HOME/.cache/ms-playwright"
+    [ "$(uname -s)" = Darwin ] && pw_cache="$HOME/Library/Caches/ms-playwright"
+    [ -n "${PLAYWRIGHT_BROWSERS_PATH:-}" ] && pw_cache="$PLAYWRIGHT_BROWSERS_PATH"
+    if compgen -G "$pw_cache/chromium-*" >/dev/null 2>&1; then
+        echo "  Playwright Chromium already cached"
+        return
+    fi
+    echo "  Pre-caching Playwright MCP + Chromium (one-time)..."
+    npx -y @playwright/mcp@latest --help >/dev/null 2>&1 || true
+    npx -y playwright@latest install chromium >/dev/null 2>&1 || true
 }
 
 install_swift_lsp
-install_node_playwright   # ensures node/npm on macOS+brew before the codex step
-install_codex_cli         # uses npm from the step above
+install_node          # node + npm, needed by the two steps below
+install_codex_cli     # npm i -g @openai/codex
+install_playwright    # warms the Playwright MCP cache
 
 echo ""
 echo "Done. Installed skills:"

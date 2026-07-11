@@ -20,12 +20,12 @@ They are orthogonal — one gates the human (slash menu), the other gates the ag
 ## How to Apply
 - **Slash-only (user yes, agent no):** set `disable-model-invocation: true`; leave `user-invocable` default. Don't rely on description wording.
 - **Internal/orchestrated (agent yes, hidden from user):** set `user-invocable: false`.
-- **Deploy** any skill edit by running `./install.sh` (idempotent). No manifest: it mirror-copies every `skills/*/` → `~/.claude/skills/<name>/` and **prunes** installed skills no longer in `skills/`; it also overwrites `~/.claude/settings.json` and `~/.claude/CLAUDE.md`. Never hand-edit the `~/.claude/skills/` copies — overwritten on install.
+- **Deploy** any skill edit by running `./install.sh` (idempotent). No manifest: it mirror-copies every `skills/*/` → **both** `~/.claude/skills/<name>/` and `~/.codex/skills/<name>/` (Codex uses the same standard) and **prunes** installed skills no longer in `skills/`; it also installs `global-settings.json`, `global-CLAUDE.md` (as Claude `CLAUDE.md` + Codex `AGENTS.md`), and the jq-derived Codex `hooks.json`. Never hand-edit the installed copies — overwritten on install.
 - **Body conventions:** open with a one-sentence restatement of the description; action skills use a `## Steps` section; structure-driven skills (e.g. `octo-coding-guide`) declare a `> Structure contract` blockquote where each `##`/`###` is the fan-out unit.
 
 ## Key Files
 - `skills/<name>/SKILL.md` — source of truth; `name` matches the dir, `description` is a folded `>` block.
-- `install.sh` — mirror-copy + prune (~L30-50); settings/CLAUDE.md overwrite (~L66-99).
+- `install.sh` — `install_skills` mirror-copy+prune (dual-target), `install_file`/`write_if_changed` for settings/CLAUDE.md/AGENTS.md/hooks.
 - installed binary — resolve via `which claude`, then grep to confirm a flag/setting is real.
 
-<!-- Last verified: 2026-06-11, commit: 7b1e74b -->
+<!-- Last verified: 2026-07-10, commit: fb7db67 -->
