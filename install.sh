@@ -93,18 +93,22 @@ install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CODEX_DIR/AGENTS.md"   "AGENTS.md"
 # port, so it is maintained separately (not by this script).
 install_file "$SCRIPT_DIR/global-settings.json" "$CLAUDE_DIR/settings.json" "settings.json"
 
-# Codex hooks.json = the git-sync SessionStart (derived from global-settings.json so
-# it never drifts) merged with codex-hooks.json — the Codex-specific overlay that
-# replicates Claude's agent-activity logging but self-sources its path/id from the
-# stdin session_id (Codex doesn't inject OCTO_HOOK_FILE/OCTO_AGENT_ID). The overlay
-# owns events git-sync doesn't (activity logging), so a shallow event-map merge is
-# safe. Needs jq, which the hooks already require at runtime.
+# Codex hooks.json is derived entirely from global-settings.json (single source of
+# truth). OctoCode exports OCTO_AGENT_ID/OCTO_HOOK_FILE onto the agent pane, so the
+# canonical git-sync + agent-activity hooks run verbatim in Codex. We port the events
+# Codex shares and drop the Claude-only extras (the Agent/Task model gate, the
+# AskUserQuestion/ExitPlanMode matcher, the Skill usage logger) by taking only the
+# first (no-matcher) group of PreToolUse/PostToolUse. Needs jq (hooks require it too).
 if command -v jq >/dev/null 2>&1; then
-    git_sync="$(jq -c '{SessionStart: .hooks.SessionStart}' "$SCRIPT_DIR/global-settings.json")"
-    overlay='{}'
-    [ -f "$SCRIPT_DIR/codex-hooks.json" ] && overlay="$(jq -c '.hooks // {}' "$SCRIPT_DIR/codex-hooks.json")"
     write_if_changed \
-        "$(jq -n --argjson g "$git_sync" --argjson o "$overlay" '{hooks: ($g + $o)}')" \
+        "$(jq '{hooks: {
+            SessionStart:      .hooks.SessionStart,
+            UserPromptSubmit:  .hooks.UserPromptSubmit,
+            PreToolUse:        [.hooks.PreToolUse[0]],
+            PostToolUse:       [.hooks.PostToolUse[0]],
+            PermissionRequest: .hooks.PermissionRequest,
+            Stop:              .hooks.Stop
+        }}' "$SCRIPT_DIR/global-settings.json")" \
         "$CODEX_DIR/hooks.json" "hooks.json"
 else
     echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
