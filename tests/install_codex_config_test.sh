@@ -36,6 +36,12 @@ CONFIG="$TEST_HOME/.codex/config.toml"
 cmp -s "$REPO_DIR/global-codex-config.toml" "$CONFIG"
 ! grep -qFx 'model = "custom-model"' "$CONFIG"
 grep -qFx 'max_threads = 20' "$CONFIG"
+awk '
+    $0 == "[features.multi_agent_v2]" { in_section = 1; next }
+    /^\[/ { in_section = 0 }
+    in_section && $0 == "max_concurrent_threads_per_session = 20" { found = 1 }
+    END { exit !found }
+' "$CONFIG"
 ! grep -q '^\[hooks\.state' "$CONFIG"
 test -x "$TEST_HOME/.local/bin/codex"
 grep -q -- '--dangerously-bypass-hook-trust' "$TEST_HOME/.local/bin/codex"

@@ -33,6 +33,9 @@ theme = "catppuccin-macchiato"
 [features]
 apps = false
 
+[features.multi_agent_v2]
+max_concurrent_threads_per_session = 20
+
 [notice]
 hide_rate_limit_model_nudge = true
 
