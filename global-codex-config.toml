@@ -4,8 +4,6 @@
 
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
-model_context_window = 272000
-model_auto_compact_token_limit = 240000
 
 [tui]
 # model-with-reasoning = model + thinking effort; context-usage = context-window %
