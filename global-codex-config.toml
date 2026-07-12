@@ -5,8 +5,6 @@ approval_policy = "never"
 sandbox_mode = "danger-full-access"
 model = "gpt-5.6-sol"
 model_reasoning_effort = "max"
-model_context_window = 272000
-model_auto_compact_token_limit = 240000
 
 [projects."/home/clavier/Desktop/octo-skills"]
 trust_level = "trusted"
@@ -32,11 +30,14 @@ theme = "catppuccin-macchiato"
 
 [features]
 apps = false
+fast_mode = false
+memories = false
 
 [features.multi_agent_v2]
 max_concurrent_threads_per_session = 20
 
 [notice]
+hide_full_access_warning = true
 hide_rate_limit_model_nudge = true
 
 [agents]
