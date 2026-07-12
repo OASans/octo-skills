@@ -89,9 +89,9 @@ install_skills "$CODEX_DIR/skills"
 install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"  "CLAUDE.md"
 install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CODEX_DIR/AGENTS.md"   "AGENTS.md"
 
-# Settings. Claude Code settings.json is JSON; Codex config is TOML and does NOT
-# port, so it is maintained separately (not by this script).
+# Settings. Claude Code uses JSON; Codex uses TOML.
 install_file "$SCRIPT_DIR/global-settings.json" "$CLAUDE_DIR/settings.json" "settings.json"
+install_file "$SCRIPT_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml" "config.toml"
 install_file "$SCRIPT_DIR/global-codex-rules.rules" "$CODEX_DIR/rules/default.rules" "Codex default.rules"
 
 # Codex hooks.json is derived entirely from global-settings.json (single source of
@@ -115,48 +115,9 @@ else
     echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
 fi
 
-# Codex config: merge managed top-level defaults and [tui] status_line. Codex
-# writes other keys itself, so never overwrite the whole file.
-install_codex_config() {
-    local src="$SCRIPT_DIR/global-codex-config.toml" dest="$CODEX_DIR/config.toml" line key
-    [ -f "$src" ] || return 0
-    mkdir -p "$CODEX_DIR"
-    touch "$dest"
-
-    for key in approval_policy sandbox_mode model_context_window model_auto_compact_token_limit; do
-        line="$(grep -E "^[[:space:]]*$key[[:space:]]*=" "$src" | head -1)"
-        [ -n "$line" ] || { echo "  WARNING: no $key in global-codex-config.toml"; continue; }
-        awk -v k="$key" -v r="$line" '
-            /^\[/ && !section {if (!done) print r; done=1; section=1}
-            !section && $0 ~ "^[[:space:]]*" k "[[:space:]]*=" {if (!done) print r; done=1; next}
-            {print}
-            END {if (!done) print r}
-        ' "$dest" > "$dest.tmp" && mv "$dest.tmp" "$dest"
-    done
-
-    line="$(grep -E '^[[:space:]]*status_line[[:space:]]*=' "$src" | head -1)"
-    [ -n "$line" ] || { echo "  WARNING: no status_line in global-codex-config.toml"; return; }
-    if grep -qF "$line" "$dest"; then
-        echo "  config.toml status line unchanged"
-    elif grep -qE '^[[:space:]]*status_line[[:space:]]*=' "$dest"; then
-        awk -v r="$line" '/^[[:space:]]*status_line[[:space:]]*=/ && !d {print r; d=1; next} {print}' \
-            "$dest" > "$dest.tmp" && mv "$dest.tmp" "$dest"
-        echo "  Updated config.toml status line"
-    elif grep -qE '^\[tui\][[:space:]]*$' "$dest"; then
-        awk -v r="$line" '{print} /^\[tui\][[:space:]]*$/ && !d {print r; d=1}' \
-            "$dest" > "$dest.tmp" && mv "$dest.tmp" "$dest"
-        echo "  Added config.toml status line under [tui]"
-    else
-        printf '\n[tui]\n%s\n' "$line" >> "$dest"
-        echo "  Added config.toml [tui] status line"
-    fi
-    echo "  Updated Codex managed defaults"
-}
-install_codex_config
-
 # Install Codex CLI (npm i -g @openai/codex) — the `claude` equivalent binary.
 install_codex_cli() {
-    if command -v codex >/dev/null 2>&1; then
+    if command -v codex >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
         echo "  Codex CLI already installed: $(command -v codex)"
         return
     fi
@@ -182,6 +143,12 @@ install_codex_cli() {
         echo "  WARNING: codex install failed; rerun: npm i -g @openai/codex"
         printf '%s\n' "$out" | sed 's/^/    /'
     fi
+}
+
+install_codex_wrapper() {
+    local dest="$HOME/.local/bin/codex"
+    install_file "$SCRIPT_DIR/global-codex-wrapper.sh" "$dest" "Codex launcher"
+    chmod +x "$dest"
 }
 
 # Install Swift LSP (sourcekit-lsp) — required by swift-lsp plugin
@@ -280,6 +247,7 @@ install_playwright() {
 install_swift_lsp
 install_node          # node + npm, needed by the two steps below
 install_codex_cli     # npm i -g @openai/codex
+install_codex_wrapper # always trust hooks on this fully owned machine
 install_playwright    # warms the Playwright MCP cache
 
 echo ""

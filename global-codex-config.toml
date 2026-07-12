@@ -1,11 +1,40 @@
-# Codex CLI config managed by octo-skills.
-# install.sh merges these managed keys into ~/.codex/config.toml while preserving
-# the keys Codex writes itself (theme, trusted projects, hook trust hashes).
+# Complete Codex CLI config managed by octo-skills.
+# install.sh installs this file as ~/.codex/config.toml.
 
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
+model = "gpt-5.6-sol"
+model_reasoning_effort = "max"
+model_context_window = 272000
+model_auto_compact_token_limit = 240000
+
+[projects."/home/clavier/Desktop/octo-skills"]
+trust_level = "trusted"
+
+[projects."/home/clavier/Desktop/fin-6"]
+trust_level = "trusted"
+
+[projects."/home/clavier/Desktop/fin-5"]
+trust_level = "trusted"
+
+[projects."/home/clavier/Desktop/fin-4"]
+trust_level = "trusted"
+
+[projects."/tmp/claude-1000/-home-clavier-Desktop-octo-2/b8447a9c-ec9f-42f6-9ca7-1311b601d25f/scratchpad/codex-title-test"]
+trust_level = "trusted"
 
 [tui]
-# model-with-reasoning = model + thinking effort; context-usage = context-window %
-# used; five-hour-limit / weekly-limit = session-limit usage + reset time.
 status_line = ["model-with-reasoning", "context-usage", "five-hour-limit", "weekly-limit"]
+theme = "catppuccin-macchiato"
+
+[tui.model_availability_nux]
+"gpt-5.6-sol" = 4
+
+[features]
+apps = false
+
+[notice]
+hide_rate_limit_model_nudge = true
+
+[agents]
+max_threads = 20
