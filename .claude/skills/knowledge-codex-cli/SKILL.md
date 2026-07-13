@@ -19,11 +19,13 @@ Run modes: `codex` = interactive TUI (claude REPL); `codex exec "…"` = headles
 
 ## How to Apply
 - **hooks.json GOTCHA — events nest under a top-level `hooks` key, NOT the root.** Shape: `{"hooks":{"<Event>":[{"matcher":"…","hooks":[{"type":"command","command":"…","timeout":600}]}]}}`. Putting the event at the root fails: `unknown field 'SessionStart', expected 'description' or 'hooks'`. The inner block is identical to Claude's `settings.json` `hooks`, so derive Codex hooks from it: `jq '{hooks: {SessionStart: .hooks.SessionStart}}' global-settings.json`. Events: SessionStart, SubagentStart, PreToolUse, PermissionRequest, PostToolUse, PreCompact, PostCompact, UserPromptSubmit, SubagentStop, Stop.
-- **Install:** `npm i -g @openai/codex`. On apt-installed Node the global prefix `/usr/local/lib/node_modules` is root-owned → npm fails `EACCES`; brew/macOS prefix is user-owned (no sudo). Pattern: try `npm i -g` unprivileged, and only on `grep -q EACCES` retry `sudo npm i -g`.
+- **Install/update:** octo-skills keeps the package under user-owned `~/.local/share/octo-codex`, avoiding `EACCES` from root-owned global npm prefixes. `install.sh` seeds it; `global-codex-wrapper.sh` checks for a newer release on every launch, serializes concurrent updates, and warns before using the installed release when an update fails.
+- **Hook trust bypass is launch-only:** `--dangerously-bypass-hook-trust` bypasses persisted hook trust for one invocation. `global-codex-wrapper.sh` passes it on every launch; keep machine-specific hook trust state out of the managed config.
 - **octo-skills install.sh is dual-target:** mirrors `skills/*` to both `~/.claude/skills` and `~/.codex/skills`, installs `global-CLAUDE.md` as both `CLAUDE.md` and `AGENTS.md`, and derives `~/.codex/hooks.json` from `global-settings.json` via jq. OctoCode exports `OCTO_AGENT_ID`/`OCTO_HOOK_FILE`, so the shared git-sync and agent-activity hooks port verbatim. The derivation keeps `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, and `Stop`, while dropping Claude-only matcher groups for Agent/Task model gating, AskUserQuestion/ExitPlanMode, and Skill usage logging.
 
 ## Key Files
 - `install.sh` — dual-target install + jq hook derivation.
+- `global-codex-wrapper.sh` — auto-updates the managed package and passes the per-launch hook-trust bypass.
 - `codex-migration.md` — full Claude→Codex feature map and doc sources (hooks: learn.chatgpt.com/docs/hooks).
 
-<!-- Last verified: 2026-07-12, commit: f12ae06 -->
+<!-- Last verified: 2026-07-13, commit: 1d4f060 -->
