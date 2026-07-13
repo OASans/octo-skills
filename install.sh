@@ -18,6 +18,7 @@ case "$(uname -s)" in
         ;;
 esac
 CODEX_DIR="$HOME/.codex"
+CODEX_NPM_PREFIX="${CODEX_NPM_PREFIX:-$HOME/.local/share/octo-codex}"
 
 echo "Installing shared config to: $CLAUDE_DIR and $CODEX_DIR"
 
@@ -115,32 +116,28 @@ else
     echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
 fi
 
-# Install Codex CLI (npm i -g @openai/codex) — the `claude` equivalent binary.
+# Install Codex into the user-owned prefix used by the auto-updating launcher.
 install_codex_cli() {
-    if command -v codex >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
-        echo "  Codex CLI already installed: $(command -v codex)"
-        return
-    fi
     if ! command -v npm >/dev/null 2>&1; then
         echo "  WARNING: npm not found. Install Node.js, then: npm i -g @openai/codex"
         return
     fi
-    echo "  Installing Codex CLI (npm i -g @openai/codex)..."
-    # Try unprivileged first (works when npm's global prefix is user-owned, e.g.
-    # macOS/brew). On a root-owned prefix (e.g. apt's /usr/local) npm fails EACCES;
-    # retry once with sudo.
-    if out="$(npm i -g @openai/codex 2>&1)"; then
-        echo "  Installed Codex CLI: $(command -v codex)"
-    elif printf '%s' "$out" | grep -q EACCES && command -v sudo >/dev/null 2>&1; then
-        echo "  npm global prefix needs root; retrying with sudo..."
-        if out="$(sudo npm i -g @openai/codex 2>&1)"; then
-            echo "  Installed Codex CLI: $(command -v codex)"
-        else
-            echo "  WARNING: codex install failed; rerun: sudo npm i -g @openai/codex"
-            printf '%s\n' "$out" | sed 's/^/    /'
-        fi
+    local codex_root codex_js out
+    if ! codex_root="$(npm root --global --prefix "$CODEX_NPM_PREFIX" 2>/dev/null)"; then
+        echo "  WARNING: could not resolve the Codex npm prefix."
+        return
+    fi
+    codex_js="$codex_root/@openai/codex/bin/codex.js"
+    if [ -f "$codex_js" ] && node "$codex_js" --version >/dev/null 2>&1; then
+        echo "  Codex CLI already installed: $codex_js"
+        return
+    fi
+
+    echo "  Installing Codex CLI into $CODEX_NPM_PREFIX..."
+    if out="$(npm install --global --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest 2>&1)"; then
+        echo "  Installed Codex CLI: $codex_js"
     else
-        echo "  WARNING: codex install failed; rerun: npm i -g @openai/codex"
+        echo "  WARNING: codex install failed; rerun: npm install --global --prefix '$CODEX_NPM_PREFIX' @openai/codex@latest"
         printf '%s\n' "$out" | sed 's/^/    /'
     fi
 }
@@ -246,7 +243,7 @@ install_playwright() {
 
 install_swift_lsp
 install_node          # node + npm, needed by the two steps below
-install_codex_cli     # npm i -g @openai/codex
+install_codex_cli     # user-owned npm prefix; launcher updates it on every start
 install_codex_wrapper # always trust hooks on this fully owned machine
 install_playwright    # warms the Playwright MCP cache
 
