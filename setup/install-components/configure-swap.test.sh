@@ -27,7 +27,8 @@ reset_stubs() {
   : > "$calls"
   : > "$fstab_input"
   SWAP_TARGET_GIB=32
-  SWAP_FILE=/swap-octo.img
+  SWAP_FILE="$tmp/swap-octo.img"
+  rm -f "$SWAP_FILE"
   FSTAB_FILE=/etc/fstab
   CURRENT_SWAP_BYTES=0
   SWAP_FILE_IS_ACTIVE=0
@@ -55,14 +56,23 @@ reset_stubs
 CURRENT_SWAP_BYTES=$((8 * 1024 * 1024 * 1024))
 configure_swap >/dev/null
 check "8 GiB -> allocate missing capacity" \
-  "fallocate -l 24576M /swap-octo.img" "$(sed -n '1p' "$calls")"
+  "fallocate -l 24576M $SWAP_FILE" "$(sed -n '1p' "$calls")"
 check "new swap -> secure permissions" \
-  "chmod 600 /swap-octo.img" "$(sed -n '2p' "$calls")"
-check "new swap -> format" "mkswap /swap-octo.img" "$(sed -n '3p' "$calls")"
-check "new swap -> activate" "swapon /swap-octo.img" "$(sed -n '4p' "$calls")"
+  "chmod 600 $SWAP_FILE" "$(sed -n '2p' "$calls")"
+check "new swap -> format" "mkswap $SWAP_FILE" "$(sed -n '3p' "$calls")"
+check "new swap -> activate" "swapon $SWAP_FILE" "$(sed -n '4p' "$calls")"
 check "new swap -> persist" \
   "tee -a /etc/fstab" "$(sed -n '5p' "$calls")"
-check "fstab entry" "/swap-octo.img none swap sw 0 0" "$(cat "$fstab_input")"
+check "fstab entry" "$SWAP_FILE none swap sw 0 0" "$(cat "$fstab_input")"
+
+# A leftover inactive file is reset before allocation.
+reset_stubs
+touch "$SWAP_FILE"
+configure_swap >/dev/null
+check "inactive file -> truncate first" \
+  "truncate -s 0 $SWAP_FILE" "$(sed -n '1p' "$calls")"
+check "inactive file -> allocate second" \
+  "fallocate -l 32768M $SWAP_FILE" "$(sed -n '2p' "$calls")"
 
 # An interrupted run with active swap repairs fstab without reallocating.
 reset_stubs
