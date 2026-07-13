@@ -2,9 +2,9 @@
 name: octo-review
 description: >
   Code review. Spawns parallel read-only sub-agents that review the change
-  against the octo-*-guide family, then independently verifies bug claims
-  before reporting. Use when the user asks for a code review, or as the final
-  step before committing.
+  against the octo-*-guide family, then uses at most one read-only verifier
+  sub-agent for all bug claims before reporting. Use when the user asks for a
+  code review, or as the final step before committing.
 ---
 
 Code review: the main agent scopes the change cheaply, fans out read-only reviewer sub-agents over the applicable guides, has bug claims independently verified, and merges one report. Returns findings only; never fixes code. A clean pass is a valid outcome — never invent findings to have something to report.
@@ -46,9 +46,9 @@ Spawn all reviewers in a single message (`subagent_type: general-purpose`, `mode
 >
 > Return at most 8 findings, most severe first, each as `file:line — [<Domain> · <Rule>] summary — failure scenario or cost`. If a guide rule proved ambiguous or a real issue type had no covering rule, add one line at the end: `guide note: …`. If no findings, return exactly: `No issues found.` — a clean result is a good result.
 
-### 3. Verify bug claims
+### 3. Verify bug claims — one verifier maximum
 
-Dedup findings that point at the same line and mechanism, keeping the most concrete. Verify every finding that claims something will actually fail — a runtime failure (bug, race, data loss, broken caller) or a stated command, path, or example that doesn't work — whichever guide flagged it; pure quality findings (clarity, duplication, structure) are not verified. Group bug claims by `file:line`; spawn one verifier per location (`general-purpose`, `model: sonnet`) with the diff command, the file, and every claim at that location. The verifier reads the code (and callers if relevant) and returns per claim exactly one of:
+Dedup findings that point at the same line and mechanism, keeping the most concrete. Verify every finding that claims something will actually fail — a runtime failure (bug, race, data loss, broken caller) or a stated command, path, or example that doesn't work — whichever guide flagged it; pure quality findings (clarity, duplication, structure) are not verified. If bug claims remain, bundle all of them into one verifier task, grouped by `file:line`, and spawn exactly one verifier (`general-purpose`, `model: sonnet`) for the entire review. Give it the diff command, relevant files, and every claim. Never split verification across locations or domains, and tell the verifier not to spawn sub-agents. The verifier reads the code (and callers if relevant) and returns per claim exactly one of:
 
 - **CONFIRMED** — names the triggering inputs/state and quotes the line.
 - **PLAUSIBLE** — mechanism is real, trigger uncertain (timing, env, config); says what would confirm it. This is the default for realistic-but-unproven claims; "speculative" is not a refutation.
