@@ -26,6 +26,6 @@ user-invocable: false
 
 ## Key Files
 - `global-settings.json` — `permissions.allow` / `additionalDirectories`
-- `install.sh` — `${settings_src//__HOME__/$HOME}` expansion (~line 70)
+- `install.sh` — `${content//__HOME__/$HOME}` expansion (~line 80)
 
-<!-- Last verified: 2026-06-15, commit: 4797f6d -->
+<!-- Last verified: 2026-07-13, commit: f699a61 -->
