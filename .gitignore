@@ -1,2 +1,5 @@
 .lock
 *-workspace/
+
+# Machine-specific setup values (git identity, LAN topology). Never commit.
+setup/.env
