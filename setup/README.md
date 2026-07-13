@@ -20,7 +20,7 @@ Each is idempotent — safe to re-run, every step skips work already done.
 
 | Platform | Script | Notes |
 |----------|--------|-------|
-| Linux (Debian/Ubuntu) | `bash setup/install-linux.sh` | Also hardens the box as an internal-only server: key-only SSH, ufw default-deny, never auto-suspend. Installs CUDA when an NVIDIA GPU is present — **reboot** after a fresh driver install. |
+| Linux (Debian/Ubuntu) | `bash setup/install-linux.sh` | Also provisions at least 32 GiB of persistent swap and hardens the box as an internal-only server: key-only SSH, ufw default-deny, never auto-suspend. Installs CUDA when an NVIDIA GPU is present — **reboot** after a fresh driver install. |
 | macOS | `bash setup/install-mac.sh` | Homebrew, gh, casks, Xcode. Xcode's license/first-launch steps need sudo and are printed for you to run. |
 | Windows + WSL2 | `install-windows.ps1`, then `install-wsl2.sh` | See the ordering below. |
 

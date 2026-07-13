@@ -8,6 +8,7 @@
 #     (only when an NVIDIA GPU is present; a reboot is needed after the driver)
 #   - Install OctoCode's build/runtime libraries (OpenSSL, ALSA, cmake, clang,
 #     ffmpeg, etc.) so `cargo build` works on a fresh box
+#   - Ensure at least 32 GiB of persistent swap for short memory spikes
 #   - Configure this box as an internal-only server:
 #       * SSH server with key-only auth (no passwords, no root login)
 #       * ufw firewall: deny all inbound except SSH from the LAN and your web
@@ -511,18 +512,26 @@ echo "=== Step 11: OctoCode build/runtime dependencies ==="
 install_octocode_deps
 echo
 
-# ---------- Step 12: SSH server (key-only auth) ----------
-echo "=== Step 12: SSH server (key-only auth) ==="
+# ---------- Step 12: emergency swap capacity ----------
+echo "=== Step 12: configure 32 GiB emergency swap capacity ==="
+bash "$SCRIPT_DIR/install-components/configure-swap.sh" || {
+  echo "ERROR: swap configuration failed — see output above." >&2
+  exit 1
+}
+echo
+
+# ---------- Step 13: SSH server (key-only auth) ----------
+echo "=== Step 13: SSH server (key-only auth) ==="
 setup_ssh_server
 echo
 
-# ---------- Step 13: firewall (internal-only: SSH from LAN, web from set IPs) ----------
-echo "=== Step 13: firewall (ufw — internal-only) ==="
+# ---------- Step 14: firewall (internal-only: SSH from LAN, web from set IPs) ----------
+echo "=== Step 14: firewall (ufw — internal-only) ==="
 setup_firewall
 echo
 
-# ---------- Step 14: power (never suspend; blank screen, no lock) ----------
-echo "=== Step 14: power settings (never suspend; blank screen, no lock) ==="
+# ---------- Step 15: power (never suspend; blank screen, no lock) ----------
+echo "=== Step 15: power settings (never suspend; blank screen, no lock) ==="
 setup_power
 echo
 
@@ -531,6 +540,7 @@ echo "Verify with:"
 echo "  gh auth status  &&  git config --global --list"
 echo "  sudo ufw status verbose          # firewall rules"
 echo "  sudo sshd -T | grep -Ei 'passwordauthentication|permitrootlogin'   # key-only?"
+echo "  swapon --show                    # at least 32 GiB total swap"
 echo "  pkg-config --exists alsa openssl && echo 'OctoCode build libs OK'   # build deps"
 if lspci 2>/dev/null | grep -qi nvidia; then
   echo "  nvidia-smi          # GPU + driver (REBOOT first if the driver was just installed)"
