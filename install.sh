@@ -19,6 +19,8 @@ case "$(uname -s)" in
 esac
 CODEX_DIR="$HOME/.codex"
 CODEX_NPM_PREFIX="${CODEX_NPM_PREFIX:-$HOME/.local/share/octo-codex}"
+CODEX_LAUNCHER_DIR="$HOME/.local/bin"
+CODEX_STANDALONE_BIN="${CODEX_HOME:-$HOME/.codex}/packages/standalone/current/bin/codex"
 
 echo "Installing shared config to: $CLAUDE_DIR and $CODEX_DIR"
 
@@ -142,8 +144,74 @@ install_codex_cli() {
     fi
 }
 
+# Run a command in its own process group and terminate that entire group after
+# the deadline. This bounds both the official installer and its child downloads.
+run_with_timeout() {
+    local timeout_seconds="$1"
+    shift
+    local command_pid timeout_pid status
+    set -m
+    "$@" &
+    command_pid=$!
+    (
+        sleep "$timeout_seconds"
+        kill -TERM -- "-$command_pid" 2>/dev/null || true
+    ) &
+    timeout_pid=$!
+    set +m
+
+    status=0
+    wait "$command_pid" || status=$?
+    kill -TERM -- "-$timeout_pid" 2>/dev/null || true
+    wait "$timeout_pid" 2>/dev/null || true
+    return "$status"
+}
+
+# Install OpenAI's standalone Codex package alongside the npm-managed package.
+# The official installer places a symlink in CODEX_LAUNCHER_DIR; the launcher
+# step below replaces that symlink while leaving the standalone package intact.
+install_codex_standalone() {
+    case "$(uname -s)" in
+        Darwin|Linux) ;;
+        *)
+            echo "  WARNING: skipped standalone Codex CLI; the official shell installer supports macOS and Linux."
+            return
+            ;;
+    esac
+    if ! command -v curl >/dev/null 2>&1; then
+        echo "  WARNING: curl not found; skipped the standalone Codex CLI install."
+        return
+    fi
+    if [ -x "$CODEX_STANDALONE_BIN" ] && "$CODEX_STANDALONE_BIN" --version >/dev/null 2>&1; then
+        echo "  Standalone Codex CLI already installed: $CODEX_STANDALONE_BIN"
+        return
+    fi
+    local out timeout_seconds="${OCTO_CODEX_INSTALL_TIMEOUT_SECONDS:-300}"
+    case "$timeout_seconds" in
+        ''|*[!0-9]*)
+            echo "  WARNING: OCTO_CODEX_INSTALL_TIMEOUT_SECONDS must be a positive integer."
+            return
+            ;;
+    esac
+    if [ "$timeout_seconds" -lt 1 ]; then
+        echo "  WARNING: OCTO_CODEX_INSTALL_TIMEOUT_SECONDS must be a positive integer."
+        return
+    fi
+    echo "  Installing official standalone Codex CLI..."
+    if out="$(run_with_timeout "$timeout_seconds" sh -c '
+        curl -fsSL https://chatgpt.com/codex/install.sh | \
+            CODEX_NON_INTERACTIVE=1 CODEX_INSTALL_DIR="$1" sh
+    ' sh "$CODEX_LAUNCHER_DIR" 2>&1)"; then
+        echo "  Installed official standalone Codex CLI."
+    else
+        echo "  WARNING: standalone Codex install failed; rerun this repository's ./install.sh."
+        printf '%s\n' "$out" | sed 's/^/    /'
+    fi
+}
+
 install_codex_wrapper() {
-    local dest="$HOME/.local/bin/codex"
+    local dest="$CODEX_LAUNCHER_DIR/codex"
+    [ ! -L "$dest" ] || rm -f "$dest"
     install_file "$SCRIPT_DIR/global-codex-wrapper.sh" "$dest" "Codex launcher"
     chmod +x "$dest"
 }
@@ -242,8 +310,9 @@ install_playwright() {
 }
 
 install_swift_lsp
-install_node          # node + npm, needed by the two steps below
+install_node          # node + npm, needed by npm Codex and Playwright
 install_codex_cli     # user-owned npm prefix; launcher updates it on every start
+install_codex_standalone # official standalone package; launcher remains the PATH entry
 install_codex_wrapper # always trust hooks on this fully owned machine
 install_playwright    # warms the Playwright MCP cache
 

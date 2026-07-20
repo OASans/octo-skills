@@ -18,6 +18,15 @@ trust_level = "trusted"
 [projects."/home/clavier/Desktop/fin-4"]
 trust_level = "trusted"
 
+[projects."/home/clavier/Desktop/fin-3"]
+trust_level = "trusted"
+
+[projects."/home/clavier/Desktop/fin-2"]
+trust_level = "trusted"
+
+[projects."/home/clavier/Desktop/fin-1"]
+trust_level = "trusted"
+
 [projects."/tmp/claude-1000/-home-clavier-Desktop-octo-2/b8447a9c-ec9f-42f6-9ca7-1311b601d25f/scratchpad/codex-title-test"]
 trust_level = "trusted"
 
@@ -42,3 +51,43 @@ hide_rate_limit_model_nudge = true
 
 [agents]
 max_threads = 20
+
+# Trust is bound to each exact hook definition. Deploy changed hooks with
+# install.sh, re-review them with /hooks, copy their hashes here, then reinstall.
+[hooks.state]
+
+[hooks.state."/home/clavier/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:c378fef1b809632146b6086edc0ed33254b7294d1c1c9d6482cbe77d449980f0"
+
+[hooks.state."/home/clavier/.codex/hooks.json:permission_request:0:0"]
+trusted_hash = "sha256:fccec119124522793be3f831a34a341cc5d90aaa614452c31538652c45db6832"
+
+[hooks.state."/home/clavier/.codex/hooks.json:post_tool_use:0:0"]
+trusted_hash = "sha256:9e3f210a5e3ee659cea5bd90fd5bbf476feaa4817a22f073bad96efbbbe4ce67"
+
+[hooks.state."/home/clavier/.codex/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:a4651e516e051179bb3ccc79a63c97ffabd88801ee13563a185ba6f1e3261921"
+
+[hooks.state."/home/clavier/.codex/hooks.json:user_prompt_submit:0:0"]
+trusted_hash = "sha256:ada42741c26dac4f5361ddabbd5abc8b0641bd6338b9e54f62e38aa86ac89af0"
+
+[hooks.state."/home/clavier/.codex/hooks.json:stop:0:0"]
+trusted_hash = "sha256:cb991e4ec0480a389fb1531e441257a35076f03fcb9d955b06493153e6fb3585"
+
+[hooks.state."/home/clavier/Desktop/fin-1/.codex/hooks.json:subagent_stop:0:0"]
+trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
+
+[hooks.state."/home/clavier/Desktop/fin-2/.codex/hooks.json:subagent_stop:0:0"]
+trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
+
+[hooks.state."/home/clavier/Desktop/fin-3/.codex/hooks.json:subagent_stop:0:0"]
+trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
+
+[hooks.state."/home/clavier/Desktop/fin-4/.codex/hooks.json:subagent_stop:0:0"]
+trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
+
+[hooks.state."/home/clavier/Desktop/fin-5/.codex/hooks.json:subagent_stop:0:0"]
+trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
+
+[hooks.state."/home/clavier/Desktop/fin-6/.codex/hooks.json:subagent_stop:0:0"]
+trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
