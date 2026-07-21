@@ -12,6 +12,7 @@
     "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "600000"
   },
   "remoteControlAtStartup": true,
+  "verbose": true,
   "additionalDirectories": [
     "~/.cargo",
     "~/.octo-memory"
