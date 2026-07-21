@@ -3,7 +3,7 @@
 # Set up a fresh Linux (Debian/Ubuntu, apt-based) machine for octo-setup:
 #   - Install git, curl, ca-certificates, gnupg
 #   - Install gh (GitHub CLI) from the official apt repo
-#   - Install desktop apps: Google Chrome, VS Code (official apt repos), Slack (snap)
+#   - Install desktop apps: Google Chrome, VS Code (official apt repos)
 #   - Install CUDA: NVIDIA driver + full toolkit from NVIDIA's official apt repo
 #     (only when an NVIDIA GPU is present; a reboot is needed after the driver)
 #   - Install OctoCode's build/runtime libraries (OpenSSL, ALSA, cmake, clang,
@@ -82,20 +82,6 @@ ensure_gsetting() {
   if [ "$before" = "$after" ]; then echo "  $key already = $after — skipping"; else echo "  $key: $before -> $after"; fi
 }
 
-# Install a snap package (idempotent). Pass "classic" as $2 for classic confinement.
-ensure_snap() {
-  local pkg="$1" confinement="${2:-}"
-  if ! command -v snap >/dev/null 2>&1; then
-    echo "snap not available — skipping $pkg (install snapd, or grab the .deb manually)"
-    return 0
-  fi
-  if snap list "$pkg" >/dev/null 2>&1; then
-    echo "snap: $pkg already installed — skipping"
-  else
-    sudo snap install "$pkg" ${confinement:+--$confinement}
-  fi
-}
-
 # Fetch and dearmor an apt repo signing key into a keyring (idempotent).
 # Args: <keyring-path> <key-url>
 ensure_apt_repo_key() {
@@ -134,52 +120,6 @@ install_vscode() {
     | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
   sudo apt-get update -qq
   sudo apt-get install -y code
-}
-
-# Slack (snap) is an Electron app whose native-Wayland GPU path crashes on
-# NVIDIA GPUs: it exits ~0.5s after launch with NO window (looks like "Slack
-# won't open"). Force it onto XWayland with --ozone-platform=x11 via a per-user
-# desktop override. A user file in ~/.local/share/applications takes precedence
-# over the snap's launcher and survives snap refreshes. Idempotent.
-ensure_slack_x11_launcher() {
-  snap list slack >/dev/null 2>&1 || return 0   # only if the Slack snap is present
-  local dir="$HOME/.local/share/applications" f
-  f="$dir/slack_slack.desktop"
-  if [ -f "$f" ] && grep -q -- '--ozone-platform=x11' "$f"; then
-    echo "Slack XWayland launcher override already in place — skipping"
-    return 0
-  fi
-  mkdir -p "$dir"
-  cat > "$f" <<'DESKTOP'
-[Desktop Entry]
-X-SnapInstanceName=slack
-Name=Slack
-StartupWMClass=Slack
-Comment=Slack Desktop
-GenericName=Slack Client for Linux
-X-SnapAppName=slack
-# octo-setup: force XWayland — Electron's native-Wayland GPU path crashes on
-# NVIDIA GPUs, so Slack would exit ~0.5s after launch with no window.
-Exec=/snap/bin/slack --ozone-platform=x11 %U
-Icon=/snap/slack/current/usr/share/pixmaps/slack.png
-Type=Application
-StartupNotify=true
-Categories=GNOME;GTK;Network;InstantMessaging;
-MimeType=x-scheme-handler/slack;
-DESKTOP
-  command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$dir" 2>/dev/null || true
-  echo "Wrote Slack XWayland launcher override -> $f (fixes 'Slack won't open' on NVIDIA/Wayland)"
-}
-
-# Install Slack via snap (its official Linux distribution channel), then apply
-# the XWayland launcher fix so it actually opens on this NVIDIA/Wayland box.
-install_slack() {
-  if command -v slack >/dev/null 2>&1; then
-    echo "Slack already installed — skipping snap install"
-  else
-    ensure_snap slack
-  fi
-  ensure_slack_x11_launcher
 }
 
 # Pick the NVIDIA CUDA apt repo path for this machine (e.g. ubuntu2404). NVIDIA
@@ -459,11 +399,10 @@ ensure_git_global user.email "$GIT_USER_EMAIL"
 ensure_git_global pull.rebase true
 echo
 
-# ---------- Step 5: install desktop apps (Chrome, VS Code, Slack) ----------
-echo "=== Step 5: install desktop apps (Chrome, VS Code, Slack) ==="
+# ---------- Step 5: install desktop apps (Chrome, VS Code) ----------
+echo "=== Step 5: install desktop apps (Chrome, VS Code) ==="
 install_chrome
 install_vscode
-install_slack
 echo
 
 # ---------- Step 6: gh auth login ----------

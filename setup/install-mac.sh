@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Setup script: configure git globals; install Homebrew, gh, Chrome, VSCode; auth gh.
+# Setup script: configure macOS dev tools, desktop apps, GitHub auth, and Codex.
 # Run with: bash install-mac.sh
 # Safe to re-run — every step skips work that's already done.
 set -u
@@ -180,11 +180,11 @@ else
 fi
 echo
 
-# ---------- Step 5: install desktop apps (Chrome, VSCode, Slack, iTerm2) ----------
-echo "=== Step 5: install desktop apps (Chrome, VSCode, Slack, iTerm2) ==="
+# ---------- Step 5: install desktop apps (Chrome, VSCode, Discord, iTerm2) ----------
+echo "=== Step 5: install desktop apps (Chrome, VSCode, Discord, iTerm2) ==="
 ensure_cask google-chrome      "Google Chrome.app"
 ensure_cask visual-studio-code "Visual Studio Code.app"
-ensure_cask slack              "Slack.app"
+ensure_cask discord            "Discord.app"
 ensure_cask iterm2             "iTerm.app"
 echo
 
@@ -253,6 +253,11 @@ Run this yourself in the prompt (interactive — opens a browser):
 Then re-run this script with:  bash install-mac.sh
 EOF
 fi
+echo
+
+# ---------- Step 10: install Codex and shared agent config ----------
+echo "=== Step 10: install Codex and shared agent config ==="
+bash "$SCRIPT_DIR/../install.sh"
 echo
 
 echo "=== Done ==="
