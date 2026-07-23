@@ -11,7 +11,7 @@ Two-tier memory for Claude Code, keyed per repo. Goal: what a session learns onc
 ## How knowledge flows
 
 1. A session learns something → `octo-memory-short-term` appends it to the buffer. Low bar, write freely.
-2. Once a day, when `/octo-memory` runs → `octo-memory-long-term` consolidates: captures that are reusable, still accurate, and **recurred** (independently captured by ≥2 sessions) become `knowledge-*` topics; causal claims must also survive a refutation attempt. Existing topics get swept — stale ones pruned, overlapping ones merged.
+2. When a human explicitly runs `/octo-memory-long-term` → it consolidates at most once that day: captures that are reusable, still accurate, and **recurred** (independently captured by ≥2 sessions) become `knowledge-*` topics; causal claims must also survive a refutation attempt. Existing topics get swept — stale ones pruned, overlapping ones merged. Agents never start this pass automatically.
 
 Recurrence is the noise filter: one session calling something important is a weak signal; the same lesson resurfacing independently proves it's load-bearing. Captures that never recur silently age out — that's the filter working, not a loss. Exception: "remember this" from the user (`(user-asked)` tag) promotes immediately.
 
@@ -23,10 +23,10 @@ A global hook logs every knowledge-topic load to `~/.octo-memory/<repo>/usage.lo
 
 | Piece | Role |
 |---|---|
-| `octo-memory` (SKILL.md) | Orchestrator — gates, then dispatches capture / consolidation |
+| `octo-memory` (SKILL.md) | Capture orchestrator — gates, then dispatches short-term capture |
 | `octo-memory-short-term` | Capture rules — what to write, what to skip |
-| `octo-memory-long-term` | Consolidation — promotion criteria, refutation gate, staleness sweep |
-| `consolidation-due.sh` | Once-a-day gate (`~/.octo-memory/<repo>/tracker.md`) |
+| `octo-memory-long-term` | Manual consolidation — user-only promotion and staleness sweep |
+| `consolidation-due.sh` | Deduplicates manual runs to at most once a day |
 | `collect-captures.sh` | Emits captures to judge: PROMOTE (new) + CONTEXT (recurrence lookback) |
 | `usage-stats.sh` | Prints per-topic usage; `--stamp` folds the log into sidecars |
 | `mark-consolidated.sh` | Stamps the daily watermark |

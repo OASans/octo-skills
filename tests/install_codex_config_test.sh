@@ -117,6 +117,9 @@ awk '
     END { exit !found }
 ' "$CONFIG"
 test "$(grep -c '^\[projects\."/home/clavier/Desktop/fin-[1-6]"\]$' "$CONFIG")" -eq 6
+assert_section_line \
+    '[projects."/home/clavier/Desktop/octo-1"]' \
+    'trust_level = "trusted"'
 grep -qFx '[hooks.state]' "$CONFIG"
 for project_number in 1 2 3 4 5 6; do
     assert_section_line \

@@ -30,11 +30,11 @@ Keep inline: quick lookups, exploratory debugging where the problem isn't unders
 
 ## Memory
 
-**Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use the `/octo-memory` skill for all memory operations (it orchestrates `octo-memory-short-term` capture and `octo-memory-long-term` consolidation).
+**Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use `/octo-memory` for short-term capture. Long-term consolidation is manual only: a human invokes `/octo-memory-long-term`; agents never start it automatically.
 
 - **Long-term** — one topic per `.claude/skills/knowledge-<slug>/SKILL.md`, committed and team-shared. Claude Code auto-loads each skill's description (the index) and loads a body on demand — so there's **no `index.md` and no CLAUDE.md `@`-import**; it just loads.
 - **Short-term** — a local buffer at `~/.octo-memory/<repo>/short_term/` (`<repo>` from `git remote get-url origin`), shared across that repo's checkouts on one machine. Never committed, **not loaded into context**; it's only consolidation input, and losing it is fine.
-- **Consolidation** — once per day per machine (flag at `~/.octo-memory/<repo>/tracker.md`): `octo-memory-long-term` promotes valuable short-term into `knowledge-*` skills and prunes stale ones.
+- **Consolidation** — manual only, at most once per day per machine (flag at `~/.octo-memory/<repo>/tracker.md`): `/octo-memory-long-term` promotes valuable short-term into `knowledge-*` skills and prunes stale ones.
 
 ## Workflow
 

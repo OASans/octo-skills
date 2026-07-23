@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Tells whether daily long-term consolidation needs to run for the CURRENT repo.
-#   exit 1 + "DUE ..."   -> run octo-memory-long-term
-#   exit 0 + "DONE ..."  -> already consolidated today; skip
+# Deduplicates a user-started long-term consolidation for the CURRENT repo.
+# Run only after a human explicitly invokes /octo-memory-long-term.
+#   exit 1 + "DUE ..."   -> continue the manual consolidation
+#   exit 0 + "DONE ..."  -> already consolidated today; stop
 #   exit 2 + "ERROR ..." -> no 'origin' remote (memory can't be keyed per project)
-# Cheap on purpose: lets the orchestrator skip loading the heavy octo-memory-long-term
-# skill on the ~every session where consolidation already ran today.
 
 . "$(dirname "${BASH_SOURCE[0]}")/store-path.sh"   # sets: key, store (exit 2 if no origin)
 

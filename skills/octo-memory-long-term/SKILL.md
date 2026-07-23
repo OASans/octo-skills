@@ -1,13 +1,13 @@
 ---
 name: octo-memory-long-term
 description: >
-  Sub-step of `/octo-memory`: the daily consolidation pass that promotes
-  short-term captures into `knowledge-*` skills and prunes stale ones. Gated
-  and driven by the orchestrator.
-user-invocable: false
+  Manually consolidate short-term captures into `knowledge-*` skills and prune
+  stale topics. Run only when a user explicitly invokes
+  /octo-memory-long-term; never auto-invoke.
+disable-model-invocation: true
 ---
 
-Consolidate short-term memory into long-term. `/octo-memory` runs this once per day via its consolidation gate (`consolidation-due.sh`); it is not invoked on its own. This skill both promotes valuable knowledge and deprecates stale topics — keeping the auto-loaded knowledge set lean.
+Consolidate short-term memory into long-term only when a human explicitly invokes `/octo-memory-long-term`. Never start this skill from `/octo-memory`, session startup, workflow completion, or inferred need.
 
 Long-term lives as **project skills**: one topic per `.claude/skills/knowledge-<slug>/SKILL.md`, committed to the repo and shared with the team. Claude Code auto-loads every skill's `name` + `description` each session (that is the always-on "index") and loads a topic body only when the skill is invoked. There is **no** `index.md` and **no** CLAUDE.md `@`-import — the descriptions are the index.
 
@@ -107,7 +107,7 @@ Every knowledge-topic load is logged by a global PostToolUse hook to `~/.octo-me
 
 ## Steps
 
-Consolidation is a **daily** pass. `octo-memory` already gated it via `consolidation-due.sh` and loads this skill **only on DUE** — whether to run today is already decided, so there is no skip-check here. Each script below resolves its own paths from the `origin` remote, so there is nothing to set up. Promotion is criteria-based only — short-term is not loaded into sessions, so there is no "promote what I used this session" step.
+Consolidation is manual and runs at most once per day. First run `bash ~/.claude/skills/octo-memory/consolidation-due.sh`. On **DONE** (exit 0), report that consolidation already ran today and stop. On **DUE** (exit 1), continue below. Never use a DUE result as a reason to invoke this skill; the gate only deduplicates an invocation a human already made. Each script resolves its paths from the `origin` remote. Promotion is criteria-based only — short-term is not loaded into sessions, so there is no "promote what I used this session" step.
 
 #### Phase 1: Promote new knowledge
 

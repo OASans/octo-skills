@@ -9,6 +9,9 @@ model_reasoning_effort = "max"
 [projects."/home/clavier/Desktop/octo-skills"]
 trust_level = "trusted"
 
+[projects."/home/clavier/Desktop/octo-1"]
+trust_level = "trusted"
+
 [projects."/home/clavier/Desktop/fin-6"]
 trust_level = "trusted"
 

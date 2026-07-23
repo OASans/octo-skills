@@ -13,7 +13,7 @@ user-invocable: false
 Two **independent** SKILL.md frontmatter flags decide *who* can invoke a skill (both verified present in the Claude Code binary — grep it to confirm, per `knowledge-claude-code-settings`):
 
 - **`disable-model-invocation: true`** → the **model can't auto-invoke** it. Claude Code filters it out of the model's tool list and blocks it at call time ("user-invocable-only" / `skill_invoke_model_disabled`). A **human can still run it** via `/<name>`. This is THE way to make a slash-only skill; Claude Code's own builtin slash commands use `disableModelInvocation:true + userInvocable:true`.
-- **`user-invocable: false`** → hidden from the slash menu, but the **model can still auto-invoke** it. Used for internal sub-skills (`octo-memory-long/short-term`) and `knowledge-*` topics (auto-loaded by description, invoked by name).
+- **`user-invocable: false`** → hidden from the slash menu, but the **model can still auto-invoke** it. Used for internal sub-skills such as `octo-memory-short-term` and for `knowledge-*` topics (auto-loaded by description, invoked by name).
 
 They are orthogonal — one gates the human (slash menu), the other gates the agent (model invocation). Defaults: user-invocable true, model-invocation enabled. **There is no global-settings.json knob for this** — it's per-skill frontmatter only. A description that says "never auto-invoke" is a *soft* guard the model can ignore; the flag is the hard one.
 
@@ -29,4 +29,4 @@ They are orthogonal — one gates the human (slash menu), the other gates the ag
 - `install.sh` — `install_skills` mirror-copy+prune (dual-target), `install_file`/`write_if_changed` for settings/CLAUDE.md/AGENTS.md/hooks.
 - installed binary — resolve via `which claude`, then grep to confirm a flag/setting is real.
 
-<!-- Last verified: 2026-07-20, commit: b8d853c -->
+<!-- Last verified: 2026-07-23, commit: bc3698f -->
