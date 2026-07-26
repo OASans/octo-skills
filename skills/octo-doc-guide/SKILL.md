@@ -25,7 +25,7 @@ description: >
 
 ## Documentation
 
-*Review focus: is this document compact, self-contained, and correct about everything it states?*
+*Review focus: is this document compact, self-contained, shaped for its job, and correct about everything it states?*
 
 ### Compact
 
@@ -37,6 +37,15 @@ description: >
 
 - **No Cross-Document References**: A document stands on its own. Don't make it depend on the reader having another doc open, and don't point at sibling docs for meaning the reader needs here. (Linking to a canonical source for *more* is fine; requiring it to understand *this* is not.)
 - **No Duplication Across Docs**: Don't copy content that already lives in another document. One fact, one home — restating it elsewhere creates two things to keep in sync and one to forget.
+
+### Instructional Documents
+
+*Applies to skills (`SKILL.md`), guides, and any document whose job is to tell a reader what to do.*
+
+- **Lead With The Spine**: Give the reader a walkable list — ordered steps for a procedure, a flat rule list for a catalogue — and hang everything else off it as reference. Themed prose with no list makes every reader re-derive one, and nothing is ever deleted from it.
+- **One Rule, One Line**: State each rule once, imperatively, in a sentence. Don't restate it from a second angle and don't argue for it.
+- **Cut The Incident**: Keep the rule, drop the bug that produced it. Name a case only when the rule is unusable without it, and then in a clause, not a paragraph.
+- **Rules, Not Internals**: Carry the rule, not the mechanism. Identifiers, thresholds, file layouts, and failure modes belong to the skill that owns that code — name that skill instead of restating it.
 
 ### Internally Correct
 
