@@ -128,13 +128,17 @@ run_install
 CONFIG="$TEST_HOME/.codex/config.toml"
 cmp -s "$REPO_DIR/global-codex-config.toml" "$CONFIG"
 ! grep -qFx 'model = "custom-model"' "$CONFIG"
-grep -qFx 'max_threads = 20' "$CONFIG"
 awk '
-    $0 == "[features.multi_agent_v2]" { in_section = 1; next }
-    /^\[/ { in_section = 0 }
-    in_section && $0 == "max_concurrent_threads_per_session = 20" { found = 1 }
+    /^\[/ { in_table = 1 }
+    !in_table && $0 == "background_terminal_max_timeout = 3600000" { found = 1 }
     END { exit !found }
 ' "$CONFIG"
+grep -qFx 'max_threads = 20' "$CONFIG"
+assert_section_line '[features.multi_agent_v2]' 'enabled = true'
+assert_section_line '[features.multi_agent_v2]' 'max_concurrent_threads_per_session = 20'
+assert_section_line '[features.multi_agent_v2]' 'min_wait_timeout_ms = 300000'
+assert_section_line '[features.multi_agent_v2]' 'default_wait_timeout_ms = 3600000'
+assert_section_line '[features.multi_agent_v2]' 'max_wait_timeout_ms = 3600000'
 test "$(grep -c '^\[projects\."/home/clavier/Desktop/fin-[1-6]"\]$' "$CONFIG")" -eq 6
 assert_section_line \
     '[projects."/home/clavier/Desktop/octo-1"]' \
