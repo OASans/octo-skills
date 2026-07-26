@@ -167,6 +167,43 @@ run_with_timeout() {
     return "$status"
 }
 
+# Refresh a running app-server's user config without restarting it. Replacing
+# config.toml on disk is not enough: a durable daemon can retain its old project
+# trust map until it exits, causing trusted project .codex/ layers to warn and
+# stay disabled. An empty batch write preserves the managed file byte-for-byte;
+# reloadUserConfig updates every loaded thread in place.
+reload_codex_user_config() {
+    local socket="$CODEX_DIR/app-server-control/app-server-control.sock"
+    [ -e "$socket" ] || return
+
+    local codex_bin="$CODEX_STANDALONE_BIN"
+    if [ ! -x "$codex_bin" ]; then
+        codex_bin="$(command -v codex 2>/dev/null || true)"
+    fi
+    if [ -z "$codex_bin" ]; then
+        echo "  WARNING: config.toml installed, but Codex is unavailable for a live config reload."
+        return
+    fi
+
+    local response
+    if response="$(
+        (
+            printf '%s\n' \
+                '{"id":1,"method":"initialize","params":{"clientInfo":{"name":"octo-skills-installer","version":"1"}}}' \
+                '{"method":"initialized","params":{}}' \
+                "{\"id\":2,\"method\":\"config/batchWrite\",\"params\":{\"edits\":[],\"filePath\":\"$CODEX_DIR/config.toml\",\"reloadUserConfig\":true}}"
+            sleep 1
+        ) |
+            run_with_timeout 5 "$codex_bin" app-server proxy --sock "$socket" 2>/dev/null
+    )" &&
+        printf '%s\n' "$response" | grep -q '"id":2.*"status":"ok"'; then
+        echo "  Reloaded config.toml in the running Codex app-server"
+    else
+        echo "  WARNING: config.toml installed, but the running Codex app-server did not reload it."
+        echo "           New sessions will use it after the app-server next starts."
+    fi
+}
+
 # Install OpenAI's standalone Codex package alongside the npm-managed package.
 # The official installer places a symlink in CODEX_LAUNCHER_DIR; the launcher
 # step below replaces that symlink while leaving the standalone package intact.
@@ -314,6 +351,7 @@ install_node          # node + npm, needed by npm Codex and Playwright
 install_codex_cli     # user-owned npm prefix; launcher updates it on every start
 install_codex_standalone # official standalone package; launcher remains the PATH entry
 install_codex_wrapper # always trust hooks on this fully owned machine
+reload_codex_user_config # refresh project trust without interrupting running tasks
 install_playwright    # warms the Playwright MCP cache
 
 echo ""

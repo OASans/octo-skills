@@ -11,9 +11,13 @@ TEST_BIN="$TEST_ROOT/bin"
 TEST_NPM_ROOT="$TEST_ROOT/npm/lib/node_modules"
 NPM_CALLS="$TEST_ROOT/npm-calls"
 CURL_CALLS="$TEST_ROOT/curl-calls"
+CODEX_PROXY_CALLS="$TEST_ROOT/codex-proxy-calls"
+CODEX_PROXY_STDIN="$TEST_ROOT/codex-proxy-stdin"
 STANDALONE_ENV="$TEST_ROOT/standalone-env"
 STANDALONE_INSTALL_DIR="$TEST_ROOT/standalone-install-dir"
-mkdir -p "$TEST_HOME/.codex" "$PLAYWRIGHT_CACHE/chromium-test" "$TEST_BIN"
+APP_SERVER_SOCKET="$TEST_HOME/.codex/app-server-control/app-server-control.sock"
+mkdir -p "$(dirname "$APP_SERVER_SOCKET")" "$PLAYWRIGHT_CACHE/chromium-test" "$TEST_BIN"
+: > "$APP_SERVER_SOCKET"
 for command_name in codex node npx sourcekit-lsp; do
     ln -s "$(command -v true)" "$TEST_BIN/$command_name"
 done
@@ -48,7 +52,21 @@ standalone_bin="$HOME/.codex/packages/standalone/current/bin"
 visible_bin="${CODEX_INSTALL_DIR:-$HOME/.local/bin}"
 printf '%s\n' "$visible_bin" > "$STANDALONE_INSTALL_DIR"
 mkdir -p "$standalone_bin" "$visible_bin"
-printf '#!/bin/sh\nexit 0\n' > "$standalone_bin/codex"
+cat > "$standalone_bin/codex" <<'CODEX'
+#!/bin/sh
+if [ "${1:-}" = app-server ] && [ "${2:-}" = proxy ]; then
+    printf '%s\n' "$*" >> "$CODEX_PROXY_CALLS"
+    while IFS= read -r line; do
+        printf '%s\n' "$line" >> "$CODEX_PROXY_STDIN"
+        case "$line" in
+            *'"id":2'*)
+                printf '%s\n' '{"id":2,"result":{"status":"ok"}}'
+                ;;
+        esac
+    done
+fi
+exit 0
+CODEX
 chmod +x "$standalone_bin/codex"
 ln -sf "$standalone_bin/codex" "$visible_bin/codex"
 INSTALLER
@@ -70,6 +88,7 @@ run_install() {
         TEST_NPM_ROOT="$TEST_NPM_ROOT" NPM_CALLS="$NPM_CALLS" \
         CURL_CALLS="$CURL_CALLS" STANDALONE_ENV="$STANDALONE_ENV" \
         STANDALONE_INSTALL_DIR="$STANDALONE_INSTALL_DIR" \
+        CODEX_PROXY_CALLS="$CODEX_PROXY_CALLS" CODEX_PROXY_STDIN="$CODEX_PROXY_STDIN" \
         CURL_SHOULD_STALL="${CURL_SHOULD_STALL:-}" \
         OCTO_CODEX_INSTALL_TIMEOUT_SECONDS="${OCTO_CODEX_INSTALL_TIMEOUT_SECONDS:-300}" \
         CODEX_INSTALL_DIR="$TEST_ROOT/inherited-bin" \
@@ -146,6 +165,10 @@ test -x "$TEST_HOME/.local/bin/codex"
 test ! -L "$TEST_HOME/.local/bin/codex"
 grep -q -- 'npm view @openai/codex@latest version' "$TEST_HOME/.local/bin/codex"
 grep -q -- '--dangerously-bypass-hook-trust' "$TEST_HOME/.local/bin/codex"
+test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 2
+test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 2
+test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 2
+test "$(grep -cF '"reloadUserConfig":true' "$CODEX_PROXY_STDIN")" -eq 2
 
 chmod -x "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
 start_seconds=$SECONDS
