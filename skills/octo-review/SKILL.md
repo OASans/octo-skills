@@ -2,14 +2,14 @@
 name: octo-review
 description: >
   Code review. Spawns parallel read-only sub-agents that review the change
-  against the octo-*-guide family, then uses at most one read-only verifier
+  against the octo-coding-guide-* family, then uses at most one read-only verifier
   sub-agent for all bug claims before reporting. Use when the user asks for a
   code review, or as the final step before committing.
 ---
 
 Code review: the main agent scopes the change cheaply, fans out read-only reviewer sub-agents over the applicable guides, has bug claims independently verified, and merges one report. Returns findings only; never fixes code. A clean pass is a valid outcome — never invent findings to have something to report.
 
-**The guide family drives the fan-out.** Review criteria live in the scoped guide skills (`octo-*-guide`) and nowhere else. Each guide declares a `guide-scope` in its frontmatter (which changed files it covers) and one or more `##` review domains. A guide applies when its scope matches at least one changed file — matching is by file category/glob, never a guess about whether a violation is likely. Scopes overlap by design (a `.rs` change gets `octo-coding-guide` and `octo-rust-guide`; a `.md` change gets `octo-doc-guide` only). Adding a `##` domain or a whole new guide grows the review automatically — no edit here.
+**The guide family drives the fan-out.** Review criteria live in the scoped guide skills (`octo-coding-guide-*`) and nowhere else. Each guide declares a `guide-scope` in its frontmatter (which changed files it covers) and one or more `##` review domains. A guide applies when its scope matches at least one changed file — matching is by file category/glob, never a guess about whether a violation is likely. Scopes overlap by design (a `.rs` change gets `octo-coding-guide-code` and `octo-coding-guide-rust`; a `.md` change gets `octo-coding-guide-doc` only). Adding a `##` domain or a whole new guide grows the review automatically — no edit here.
 
 ## Steps
 

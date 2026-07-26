@@ -6,7 +6,7 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ### Before start
 - If the session-start context shows "GIT PULL FAILED", fix the git state before anything else (ask first if resolution could lose commits).
-- ALWAYS read `/octo-coding-guide` (or the project's equivalent skills) before planning or coding.
+- ALWAYS read `/octo-coding-guide-code` (or the project's equivalent skills) before planning or coding.
 
 ### During dev
 - Branch discipline — NEVER create a branch or open a PR; you're the only worker in this checkout, so commit directly on the default branch (`main`/`master`).

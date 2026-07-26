@@ -1,5 +1,5 @@
 ---
-name: octo-coding-guide
+name: octo-coding-guide-code
 guide-scope: code
 description: >
   Print the shared coding guide for source code. Inline skill — no sub-agents.
@@ -8,11 +8,11 @@ description: >
 
 # Coding Guide
 
-> **Guide family.** This is one guide in a family of scoped guides (`octo-*-guide`),
+> **Guide family.** This is one guide in a family of scoped guides (`octo-coding-guide-*`),
 > each carrying a `guide-scope` in its frontmatter that says which changed files it
 > covers. This guide's scope is `code` — source in any language, plus config, manifests,
-> and build/CI scripts. Sibling guides cover other change kinds (e.g. `octo-rust-guide`
-> for `**/*.rs`, `octo-doc-guide` for `**/*.md`). A change is reviewed against every
+> and build/CI scripts. Sibling guides cover other change kinds (e.g. `octo-coding-guide-rust`
+> for `**/*.rs`, `octo-coding-guide-doc` for `**/*.md`). A change is reviewed against every
 > guide whose scope its files touch, so scopes may overlap (a Rust file gets this guide
 > *and* the Rust guide). Keep each guide to its own scope — do not duplicate another
 > guide's rules here.

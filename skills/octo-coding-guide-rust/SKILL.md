@@ -1,5 +1,5 @@
 ---
-name: octo-rust-guide
+name: octo-coding-guide-rust
 guide-scope: "**/*.rs"
 description: >
   Print the shared Rust guide — this codebase's Rust-specific conventions for
@@ -9,10 +9,10 @@ description: >
 
 # Rust Guide
 
-> **Guide family.** This is one guide in a family of scoped guides (`octo-*-guide`),
+> **Guide family.** This is one guide in a family of scoped guides (`octo-coding-guide-*`),
 > each carrying a `guide-scope` in its frontmatter that says which changed files it
 > covers. This guide's scope is `**/*.rs` — it adds Rust-specific rules on top of the
-> general `octo-coding-guide` (scope `code`), which a Rust change is also reviewed
+> general `octo-coding-guide-code` (scope `code`), which a Rust change is also reviewed
 > against. Keep this guide to Rust specifics only; general code quality lives in the
 > coding guide.
 >
