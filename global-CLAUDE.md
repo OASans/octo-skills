@@ -16,8 +16,7 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 ### Anytime
 - Input is Whisper STT — expect mistranscriptions (homophones, garbled tech terms); correct from context before acting, ask if ambiguous.
 - Messages and plans — compact, plain words, easy to read; include only what's needed, skip preamble and recaps.
-- Editing any CLAUDE.md — write compact (no decorative markdown); usually edit only when the user asks.
-- NEVER edit a skill whose name contains `coding-guide` on your own — it changes only when the user asks for it.
+- NEVER edit any `CLAUDE.md`/`AGENTS.md` or any skill whose name contains `coding-guide` on your own — they change only when the user asks; write compact (no decorative markdown).
 
 ## Subagents
 
