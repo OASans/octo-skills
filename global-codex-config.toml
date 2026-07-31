@@ -1,8 +1,8 @@
 # Complete Codex CLI config managed by octo-skills.
 # install.sh installs this file as ~/.codex/config.toml.
 
-approval_policy = "never"
-sandbox_mode = "danger-full-access"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 

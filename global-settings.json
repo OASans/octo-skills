@@ -33,7 +33,7 @@
       "Bash(sudo *)"
     ],
     "deny": [],
-    "defaultMode": "default"
+    "defaultMode": "auto"
   },
   "hooks": {
     "PermissionRequest": [
