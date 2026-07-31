@@ -18,7 +18,7 @@ user-invocable: false
 
 ## How to Apply
 - Express any auto-compact threshold in **tokens**, never a percent. In `global-settings.json`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is the highest-priority override — a token count sized as a fraction of the model's context window. (The concrete number lives in the settings file, not here, so this note doesn't go stale.)
-- Keep `verbose` and `remoteControlAtStartup` at the top level of `global-settings.json`. Deploy with `./install.sh`, then start a new interactive session.
+- Keep `remoteControlAtStartup` (and `verbose`, if ever re-enabled) at the top level of `global-settings.json`. Deploy with `./install.sh`, then start a new interactive session.
 - Before trusting any Claude Code setting/env var, **grep the installed binary for the literal string**. Resolve the binary via `which claude`, readlink to the real install (a non-stripped ELF, e.g. under `~/.local/share/claude/versions/<ver>`), then grep the name. Absent string = no-op. This is how the dead PCT_OVERRIDE was caught.
 
 ## Key Files
