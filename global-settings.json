@@ -11,6 +11,7 @@
     "CLAUDE_CODE_MAX_RETRIES": "3",
     "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "600000"
   },
+  "effortLevel": "xhigh",
   "remoteControlAtStartup": true,
   "additionalDirectories": [
     "~/.cargo",
