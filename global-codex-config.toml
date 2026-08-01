@@ -2,6 +2,7 @@
 # install.sh installs this file as ~/.codex/config.toml.
 
 approval_policy = "on-request"
+approvals_reviewer = "auto_review"
 sandbox_mode = "workspace-write"
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
