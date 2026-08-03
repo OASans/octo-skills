@@ -1,0 +1,35 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../octofin-data"
+		},
+		{
+			"path": "../fin-2"
+		},
+		{
+			"path": "../fin-4"
+		},
+		{
+			"path": "../octofin-research"
+		},
+		{
+			"path": "../fin-6"
+		},
+		{
+			"path": "../fin-1"
+		},
+		{
+			"path": "../fin-3"
+		},
+		{
+			"path": "../octofin-raw-downloads"
+		},
+		{
+			"path": "../fin-5"
+		}
+	],
+	"settings": {}
+}
