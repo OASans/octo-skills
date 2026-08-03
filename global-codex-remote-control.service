@@ -1,0 +1,17 @@
+[Unit]
+Description=Codex Remote Control
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=__HOME__
+Environment="HOME=__HOME__"
+Environment="CODEX_HOME=__HOME__/.codex"
+Environment="PATH=__NODE_NPM_PATH__:__HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=__HOME__/.local/bin/codex remote-control --json
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+[Install]
+WantedBy=default.target

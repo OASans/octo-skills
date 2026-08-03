@@ -16,10 +16,13 @@ CODEX_PROXY_STDIN="$TEST_ROOT/codex-proxy-stdin"
 STANDALONE_ENV="$TEST_ROOT/standalone-env"
 STANDALONE_INSTALL_DIR="$TEST_ROOT/standalone-install-dir"
 APP_SERVER_SOCKET="$TEST_HOME/.codex/app-server-control/app-server-control.sock"
+SYSTEMCTL_CALLS="$TEST_ROOT/systemctl-calls"
+SYSTEMCTL_ACTIVE="$TEST_ROOT/systemctl-active"
+LOGINCTL_CALLS="$TEST_ROOT/loginctl-calls"
 mkdir -p "$(dirname "$APP_SERVER_SOCKET")" "$PLAYWRIGHT_CACHE/chromium-test" "$TEST_BIN"
 : > "$APP_SERVER_SOCKET"
 for command_name in codex node npx sourcekit-lsp; do
-    ln -s "$(command -v true)" "$TEST_BIN/$command_name"
+    ln -s "$(type -P true)" "$TEST_BIN/$command_name"
 done
 
 cat > "$TEST_BIN/npm" <<'EOF'
@@ -73,6 +76,35 @@ INSTALLER
 EOF
 chmod +x "$TEST_BIN/curl"
 
+cat > "$TEST_BIN/systemctl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$SYSTEMCTL_CALLS"
+case "$*" in
+    '--user is-active --quiet octo-codex-remote-control.service')
+        test -f "$SYSTEMCTL_ACTIVE"
+        ;;
+    '--user start octo-codex-remote-control.service'|\
+    '--user restart octo-codex-remote-control.service')
+        : > "$SYSTEMCTL_ACTIVE"
+        ;;
+esac
+EOF
+chmod +x "$TEST_BIN/systemctl"
+
+cat > "$TEST_BIN/loginctl" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$LOGINCTL_CALLS"
+case "$*" in
+    'show-user '*'-p Linger --value')
+        printf '%s\n' "${LOGINCTL_LINGER:-yes}"
+        ;;
+    'enable-linger '*)
+        [ "${LOGINCTL_ENABLE_FAIL:-0}" != 1 ]
+        ;;
+esac
+EOF
+chmod +x "$TEST_BIN/loginctl"
+
 cat > "$TEST_HOME/.codex/config.toml" <<'EOF'
 model = "custom-model"
 
@@ -94,6 +126,9 @@ run_install() {
         CURL_SHOULD_STALL="${CURL_SHOULD_STALL:-}" \
         OCTO_CODEX_INSTALL_TIMEOUT_SECONDS="${OCTO_CODEX_INSTALL_TIMEOUT_SECONDS:-300}" \
         CODEX_INSTALL_DIR="$TEST_ROOT/inherited-bin" \
+        SYSTEMCTL_CALLS="$SYSTEMCTL_CALLS" SYSTEMCTL_ACTIVE="$SYSTEMCTL_ACTIVE" \
+        LOGINCTL_CALLS="$LOGINCTL_CALLS" LOGINCTL_LINGER="${LOGINCTL_LINGER:-yes}" \
+        LOGINCTL_ENABLE_FAIL="${LOGINCTL_ENABLE_FAIL:-0}" \
         "$REPO_DIR/install.sh" >/dev/null
 }
 
@@ -166,8 +201,12 @@ for hook_event in pre_tool_use permission_request post_tool_use session_start us
         "[hooks.state.\"/home/clavier/.codex/hooks.json:$hook_event:0:0\"]"
 done
 for project_number in 1 2 3 4 5 6; do
-    assert_section_hash \
-        "[hooks.state.\"/home/clavier/Desktop/fin-$project_number/.codex/hooks.json:subagent_stop:0:0\"]"
+    assert_section_line \
+        "[hooks.state.\"/home/clavier/Desktop/fin-$project_number/.codex/hooks.json:subagent_stop:0:0\"]" \
+        'trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"'
+    assert_section_line \
+        "[hooks.state.\"/home/clavier/Desktop/fin-$project_number/.codex/hooks.json:subagent_stop:0:1\"]" \
+        'trusted_hash = "sha256:6725801ba85797e6f9c611d71a6c9fe16fb3d5069251ef468cc40824ff53e9bf"'
 done
 test -f "$TEST_NPM_ROOT/@openai/codex/bin/codex.js"
 grep -q -- "--prefix $TEST_HOME/.local/share/octo-codex" "$NPM_CALLS"
@@ -181,11 +220,29 @@ test -x "$TEST_HOME/.local/bin/codex"
 test ! -L "$TEST_HOME/.local/bin/codex"
 grep -q -- 'npm view @openai/codex@latest version' "$TEST_HOME/.local/bin/codex"
 ! grep -q -- '--dangerously-bypass-hook-trust' "$TEST_HOME/.local/bin/codex"
+REMOTE_SERVICE="$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
+test -f "$REMOTE_SERVICE"
+grep -qFx "Environment=\"CODEX_HOME=$TEST_HOME/.codex\"" "$REMOTE_SERVICE"
+grep -qFx "Environment=\"PATH=$TEST_BIN:$TEST_HOME/.local/bin:/usr/local/bin:/usr/bin:/bin\"" "$REMOTE_SERVICE"
+grep -qFx "ExecStart=$TEST_HOME/.local/bin/codex remote-control --json" "$REMOTE_SERVICE"
+! grep -q -E '__HOME__|__NODE_NPM_PATH__' "$REMOTE_SERVICE"
+test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 2
+test "$(grep -cFx -- '--user enable octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 2
+test "$(grep -cFx -- '--user start octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 1
+test "$(grep -cFx -- '--user restart octo-codex-remote-control.service' "$SYSTEMCTL_CALLS" || true)" -eq 0
+test "$(grep -c -- '-p Linger --value' "$LOGINCTL_CALLS")" -eq 2
+! grep -q 'enable-linger' "$LOGINCTL_CALLS"
 test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 2
 test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 2
 test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 2
 test "$(grep -cF '"reloadUserConfig":true' "$CODEX_PROXY_STDIN")" -eq 2
 
+LOGINCTL_LINGER=no LOGINCTL_ENABLE_FAIL=1 run_install
+test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 3
+test "$(grep -cFx -- '--user enable octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 2
+test "$(grep -cFx -- "enable-linger $(id -un)" "$LOGINCTL_CALLS")" -eq 1
+
+rm -f "$APP_SERVER_SOCKET"
 chmod -x "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
 start_seconds=$SECONDS
 CURL_SHOULD_STALL=1 OCTO_CODEX_INSTALL_TIMEOUT_SECONDS=1 run_install

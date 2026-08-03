@@ -91,17 +91,35 @@ trusted_hash = "sha256:cb991e4ec0480a389fb1531e441257a35076f03fcb9d955b06493153e
 [hooks.state."/home/clavier/Desktop/fin-1/.codex/hooks.json:subagent_stop:0:0"]
 trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
 
+[hooks.state."/home/clavier/Desktop/fin-1/.codex/hooks.json:subagent_stop:0:1"]
+trusted_hash = "sha256:6725801ba85797e6f9c611d71a6c9fe16fb3d5069251ef468cc40824ff53e9bf"
+
 [hooks.state."/home/clavier/Desktop/fin-2/.codex/hooks.json:subagent_stop:0:0"]
 trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
+
+[hooks.state."/home/clavier/Desktop/fin-2/.codex/hooks.json:subagent_stop:0:1"]
+trusted_hash = "sha256:6725801ba85797e6f9c611d71a6c9fe16fb3d5069251ef468cc40824ff53e9bf"
 
 [hooks.state."/home/clavier/Desktop/fin-3/.codex/hooks.json:subagent_stop:0:0"]
 trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
 
+[hooks.state."/home/clavier/Desktop/fin-3/.codex/hooks.json:subagent_stop:0:1"]
+trusted_hash = "sha256:6725801ba85797e6f9c611d71a6c9fe16fb3d5069251ef468cc40824ff53e9bf"
+
 [hooks.state."/home/clavier/Desktop/fin-4/.codex/hooks.json:subagent_stop:0:0"]
 trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
+
+[hooks.state."/home/clavier/Desktop/fin-4/.codex/hooks.json:subagent_stop:0:1"]
+trusted_hash = "sha256:6725801ba85797e6f9c611d71a6c9fe16fb3d5069251ef468cc40824ff53e9bf"
 
 [hooks.state."/home/clavier/Desktop/fin-5/.codex/hooks.json:subagent_stop:0:0"]
 trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
 
+[hooks.state."/home/clavier/Desktop/fin-5/.codex/hooks.json:subagent_stop:0:1"]
+trusted_hash = "sha256:6725801ba85797e6f9c611d71a6c9fe16fb3d5069251ef468cc40824ff53e9bf"
+
 [hooks.state."/home/clavier/Desktop/fin-6/.codex/hooks.json:subagent_stop:0:0"]
 trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"
+
+[hooks.state."/home/clavier/Desktop/fin-6/.codex/hooks.json:subagent_stop:0:1"]
+trusted_hash = "sha256:6725801ba85797e6f9c611d71a6c9fe16fb3d5069251ef468cc40824ff53e9bf"
