@@ -98,4 +98,4 @@ if [ "${1:-}" = update ]; then
     exec env NPM_CONFIG_PREFIX="$CODEX_NPM_PREFIX" \
         node "$codex_js" "$@"
 fi
-exec node "$codex_js" --dangerously-bypass-hook-trust "$@"
+exec node "$codex_js" "$@"

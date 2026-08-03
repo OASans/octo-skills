@@ -357,7 +357,7 @@ install_swift_lsp
 install_node          # node + npm, needed by npm Codex and Playwright
 install_codex_cli     # user-owned npm prefix; launcher updates it on every start
 install_codex_standalone # official standalone package; launcher remains the PATH entry
-install_codex_wrapper # always trust hooks on this fully owned machine
+install_codex_wrapper # launcher: auto-update, hook trust comes from config.toml hashes
 reload_codex_user_config # refresh project trust without interrupting running tasks
 install_playwright    # warms the Playwright MCP cache
 

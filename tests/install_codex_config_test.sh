@@ -180,7 +180,7 @@ test -x "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
 test -x "$TEST_HOME/.local/bin/codex"
 test ! -L "$TEST_HOME/.local/bin/codex"
 grep -q -- 'npm view @openai/codex@latest version' "$TEST_HOME/.local/bin/codex"
-grep -q -- '--dangerously-bypass-hook-trust' "$TEST_HOME/.local/bin/codex"
+! grep -q -- '--dangerously-bypass-hook-trust' "$TEST_HOME/.local/bin/codex"
 test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 2
 test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 2
 test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 2

@@ -88,8 +88,10 @@ check "update -> exit 0" "rc=0" "$(tail -n1 <<<"$updated")"
 check "update -> version advanced" "0.144.3" "$(cat "$VERSION_FILE")"
 check "update -> install once" "1" "$(grep -c '^npm install ' "$CALLS")"
 check "update -> reports versions" "1" "$(grep -c 'Updated Codex: 0.144.1 -> 0.144.3' <<<"$updated")"
-check "launch -> trust bypass and args" "1" \
-    "$(grep -c 'node .* --dangerously-bypass-hook-trust exec sample ' "$CALLS")"
+check "launch -> args without trust bypass" "1" \
+    "$(grep -c 'node .* exec sample ' "$CALLS")"
+check "launch -> no trust bypass flag" "0" \
+    "$(grep -c -- '--dangerously-bypass-hook-trust' "$CALLS")"
 
 # A current install only checks the registry; it does not reinstall.
 : > "$CALLS"
