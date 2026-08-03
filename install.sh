@@ -87,6 +87,13 @@ install_file() {
 install_skills "$CLAUDE_DIR/skills"
 install_skills "$CODEX_DIR/skills"
 
+# Reusable Codex agents. Preserve unrelated personal agents in the target.
+for agent_file in "$SCRIPT_DIR/codex-agents"/*.toml; do
+    [ -f "$agent_file" ] || continue
+    install_file "$agent_file" "$CODEX_DIR/agents/$(basename "$agent_file")" \
+        "Codex agent $(basename "$agent_file" .toml)"
+done
+
 # Global memory / prompt: one source (global-CLAUDE.md) -> Claude CLAUDE.md and
 # Codex AGENTS.md (merged root-first by Codex, same as CLAUDE.md).
 install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"  "CLAUDE.md"
@@ -359,4 +366,5 @@ echo "Done. Installed skills:"
 ls -1 "$CLAUDE_DIR/skills/"
 echo ""
 echo "Skills are available in ALL projects for both Claude Code (~/.claude) and Codex (~/.codex)."
+echo "Codex review agents are available in ALL projects from ~/.codex/agents/."
 echo "Project-specific skills go in <project>/.claude/skills/ (or <project>/.codex/skills/)."

@@ -82,6 +82,8 @@ trust_level = "trusted"
 [tui]
 theme = "ansi"
 EOF
+mkdir -p "$TEST_HOME/.codex/agents"
+printf '%s\n' 'name = "personal-agent"' > "$TEST_HOME/.codex/agents/personal-agent.toml"
 
 run_install() {
     HOME="$TEST_HOME" PATH="$TEST_BIN:$PATH" PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_CACHE" \
@@ -123,6 +125,16 @@ assert_section_hash() {
 run_install
 cmp -s "$REPO_DIR/global-codex-config.toml" "$TEST_HOME/.codex/config.toml"
 jq -e '.remoteControlAtStartup == true' "$TEST_HOME/.claude/settings.json" >/dev/null
+cmp -s "$REPO_DIR/codex-agents/octo-reviewer.toml" "$TEST_HOME/.codex/agents/octo-reviewer.toml"
+cmp -s "$REPO_DIR/codex-agents/octo-review-verifier.toml" "$TEST_HOME/.codex/agents/octo-review-verifier.toml"
+for agent_name in octo-reviewer octo-review-verifier; do
+    agent_config="$TEST_HOME/.codex/agents/$agent_name.toml"
+    grep -qFx "name = \"$agent_name\"" "$agent_config"
+    grep -qFx 'model = "gpt-5.6-terra"' "$agent_config"
+    grep -qFx 'model_reasoning_effort = "high"' "$agent_config"
+    grep -qFx 'sandbox_mode = "read-only"' "$agent_config"
+done
+grep -qFx 'name = "personal-agent"' "$TEST_HOME/.codex/agents/personal-agent.toml"
 run_install
 
 CONFIG="$TEST_HOME/.codex/config.toml"
