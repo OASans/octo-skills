@@ -170,6 +170,8 @@ for agent_name in octo-reviewer octo-review-verifier; do
     grep -qFx 'sandbox_mode = "read-only"' "$agent_config"
 done
 grep -qFx 'name = "personal-agent"' "$TEST_HOME/.codex/agents/personal-agent.toml"
+printf '\n# outdated launcher\n' >> "$TEST_HOME/.local/bin/codex"
+run_install
 run_install
 
 CONFIG="$TEST_HOME/.codex/config.toml"
@@ -219,27 +221,27 @@ test -x "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
 test -x "$TEST_HOME/.local/bin/codex"
 test ! -L "$TEST_HOME/.local/bin/codex"
 grep -q -- 'npm view @openai/codex@latest version' "$TEST_HOME/.local/bin/codex"
-! grep -q -- '--dangerously-bypass-hook-trust' "$TEST_HOME/.local/bin/codex"
+grep -q -- '--dangerously-bypass-hook-trust' "$TEST_HOME/.local/bin/codex"
 REMOTE_SERVICE="$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
 test -f "$REMOTE_SERVICE"
 grep -qFx "Environment=\"CODEX_HOME=$TEST_HOME/.codex\"" "$REMOTE_SERVICE"
 grep -qFx "Environment=\"PATH=$TEST_BIN:$TEST_HOME/.local/bin:/usr/local/bin:/usr/bin:/bin\"" "$REMOTE_SERVICE"
 grep -qFx "ExecStart=$TEST_HOME/.local/bin/codex remote-control --json" "$REMOTE_SERVICE"
 ! grep -q -E '__HOME__|__NODE_NPM_PATH__' "$REMOTE_SERVICE"
-test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 2
-test "$(grep -cFx -- '--user enable octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 2
+test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 3
+test "$(grep -cFx -- '--user enable octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 3
 test "$(grep -cFx -- '--user start octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 1
-test "$(grep -cFx -- '--user restart octo-codex-remote-control.service' "$SYSTEMCTL_CALLS" || true)" -eq 0
-test "$(grep -c -- '-p Linger --value' "$LOGINCTL_CALLS")" -eq 2
+test "$(grep -cFx -- '--user restart octo-codex-remote-control.service' "$SYSTEMCTL_CALLS" || true)" -eq 1
+test "$(grep -c -- '-p Linger --value' "$LOGINCTL_CALLS")" -eq 3
 ! grep -q 'enable-linger' "$LOGINCTL_CALLS"
-test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 2
-test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 2
-test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 2
-test "$(grep -cF '"reloadUserConfig":true' "$CODEX_PROXY_STDIN")" -eq 2
+test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 3
+test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 3
+test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 3
+test "$(grep -cF '"reloadUserConfig":true' "$CODEX_PROXY_STDIN")" -eq 3
 
 LOGINCTL_LINGER=no LOGINCTL_ENABLE_FAIL=1 run_install
-test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 3
-test "$(grep -cFx -- '--user enable octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 2
+test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 4
+test "$(grep -cFx -- '--user enable octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 3
 test "$(grep -cFx -- "enable-linger $(id -un)" "$LOGINCTL_CALLS")" -eq 1
 
 rm -f "$APP_SERVER_SOCKET"

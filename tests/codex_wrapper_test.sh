@@ -66,6 +66,8 @@ check() { # description expected actual
 
 run_wrapper() {
     local output rc
+    local -a codex_args=(exec sample)
+    [ "$#" -eq 0 ] || codex_args=("$@")
     output="$(
         HOME="$TEST_ROOT/home" PATH="$TEST_BIN:$PATH" \
             CODEX_NPM_PREFIX="$TEST_PREFIX" TEST_NPM_ROOT="$TEST_NPM_ROOT" \
@@ -73,7 +75,7 @@ run_wrapper() {
             LATEST_VERSION="${LATEST_VERSION:-0.144.3}" \
             FAIL_CHECK="${FAIL_CHECK:-0}" FAIL_INSTALL="${FAIL_INSTALL:-0}" \
             LAUNCH_RC="${LAUNCH_RC:-0}" \
-            bash "$REPO_DIR/global-codex-wrapper.sh" exec sample 2>&1
+            bash "$REPO_DIR/global-codex-wrapper.sh" "${codex_args[@]}" 2>&1
     )"
     rc=$?
     printf '%s\nrc=%s\n' "$output" "$rc"
@@ -88,10 +90,19 @@ check "update -> exit 0" "rc=0" "$(tail -n1 <<<"$updated")"
 check "update -> version advanced" "0.144.3" "$(cat "$VERSION_FILE")"
 check "update -> install once" "1" "$(grep -c '^npm install ' "$CALLS")"
 check "update -> reports versions" "1" "$(grep -c 'Updated Codex: 0.144.1 -> 0.144.3' <<<"$updated")"
-check "launch -> args without trust bypass" "1" \
-    "$(grep -c 'node .* exec sample ' "$CALLS")"
-check "launch -> no trust bypass flag" "0" \
+check "launch -> trust bypass precedes subcommand" "1" \
+    "$(grep -c 'node .* --dangerously-bypass-hook-trust exec sample ' "$CALLS")"
+check "launch -> trust bypass once" "1" \
     "$(grep -c -- '--dangerously-bypass-hook-trust' "$CALLS")"
+
+# The special update path also bypasses hook trust and retains its npm prefix.
+: > "$CALLS"
+update_command="$(run_wrapper update)"
+check "update command -> exits 0" "rc=0" "$(tail -n1 <<<"$update_command")"
+check "update command -> trust bypass precedes subcommand" "1" \
+    "$(grep -c 'node .* --dangerously-bypass-hook-trust update prefix=' "$CALLS")"
+check "update command -> npm prefix" "$TEST_PREFIX" \
+    "$(sed -n 's/.* --dangerously-bypass-hook-trust update prefix=//p' "$CALLS")"
 
 # A current install only checks the registry; it does not reinstall.
 : > "$CALLS"

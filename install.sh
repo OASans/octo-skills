@@ -24,6 +24,7 @@ CODEX_STANDALONE_BIN="${CODEX_HOME:-$HOME/.codex}/packages/standalone/current/bi
 LAST_INSTALL_CHANGED=0
 CODEX_CONFIG_CHANGED=0
 CODEX_HOOKS_CHANGED=0
+CODEX_LAUNCHER_CHANGED=0
 
 echo "Installing shared config to: $CLAUDE_DIR and $CODEX_DIR"
 
@@ -266,12 +267,13 @@ install_codex_wrapper() {
     local dest="$CODEX_LAUNCHER_DIR/codex"
     [ ! -L "$dest" ] || rm -f "$dest"
     install_file "$SCRIPT_DIR/global-codex-wrapper.sh" "$dest" "Codex launcher"
+    CODEX_LAUNCHER_CHANGED="$LAST_INSTALL_CHANGED"
     chmod +x "$dest"
 }
 
 # Keep Remote Control outside transient SSH session scopes. systemd supervises
-# the foreground process, while CODEX_HOME keeps the installed config and trusted
-# hook state authoritative for every remote session.
+# the foreground process, while CODEX_HOME keeps the installed config and hooks
+# authoritative for every remote session.
 install_codex_remote_control_service() {
     [ "$(uname -s)" = Linux ] || return
     if ! command -v systemctl >/dev/null 2>&1; then
@@ -327,7 +329,7 @@ install_codex_remote_control_service() {
 
     if systemctl --user is-active --quiet "$unit"; then
         if [ "$unit_changed" -eq 1 ] || [ "$CODEX_CONFIG_CHANGED" -eq 1 ] ||
-            [ "$CODEX_HOOKS_CHANGED" -eq 1 ]; then
+            [ "$CODEX_HOOKS_CHANGED" -eq 1 ] || [ "$CODEX_LAUNCHER_CHANGED" -eq 1 ]; then
             if systemctl --user restart "$unit" >/dev/null 2>&1; then
                 echo "  Restarted Codex Remote Control service"
             else
@@ -440,7 +442,7 @@ install_swift_lsp
 install_node          # node + npm, needed by npm Codex and Playwright
 install_codex_cli     # user-owned npm prefix; launcher updates it on every start
 install_codex_standalone # official standalone package; launcher remains the PATH entry
-install_codex_wrapper # launcher: auto-update, hook trust comes from config.toml hashes
+install_codex_wrapper # launcher: auto-update, vetted-hook trust bypass on every launch
 reload_codex_user_config # refresh project trust without interrupting running tasks
 install_codex_remote_control_service # supervised, boot-persistent Remote Control on Linux
 install_playwright    # warms the Playwright MCP cache

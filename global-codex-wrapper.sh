@@ -94,8 +94,10 @@ fi
     exit 1
 }
 
+# Hooks are installed from this repository. Bypass per-definition trust hashes
+# so hook updates cannot prevent unattended Remote Control from starting.
 if [ "${1:-}" = update ]; then
     exec env NPM_CONFIG_PREFIX="$CODEX_NPM_PREFIX" \
-        node "$codex_js" "$@"
+        node "$codex_js" --dangerously-bypass-hook-trust "$@"
 fi
-exec node "$codex_js" "$@"
+exec node "$codex_js" --dangerously-bypass-hook-trust "$@"
