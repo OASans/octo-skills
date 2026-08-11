@@ -6,6 +6,7 @@ TEST_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
 TEST_HOME="$TEST_ROOT/home"
+TEST_RUNTIME="$TEST_ROOT/runtime"
 PLAYWRIGHT_CACHE="$TEST_ROOT/playwright"
 TEST_BIN="$TEST_ROOT/bin"
 TEST_NPM_ROOT="$TEST_ROOT/npm/lib/node_modules"
@@ -15,11 +16,15 @@ CODEX_PROXY_CALLS="$TEST_ROOT/codex-proxy-calls"
 CODEX_PROXY_STDIN="$TEST_ROOT/codex-proxy-stdin"
 STANDALONE_ENV="$TEST_ROOT/standalone-env"
 STANDALONE_INSTALL_DIR="$TEST_ROOT/standalone-install-dir"
-APP_SERVER_SOCKET="$TEST_HOME/.codex/app-server-control/app-server-control.sock"
+APP_SERVER_SOCKET="$TEST_RUNTIME/octo-codex/app-server.sock"
 SYSTEMCTL_CALLS="$TEST_ROOT/systemctl-calls"
 SYSTEMCTL_ACTIVE="$TEST_ROOT/systemctl-active"
 LOGINCTL_CALLS="$TEST_ROOT/loginctl-calls"
-mkdir -p "$(dirname "$APP_SERVER_SOCKET")" "$PLAYWRIGHT_CACHE/chromium-test" "$TEST_BIN"
+mkdir -p \
+    "$TEST_HOME/.codex" \
+    "$(dirname "$APP_SERVER_SOCKET")" \
+    "$PLAYWRIGHT_CACHE/chromium-test" \
+    "$TEST_BIN"
 : > "$APP_SERVER_SOCKET"
 for command_name in codex node npx sourcekit-lsp; do
     ln -s "$(type -P true)" "$TEST_BIN/$command_name"
@@ -118,7 +123,8 @@ mkdir -p "$TEST_HOME/.codex/agents"
 printf '%s\n' 'name = "personal-agent"' > "$TEST_HOME/.codex/agents/personal-agent.toml"
 
 run_install() {
-    HOME="$TEST_HOME" PATH="$TEST_BIN:$PATH" PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_CACHE" \
+    HOME="$TEST_HOME" PATH="$TEST_BIN:$PATH" XDG_RUNTIME_DIR="$TEST_RUNTIME" \
+        PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_CACHE" \
         TEST_NPM_ROOT="$TEST_NPM_ROOT" NPM_CALLS="$NPM_CALLS" \
         CURL_CALLS="$CURL_CALLS" STANDALONE_ENV="$STANDALONE_ENV" \
         STANDALONE_INSTALL_DIR="$STANDALONE_INSTALL_DIR" \
@@ -226,8 +232,16 @@ REMOTE_SERVICE="$TEST_HOME/.config/systemd/user/octo-codex-remote-control.servic
 test -f "$REMOTE_SERVICE"
 grep -qFx "Environment=\"CODEX_HOME=$TEST_HOME/.codex\"" "$REMOTE_SERVICE"
 grep -qFx "Environment=\"PATH=$TEST_BIN:$TEST_HOME/.local/bin:/usr/local/bin:/usr/bin:/bin\"" "$REMOTE_SERVICE"
-grep -qFx "ExecStart=$TEST_HOME/.local/bin/codex remote-control --json" "$REMOTE_SERVICE"
-! grep -q -E '__HOME__|__NODE_NPM_PATH__' "$REMOTE_SERVICE"
+grep -qFx 'RuntimeDirectory=octo-codex' "$REMOTE_SERVICE"
+grep -qFx 'RuntimeDirectoryMode=0700' "$REMOTE_SERVICE"
+grep -qFx \
+    "ExecStart=$TEST_HOME/.local/bin/codex app-server --remote-control --listen unix://%t/octo-codex/app-server.sock" \
+    "$REMOTE_SERVICE"
+! grep -q -E '__HOME__|__NODE_NPM_PATH__|__CODEX_SERVER_RUNTIME_DIR__' "$REMOTE_SERVICE"
+test ! -e "$TEST_HOME/.config/systemd/user/octo-codex-app-server.service"
+if command -v systemd-analyze >/dev/null 2>&1; then
+    systemd-analyze verify "$REMOTE_SERVICE"
+fi
 test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 3
 test "$(grep -cFx -- '--user enable octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 3
 test "$(grep -cFx -- '--user start octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 1

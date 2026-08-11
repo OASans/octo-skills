@@ -8,7 +8,9 @@ WorkingDirectory=__HOME__
 Environment="HOME=__HOME__"
 Environment="CODEX_HOME=__HOME__/.codex"
 Environment="PATH=__NODE_NPM_PATH__:__HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=__HOME__/.local/bin/codex remote-control --json
+RuntimeDirectory=__CODEX_SERVER_RUNTIME_DIR__
+RuntimeDirectoryMode=0700
+ExecStart=__HOME__/.local/bin/codex app-server --remote-control --listen unix://%t/__CODEX_SERVER_RUNTIME_DIR__/app-server.sock
 Restart=always
 RestartSec=5
 TimeoutStopSec=20

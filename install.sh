@@ -21,6 +21,7 @@ CODEX_DIR="$HOME/.codex"
 CODEX_NPM_PREFIX="${CODEX_NPM_PREFIX:-$HOME/.local/share/octo-codex}"
 CODEX_LAUNCHER_DIR="$HOME/.local/bin"
 CODEX_STANDALONE_BIN="${CODEX_HOME:-$HOME/.codex}/packages/standalone/current/bin/codex"
+CODEX_SERVER_RUNTIME_DIR="octo-codex"
 LAST_INSTALL_CHANGED=0
 CODEX_CONFIG_CHANGED=0
 CODEX_HOOKS_CHANGED=0
@@ -190,7 +191,9 @@ run_with_timeout() {
 # stay disabled. An empty batch write preserves the managed file byte-for-byte;
 # reloadUserConfig updates every loaded thread in place.
 reload_codex_user_config() {
-    local socket="$CODEX_DIR/app-server-control/app-server-control.sock"
+    local runtime_dir socket
+    runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+    socket="$runtime_dir/$CODEX_SERVER_RUNTIME_DIR/app-server.sock"
     [ -e "$socket" ] || return 0
 
     local codex_bin="$CODEX_STANDALONE_BIN"
@@ -299,6 +302,7 @@ install_codex_remote_control_service() {
     service_content="$(cat "$SCRIPT_DIR/global-codex-remote-control.service")"
     service_content="${service_content//__HOME__/$HOME}"
     service_content="${service_content//__NODE_NPM_PATH__/$runtime_path}"
+    service_content="${service_content//__CODEX_SERVER_RUNTIME_DIR__/$CODEX_SERVER_RUNTIME_DIR}"
     write_if_changed "$service_content" "$unit_dest" "Codex Remote Control service"
     local unit_changed="$LAST_INSTALL_CHANGED"
 
