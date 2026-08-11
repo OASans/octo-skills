@@ -6,7 +6,6 @@ TEST_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
 TEST_HOME="$TEST_ROOT/home"
-TEST_RUNTIME="$TEST_ROOT/runtime"
 PLAYWRIGHT_CACHE="$TEST_ROOT/playwright"
 TEST_BIN="$TEST_ROOT/bin"
 TEST_NPM_ROOT="$TEST_ROOT/npm/lib/node_modules"
@@ -16,10 +15,9 @@ CODEX_PROXY_CALLS="$TEST_ROOT/codex-proxy-calls"
 CODEX_PROXY_STDIN="$TEST_ROOT/codex-proxy-stdin"
 STANDALONE_ENV="$TEST_ROOT/standalone-env"
 STANDALONE_INSTALL_DIR="$TEST_ROOT/standalone-install-dir"
-APP_SERVER_SOCKET="$TEST_RUNTIME/octo-codex/app-server.sock"
+APP_SERVER_SOCKET="$TEST_HOME/.codex/app-server-control/app-server-control.sock"
 SYSTEMCTL_CALLS="$TEST_ROOT/systemctl-calls"
-SYSTEMCTL_ACTIVE="$TEST_ROOT/systemctl-active"
-LOGINCTL_CALLS="$TEST_ROOT/loginctl-calls"
+SYSTEMCTL_DISABLED="$TEST_ROOT/systemctl-disabled"
 mkdir -p \
     "$TEST_HOME/.codex" \
     "$(dirname "$APP_SERVER_SOCKET")" \
@@ -85,30 +83,21 @@ cat > "$TEST_BIN/systemctl" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$SYSTEMCTL_CALLS"
 case "$*" in
-    '--user is-active --quiet octo-codex-remote-control.service')
-        test -f "$SYSTEMCTL_ACTIVE"
+    '--user is-active --quiet octo-codex-app-server.service')
+        exit 1
         ;;
-    '--user start octo-codex-remote-control.service'|\
-    '--user restart octo-codex-remote-control.service')
-        : > "$SYSTEMCTL_ACTIVE"
+    '--user is-enabled --quiet octo-codex-app-server.service')
+        test ! -f "$SYSTEMCTL_DISABLED"
+        ;;
+    '--user disable octo-codex-app-server.service')
+        : > "$SYSTEMCTL_DISABLED"
+        ;;
+    '--user is-active --quiet '*|'--user is-enabled --quiet '*)
+        exit 1
         ;;
 esac
 EOF
 chmod +x "$TEST_BIN/systemctl"
-
-cat > "$TEST_BIN/loginctl" <<'EOF'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$LOGINCTL_CALLS"
-case "$*" in
-    'show-user '*'-p Linger --value')
-        printf '%s\n' "${LOGINCTL_LINGER:-yes}"
-        ;;
-    'enable-linger '*)
-        [ "${LOGINCTL_ENABLE_FAIL:-0}" != 1 ]
-        ;;
-esac
-EOF
-chmod +x "$TEST_BIN/loginctl"
 
 cat > "$TEST_HOME/.codex/config.toml" <<'EOF'
 model = "custom-model"
@@ -121,10 +110,12 @@ theme = "ansi"
 EOF
 mkdir -p "$TEST_HOME/.codex/agents"
 printf '%s\n' 'name = "personal-agent"' > "$TEST_HOME/.codex/agents/personal-agent.toml"
+mkdir -p "$TEST_HOME/.config/systemd/user"
+printf '%s\n' '[Service]' > \
+    "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
 
 run_install() {
-    HOME="$TEST_HOME" PATH="$TEST_BIN:$PATH" XDG_RUNTIME_DIR="$TEST_RUNTIME" \
-        PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_CACHE" \
+    HOME="$TEST_HOME" PATH="$TEST_BIN:$PATH" PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_CACHE" \
         TEST_NPM_ROOT="$TEST_NPM_ROOT" NPM_CALLS="$NPM_CALLS" \
         CURL_CALLS="$CURL_CALLS" STANDALONE_ENV="$STANDALONE_ENV" \
         STANDALONE_INSTALL_DIR="$STANDALONE_INSTALL_DIR" \
@@ -132,9 +123,7 @@ run_install() {
         CURL_SHOULD_STALL="${CURL_SHOULD_STALL:-}" \
         OCTO_CODEX_INSTALL_TIMEOUT_SECONDS="${OCTO_CODEX_INSTALL_TIMEOUT_SECONDS:-300}" \
         CODEX_INSTALL_DIR="$TEST_ROOT/inherited-bin" \
-        SYSTEMCTL_CALLS="$SYSTEMCTL_CALLS" SYSTEMCTL_ACTIVE="$SYSTEMCTL_ACTIVE" \
-        LOGINCTL_CALLS="$LOGINCTL_CALLS" LOGINCTL_LINGER="${LOGINCTL_LINGER:-yes}" \
-        LOGINCTL_ENABLE_FAIL="${LOGINCTL_ENABLE_FAIL:-0}" \
+        SYSTEMCTL_CALLS="$SYSTEMCTL_CALLS" SYSTEMCTL_DISABLED="$SYSTEMCTL_DISABLED" \
         "$REPO_DIR/install.sh" >/dev/null
 }
 
@@ -228,35 +217,20 @@ test -x "$TEST_HOME/.local/bin/codex"
 test ! -L "$TEST_HOME/.local/bin/codex"
 grep -q -- 'npm view @openai/codex@latest version' "$TEST_HOME/.local/bin/codex"
 grep -q -- '--dangerously-bypass-hook-trust' "$TEST_HOME/.local/bin/codex"
-REMOTE_SERVICE="$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
-test -f "$REMOTE_SERVICE"
-grep -qFx "Environment=\"CODEX_HOME=$TEST_HOME/.codex\"" "$REMOTE_SERVICE"
-grep -qFx "Environment=\"PATH=$TEST_BIN:$TEST_HOME/.local/bin:/usr/local/bin:/usr/bin:/bin\"" "$REMOTE_SERVICE"
-grep -qFx 'RuntimeDirectory=octo-codex' "$REMOTE_SERVICE"
-grep -qFx 'RuntimeDirectoryMode=0700' "$REMOTE_SERVICE"
-grep -qFx \
-    "ExecStart=$TEST_HOME/.local/bin/codex app-server --remote-control --listen unix://%t/octo-codex/app-server.sock" \
-    "$REMOTE_SERVICE"
-! grep -q -E '__HOME__|__NODE_NPM_PATH__|__CODEX_SERVER_RUNTIME_DIR__' "$REMOTE_SERVICE"
+test ! -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
 test ! -e "$TEST_HOME/.config/systemd/user/octo-codex-app-server.service"
-if command -v systemd-analyze >/dev/null 2>&1; then
-    systemd-analyze verify "$REMOTE_SERVICE"
-fi
-test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 3
-test "$(grep -cFx -- '--user enable octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 3
-test "$(grep -cFx -- '--user start octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 1
-test "$(grep -cFx -- '--user restart octo-codex-remote-control.service' "$SYSTEMCTL_CALLS" || true)" -eq 1
-test "$(grep -c -- '-p Linger --value' "$LOGINCTL_CALLS")" -eq 3
-! grep -q 'enable-linger' "$LOGINCTL_CALLS"
+for obsolete_unit in octo-codex-remote-control.service octo-codex-app-server.service; do
+    test "$(grep -cFx -- "--user stop $obsolete_unit" "$SYSTEMCTL_CALLS")" -eq 1
+    test "$(grep -cFx -- "--user disable $obsolete_unit" "$SYSTEMCTL_CALLS")" -eq 1
+done
+test "$(grep -cFx -- '--user is-active --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 3
+test "$(grep -cFx -- '--user is-enabled --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 3
+test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 1
+! grep -q -E -- '--user (enable|start|restart) ' "$SYSTEMCTL_CALLS"
 test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 3
 test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 3
 test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 3
 test "$(grep -cF '"reloadUserConfig":true' "$CODEX_PROXY_STDIN")" -eq 3
-
-LOGINCTL_LINGER=no LOGINCTL_ENABLE_FAIL=1 run_install
-test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 4
-test "$(grep -cFx -- '--user enable octo-codex-remote-control.service' "$SYSTEMCTL_CALLS")" -eq 3
-test "$(grep -cFx -- "enable-linger $(id -un)" "$LOGINCTL_CALLS")" -eq 1
 
 rm -f "$APP_SERVER_SOCKET"
 chmod -x "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
