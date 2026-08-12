@@ -28,6 +28,15 @@ Delegate to keep the main context small and to parallelize where work truly spli
 
 Keep inline: quick lookups, exploratory debugging where the problem isn't understood yet, and design decisions themselves. Skills with their own orchestration (`/octo-review`) already fan out — don't add more inside them.
 
+## Codex Long-Running Work
+
+- Never busy-poll a running process or agent.
+- Empty `write_stdin` polls and `functions.wait` calls must use `yield_time_ms >= 180000`; prefer `300000` when intermediate output is unnecessary.
+- `wait_agent` should use `timeout_ms: 3600000` unless intermediate results are required.
+- When a wait is nested inside `functions.exec`, set the outer `@exec yield_time_ms` at least 30000 ms longer than the longest nested wait.
+- Non-empty `write_stdin` calls that send interactive input are exempt.
+- Wait tools return early on completion; do not wake merely to report that work is still running.
+
 ## Memory
 
 **Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use `/octo-memory` for short-term capture. Long-term consolidation is manual only: a human invokes `/octo-memory-long-term`; agents never start it automatically.

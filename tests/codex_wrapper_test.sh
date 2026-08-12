@@ -45,6 +45,7 @@ EOF
 cat > "$TEST_BIN/node" <<'EOF'
 #!/usr/bin/env bash
 printf 'node %s prefix=%s\n' "$*" "${NPM_CONFIG_PREFIX:-}" >> "$CALLS"
+printf 'hook_file=%s\n' "${OCTO_HOOK_FILE:-}" >> "$CALLS"
 if [ "${2:-}" = --version ]; then
     printf 'codex-cli %s\n' "$(cat "$VERSION_FILE")"
     exit 0
@@ -74,7 +75,7 @@ run_wrapper() {
             CODEX_JS="$CODEX_JS" CALLS="$CALLS" VERSION_FILE="$VERSION_FILE" \
             LATEST_VERSION="${LATEST_VERSION:-0.144.3}" \
             FAIL_CHECK="${FAIL_CHECK:-0}" FAIL_INSTALL="${FAIL_INSTALL:-0}" \
-            LAUNCH_RC="${LAUNCH_RC:-0}" \
+            LAUNCH_RC="${LAUNCH_RC:-0}" OCTO_HOOK_FILE="${OCTO_HOOK_FILE:-}" \
             bash "$REPO_DIR/global-codex-wrapper.sh" "${codex_args[@]}" 2>&1
     )"
     rc=$?
@@ -94,6 +95,20 @@ check "launch -> trust bypass precedes subcommand" "1" \
     "$(grep -c 'node .* --dangerously-bypass-hook-trust exec sample ' "$CALLS")"
 check "launch -> trust bypass once" "1" \
     "$(grep -c -- '--dangerously-bypass-hook-trust' "$CALLS")"
+
+# Remote-server launches get a stable default hook file while preserving an
+# OctoCode-provided per-agent path.
+: > "$CALLS"
+remote_server="$(run_wrapper app-server)"
+check "remote server -> exits 0" "rc=0" "$(tail -n1 <<<"$remote_server")"
+check "remote server -> default hook file" "/tmp/octo-hook-octo-code-default.jsonl" \
+    "$(sed -n 's/^hook_file=//p' "$CALLS" | sort -u)"
+: > "$CALLS"
+OCTO_HOOK_FILE=/tmp/custom-octo-hook.jsonl
+remote_server="$(run_wrapper app-server)"
+unset OCTO_HOOK_FILE
+check "remote server -> preserves hook file" "/tmp/custom-octo-hook.jsonl" \
+    "$(sed -n 's/^hook_file=//p' "$CALLS" | sort -u)"
 
 # The special update path also bypasses hook trust and retains its npm prefix.
 : > "$CALLS"

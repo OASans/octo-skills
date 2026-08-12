@@ -154,7 +154,11 @@ assert_section_hash() {
 
 run_install
 cmp -s "$REPO_DIR/global-codex-config.toml" "$TEST_HOME/.codex/config.toml"
+jq -e '.env.OCTO_HOOK_FILE == "/tmp/octo-hook-octo-code-default.jsonl"' \
+    "$TEST_HOME/.claude/settings.json" >/dev/null
 jq -e '.remoteControlAtStartup == true' "$TEST_HOME/.claude/settings.json" >/dev/null
+cmp -s "$REPO_DIR/global-CLAUDE.md" "$TEST_HOME/.claude/CLAUDE.md"
+cmp -s "$REPO_DIR/global-CLAUDE.md" "$TEST_HOME/.codex/AGENTS.md"
 cmp -s "$REPO_DIR/codex-agents/octo-reviewer.toml" "$TEST_HOME/.codex/agents/octo-reviewer.toml"
 cmp -s "$REPO_DIR/codex-agents/octo-review-verifier.toml" "$TEST_HOME/.codex/agents/octo-review-verifier.toml"
 for agent_name in octo-reviewer octo-review-verifier; do

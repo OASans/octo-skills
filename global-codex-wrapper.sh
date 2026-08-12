@@ -3,6 +3,7 @@ set -euo pipefail
 
 CODEX_NPM_PREFIX="${CODEX_NPM_PREFIX:-$HOME/.local/share/octo-codex}"
 UPDATE_LOCK="$CODEX_NPM_PREFIX/.update-lock"
+export OCTO_HOOK_FILE="${OCTO_HOOK_FILE:-/tmp/octo-hook-octo-code-default.jsonl}"
 
 print_update_failure() {
     local message="$1" output="$2"
