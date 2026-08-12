@@ -115,7 +115,8 @@ printf '%s\n' '[Service]' > \
     "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
 
 run_install() {
-    HOME="$TEST_HOME" PATH="$TEST_BIN:$PATH" PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_CACHE" \
+    HOME="$TEST_HOME" CODEX_HOME="$TEST_HOME/.codex" \
+        PATH="$TEST_BIN:$PATH" PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_CACHE" \
         TEST_NPM_ROOT="$TEST_NPM_ROOT" NPM_CALLS="$NPM_CALLS" \
         CURL_CALLS="$CURL_CALLS" STANDALONE_ENV="$STANDALONE_ENV" \
         STANDALONE_INSTALL_DIR="$STANDALONE_INSTALL_DIR" \
@@ -156,6 +157,19 @@ run_install
 cmp -s "$REPO_DIR/global-codex-config.toml" "$TEST_HOME/.codex/config.toml"
 jq -e '.env.OCTO_HOOK_FILE == "/tmp/octo-hook-octo-code-default.jsonl"' \
     "$TEST_HOME/.claude/settings.json" >/dev/null
+jq -e '
+    [
+        .hooks.PermissionRequest[0],
+        .hooks.PreToolUse[0],
+        .hooks.PostToolUse[0],
+        .hooks.Stop[0],
+        .hooks.UserPromptSubmit[0]
+    ]
+    | all(
+        .hooks[0].command
+        | startswith("OCTO_HOOK_FILE=\"${OCTO_HOOK_FILE:-/tmp/octo-hook-octo-code-default.jsonl}\"; ")
+    )
+' "$TEST_HOME/.codex/hooks.json" >/dev/null
 jq -e '.remoteControlAtStartup == true' "$TEST_HOME/.claude/settings.json" >/dev/null
 cmp -s "$REPO_DIR/global-CLAUDE.md" "$TEST_HOME/.claude/CLAUDE.md"
 cmp -s "$REPO_DIR/global-CLAUDE.md" "$TEST_HOME/.codex/AGENTS.md"
@@ -175,6 +189,8 @@ run_install
 
 CONFIG="$TEST_HOME/.codex/config.toml"
 cmp -s "$REPO_DIR/global-codex-config.toml" "$CONFIG"
+grep -qFx 'model_verbosity = "low"' "$CONFIG"
+grep -qFx 'personality = "pragmatic"' "$CONFIG"
 ! grep -qFx 'model = "custom-model"' "$CONFIG"
 awk '
     /^\[/ { in_table = 1 }
@@ -200,6 +216,30 @@ done
 for hook_event in pre_tool_use permission_request post_tool_use session_start user_prompt_submit stop; do
     assert_section_hash \
         "[hooks.state.\"/home/clavier/.codex/hooks.json:$hook_event:0:0\"]"
+done
+activity_hook_command="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' \
+    "$TEST_HOME/.codex/hooks.json")"
+for hook_event in pre_tool_use permission_request post_tool_use user_prompt_submit stop; do
+    expected_hash="$(HOOK_EVENT="$hook_event" HOOK_COMMAND="$activity_hook_command" python3 -c '
+import hashlib
+import json
+import os
+
+identity = {
+    "event_name": os.environ["HOOK_EVENT"],
+    "hooks": [{
+        "async": False,
+        "command": os.environ["HOOK_COMMAND"],
+        "timeout": 600,
+        "type": "command",
+    }],
+}
+canonical = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+print(hashlib.sha256(canonical).hexdigest())
+')"
+    assert_section_line \
+        "[hooks.state.\"/home/clavier/.codex/hooks.json:$hook_event:0:0\"]" \
+        "trusted_hash = \"sha256:$expected_hash\""
 done
 for project_number in 1 2 3 4 5 6; do
     assert_section_line \

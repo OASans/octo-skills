@@ -6,6 +6,8 @@ approvals_reviewer = "auto_review"
 sandbox_mode = "workspace-write"
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
+model_verbosity = "low"
+personality = "pragmatic"
 
 # Allow empty write_stdin polls up to one hour. Callers must request the long
 # yield explicitly; the poll still returns as soon as the command exits.
@@ -71,22 +73,22 @@ max_threads = 20
 [hooks.state]
 
 [hooks.state."/home/clavier/.codex/hooks.json:pre_tool_use:0:0"]
-trusted_hash = "sha256:c378fef1b809632146b6086edc0ed33254b7294d1c1c9d6482cbe77d449980f0"
+trusted_hash = "sha256:0f6e80fda6c12413b6738a1d82f0454445532ddb9e29018e08365d20180c6011"
 
 [hooks.state."/home/clavier/.codex/hooks.json:permission_request:0:0"]
-trusted_hash = "sha256:fccec119124522793be3f831a34a341cc5d90aaa614452c31538652c45db6832"
+trusted_hash = "sha256:014ef6cb8edde0a375345d2fbc042bfe7b41ebd639edea8e195a717f4d780ca0"
 
 [hooks.state."/home/clavier/.codex/hooks.json:post_tool_use:0:0"]
-trusted_hash = "sha256:9e3f210a5e3ee659cea5bd90fd5bbf476feaa4817a22f073bad96efbbbe4ce67"
+trusted_hash = "sha256:1c44d29afc15dea1b8473b4e6ee7bf17d30afc1637eb0f506e98d4a33824aa4e"
 
 [hooks.state."/home/clavier/.codex/hooks.json:session_start:0:0"]
 trusted_hash = "sha256:a4651e516e051179bb3ccc79a63c97ffabd88801ee13563a185ba6f1e3261921"
 
 [hooks.state."/home/clavier/.codex/hooks.json:user_prompt_submit:0:0"]
-trusted_hash = "sha256:ada42741c26dac4f5361ddabbd5abc8b0641bd6338b9e54f62e38aa86ac89af0"
+trusted_hash = "sha256:19e5ec5f4f017d34615d649944d061f7e4e5a9df562993136c8eea7a858061fc"
 
 [hooks.state."/home/clavier/.codex/hooks.json:stop:0:0"]
-trusted_hash = "sha256:cb991e4ec0480a389fb1531e441257a35076f03fcb9d955b06493153e6fb3585"
+trusted_hash = "sha256:24c33c5f21e3ecf3536ed0954f434f25639dde40aa56b07199dac7ab2f5b085c"
 
 [hooks.state."/home/clavier/Desktop/fin-1/.codex/hooks.json:subagent_stop:0:0"]
 trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"

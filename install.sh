@@ -105,11 +105,12 @@ install_file "$SCRIPT_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml" "co
 install_file "$SCRIPT_DIR/global-codex-rules.rules" "$CODEX_DIR/rules/default.rules" "Codex default.rules"
 
 # Codex hooks.json is derived entirely from global-settings.json (single source of
-# truth). OctoCode exports OCTO_AGENT_ID/OCTO_HOOK_FILE onto the agent pane, so the
-# canonical git-sync + agent-activity hooks run verbatim in Codex. We port the events
-# Codex shares and drop the Claude-only extras (the Agent/Task model gate, the
-# AskUserQuestion/ExitPlanMode matcher, the Skill usage logger) by taking only the
-# first (no-matcher) group of PreToolUse/PostToolUse. Needs jq (hooks require it too).
+# truth). Each activity hook defaults OCTO_HOOK_FILE itself, while preserving an
+# OctoCode-provided path. The canonical git-sync + agent-activity hooks therefore
+# run verbatim in Codex. We port the events Codex shares and drop the Claude-only
+# extras (the Agent/Task model gate, the AskUserQuestion/ExitPlanMode matcher, the
+# Skill usage logger) by taking only the first (no-matcher) group of
+# PreToolUse/PostToolUse. Needs jq (hooks require it too).
 if command -v jq >/dev/null 2>&1; then
     write_if_changed \
         "$(jq '{hooks: {
