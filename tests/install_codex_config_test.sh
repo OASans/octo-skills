@@ -276,6 +276,10 @@ test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 3
 test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 3
 test "$(grep -cF '"reloadUserConfig":true' "$CODEX_PROXY_STDIN")" -eq 3
 
+# A failed replacement bootstrap preserves a potentially working old service.
+printf '%s\n' '[Service]' > \
+    "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
+: > "$SYSTEMCTL_CALLS"
 rm -f "$APP_SERVER_SOCKET"
 chmod -x "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
 start_seconds=$SECONDS
@@ -283,3 +287,5 @@ CURL_SHOULD_STALL=1 OCTO_CODEX_INSTALL_TIMEOUT_SECONDS=1 run_install
 test "$((SECONDS - start_seconds))" -lt 3
 test "$(wc -l < "$CURL_CALLS")" -eq 2
 test ! -L "$TEST_HOME/.local/bin/codex"
+test -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
+! grep -q -E -- '--user (stop|disable) ' "$SYSTEMCTL_CALLS"

@@ -261,6 +261,42 @@ install_codex_wrapper() {
     chmod +x "$dest"
 }
 
+# Install/start Codex's native managed app-server. `bootstrap` is idempotent:
+# when Remote Control already owns the daemon it reuses that process and socket,
+# so OctoCode can attach through `codex app-server proxy` without competing
+# with a second server.
+bootstrap_codex_app_server() {
+    case "$(uname -s)" in
+        Darwin|Linux) ;;
+        *)
+            echo "  WARNING: skipped managed Codex app-server; daemon bootstrap requires macOS or Linux."
+            return 1
+            ;;
+    esac
+    if [ ! -x "$CODEX_STANDALONE_BIN" ]; then
+        echo "  WARNING: standalone Codex is unavailable; skipped managed app-server bootstrap."
+        return 1
+    fi
+
+    local out
+    if out="$("$CODEX_STANDALONE_BIN" app-server daemon bootstrap --remote-control 2>&1)"; then
+        echo "  Codex managed app-server ready (Remote Control socket reused)"
+    else
+        case "$out" in
+            *"app server is running but is not managed by codex app-server daemon"*)
+                echo "  Existing Remote Control app-server ready (socket reused)"
+                return 2
+                ;;
+            *)
+                echo "  WARNING: Codex managed app-server bootstrap failed."
+                printf '%s\n' "$out" | sed 's/^/    /'
+                return 1
+                ;;
+        esac
+    fi
+    return 0
+}
+
 # Older installers created a second app-server under systemd. Codex Remote
 # Control already owns a native daemon, so the extra server competes for the
 # same remote identity and chat writer. Remove both historical unit names.
@@ -395,8 +431,17 @@ install_node          # node + npm, needed by npm Codex and Playwright
 install_codex_cli     # user-owned npm prefix; launcher updates it on every start
 install_codex_standalone # official standalone package; launcher remains the PATH entry
 install_codex_wrapper # launcher: auto-update, vetted-hook trust bypass on every launch
+if bootstrap_codex_app_server; then # one daemon/socket shared by Remote Control + OctoCode
+    remove_obsolete_codex_remote_services # native Codex daemon owns Remote Control
+else
+    bootstrap_status=$?
+    if [ "$bootstrap_status" -eq 2 ]; then
+        echo "  Preserved existing services because Remote Control owns the app-server."
+    else
+        echo "  Preserved existing services because no replacement app-server was started."
+    fi
+fi
 reload_codex_user_config # refresh project trust without interrupting running tasks
-remove_obsolete_codex_remote_services # native Codex daemon owns Remote Control
 install_playwright    # warms the Playwright MCP cache
 
 echo ""

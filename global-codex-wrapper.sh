@@ -101,4 +101,59 @@ if [ "${1:-}" = update ]; then
     exec env NPM_CONFIG_PREFIX="$CODEX_NPM_PREFIX" \
         node "$codex_js" --dangerously-bypass-hook-trust "$@"
 fi
+
+# OctoCode panes join the existing Remote Control App Server so its WebSocket
+# stream is the authoritative root/subagent status source. Preserve explicit
+# remote endpoints and non-TUI subcommands.
+is_tui_invocation() {
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -c|--config|--enable|--disable|-i|--image|-m|--model|--local-provider|-p|--profile|-s|--sandbox|-a|--ask-for-approval|-C|--cd|--add-dir|--remote|--remote-auth-token-env)
+                [ "$#" -ge 2 ] || return 0
+                shift 2
+                ;;
+            --config=*|--enable=*|--disable=*|--image=*|--model=*|--local-provider=*|--profile=*|--sandbox=*|--ask-for-approval=*|--cd=*|--add-dir=*|--remote=*|--remote-auth-token-env=*)
+                shift
+                ;;
+            --oss|--approve-for-me|--dangerously-bypass-approvals-and-sandbox|--dangerously-bypass-hook-trust|--search|--no-alt-screen|--strict-config)
+                shift
+                ;;
+            exec|e|review|login|logout|mcp|plugin|mcp-server|app-server|remote-control|completion|update|doctor|sandbox|debug|apply|resume|archive|delete|unarchive|fork|cloud|exec-server|features|help)
+                return 1
+                ;;
+            -*) shift ;;
+            *) return 0 ;;
+        esac
+    done
+    return 0
+}
+
+has_remote_arg=0
+for arg in "$@"; do
+    case "$arg" in
+        --remote|--remote=*) has_remote_arg=1 ;;
+    esac
+done
+app_server_socket="${CODEX_HOME:-$HOME/.codex}/app-server-control/app-server-control.sock"
+if [ -n "${OCTO_AGENT_ID:-}" ] && [ "$has_remote_arg" -eq 0 ] && is_tui_invocation "$@"; then
+    if [ ! -S "$app_server_socket" ]; then
+        echo "WARNING: Codex App Server socket is unavailable; starting this pane locally." >&2
+        exec node "$codex_js" --dangerously-bypass-hook-trust "$@"
+    fi
+    routing_key="$(printf '%s' "$OCTO_HOOK_FILE" | tr -c 'A-Za-z0-9._-' '_')"
+    routing_root="/tmp/octocode-app-server-cwd"
+    routing_cwd="$routing_root/$routing_key-$OCTO_AGENT_ID"
+    mkdir -p "$routing_root"
+    if [ -e "$routing_cwd" ] && [ ! -L "$routing_cwd" ]; then
+        echo "ERROR: Codex App Server routing path is not a symlink: $routing_cwd" >&2
+        exit 1
+    fi
+    if [ -L "$routing_cwd" ]; then
+        ln -sfn "$PWD" "$routing_cwd"
+    else
+        ln -s "$PWD" "$routing_cwd"
+    fi
+    exec node "$codex_js" --dangerously-bypass-hook-trust \
+        --remote unix:// --cd "$routing_cwd" "$@"
+fi
 exec node "$codex_js" --dangerously-bypass-hook-trust "$@"
