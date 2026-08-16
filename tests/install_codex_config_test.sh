@@ -8,8 +8,6 @@ trap 'rm -rf "$TEST_ROOT"' EXIT
 TEST_HOME="$TEST_ROOT/home"
 PLAYWRIGHT_CACHE="$TEST_ROOT/playwright"
 TEST_BIN="$TEST_ROOT/bin"
-TEST_NPM_ROOT="$TEST_ROOT/npm/lib/node_modules"
-NPM_CALLS="$TEST_ROOT/npm-calls"
 CURL_CALLS="$TEST_ROOT/curl-calls"
 CODEX_PROXY_CALLS="$TEST_ROOT/codex-proxy-calls"
 CODEX_PROXY_STDIN="$TEST_ROOT/codex-proxy-stdin"
@@ -24,24 +22,9 @@ mkdir -p \
     "$PLAYWRIGHT_CACHE/chromium-test" \
     "$TEST_BIN"
 : > "$APP_SERVER_SOCKET"
-for command_name in codex node npx sourcekit-lsp; do
+for command_name in codex node npm npx sourcekit-lsp; do
     ln -s "$(type -P true)" "$TEST_BIN/$command_name"
 done
-
-cat > "$TEST_BIN/npm" <<'EOF'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$NPM_CALLS"
-case "${1:-}" in
-    root)
-        printf '%s\n' "$TEST_NPM_ROOT"
-        ;;
-    install)
-        mkdir -p "$TEST_NPM_ROOT/@openai/codex/bin"
-        : > "$TEST_NPM_ROOT/@openai/codex/bin/codex.js"
-        ;;
-esac
-EOF
-chmod +x "$TEST_BIN/npm"
 
 cat > "$TEST_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
@@ -117,7 +100,6 @@ printf '%s\n' '[Service]' > \
 run_install() {
     HOME="$TEST_HOME" CODEX_HOME="$TEST_HOME/.codex" \
         PATH="$TEST_BIN:$PATH" PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_CACHE" \
-        TEST_NPM_ROOT="$TEST_NPM_ROOT" NPM_CALLS="$NPM_CALLS" \
         CURL_CALLS="$CURL_CALLS" STANDALONE_ENV="$STANDALONE_ENV" \
         STANDALONE_INSTALL_DIR="$STANDALONE_INSTALL_DIR" \
         CODEX_PROXY_CALLS="$CODEX_PROXY_CALLS" CODEX_PROXY_STDIN="$CODEX_PROXY_STDIN" \
@@ -173,7 +155,9 @@ for agent_name in octo-reviewer octo-review-verifier; do
     grep -qFx 'sandbox_mode = "read-only"' "$agent_config"
 done
 grep -qFx 'name = "personal-agent"' "$TEST_HOME/.codex/agents/personal-agent.toml"
-printf '\n# outdated launcher\n' >> "$TEST_HOME/.local/bin/codex"
+rm -f "$TEST_HOME/.local/bin/codex"
+printf '%s\n' '#!/bin/sh' 'exit 99' > "$TEST_HOME/.local/bin/codex"
+chmod +x "$TEST_HOME/.local/bin/codex"
 run_install
 run_install
 
@@ -206,8 +190,6 @@ done
 test "$(grep -c '^\[hooks.state\.' "$CONFIG")" -eq 1
 assert_section_hash \
     '[hooks.state."/home/clavier/.codex/hooks.json:session_start:0:0"]'
-test -f "$TEST_NPM_ROOT/@openai/codex/bin/codex.js"
-grep -q -- "--prefix $TEST_HOME/.local/share/octo-codex" "$NPM_CALLS"
 grep -qFx -- '-fsSL https://chatgpt.com/codex/install.sh' "$CURL_CALLS"
 test "$(wc -l < "$CURL_CALLS")" -eq 1
 grep -qFx '1' "$STANDALONE_ENV"
@@ -215,9 +197,9 @@ grep -qFx "$TEST_HOME/.local/bin" "$STANDALONE_INSTALL_DIR"
 test ! -e "$TEST_ROOT/inherited-bin/codex"
 test -x "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
 test -x "$TEST_HOME/.local/bin/codex"
-test ! -L "$TEST_HOME/.local/bin/codex"
-grep -q -- 'npm view @openai/codex@latest version' "$TEST_HOME/.local/bin/codex"
-grep -q -- '--dangerously-bypass-hook-trust' "$TEST_HOME/.local/bin/codex"
+test -L "$TEST_HOME/.local/bin/codex"
+test "$(readlink "$TEST_HOME/.local/bin/codex")" = \
+    "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
 test ! -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
 test ! -e "$TEST_HOME/.config/systemd/user/octo-codex-app-server.service"
 for obsolete_unit in octo-codex-remote-control.service octo-codex-app-server.service; do
@@ -239,10 +221,18 @@ printf '%s\n' '[Service]' > \
 : > "$SYSTEMCTL_CALLS"
 rm -f "$APP_SERVER_SOCKET"
 chmod -x "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
+rm -f "$TEST_HOME/.local/bin/codex"
+printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'CODEX_NPM_PREFIX="${CODEX_NPM_PREFIX:-$HOME/.local/share/octo-codex}"' \
+    'update_codex() {' \
+    '    :' \
+    '}' > "$TEST_HOME/.local/bin/codex"
+chmod +x "$TEST_HOME/.local/bin/codex"
 start_seconds=$SECONDS
 CURL_SHOULD_STALL=1 OCTO_CODEX_INSTALL_TIMEOUT_SECONDS=1 run_install
 test "$((SECONDS - start_seconds))" -lt 3
 test "$(wc -l < "$CURL_CALLS")" -eq 2
-test ! -L "$TEST_HOME/.local/bin/codex"
+test ! -e "$TEST_HOME/.local/bin/codex"
 test -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
 ! grep -q -E -- '--user (stop|disable) ' "$SYSTEMCTL_CALLS"

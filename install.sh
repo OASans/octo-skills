@@ -18,7 +18,6 @@ case "$(uname -s)" in
         ;;
 esac
 CODEX_DIR="$HOME/.codex"
-CODEX_NPM_PREFIX="${CODEX_NPM_PREFIX:-$HOME/.local/share/octo-codex}"
 CODEX_LAUNCHER_DIR="$HOME/.local/bin"
 CODEX_STANDALONE_BIN="${CODEX_HOME:-$HOME/.codex}/packages/standalone/current/bin/codex"
 
@@ -117,32 +116,6 @@ else
     echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
 fi
 
-# Install Codex into the user-owned prefix used by the auto-updating launcher.
-install_codex_cli() {
-    if ! command -v npm >/dev/null 2>&1; then
-        echo "  WARNING: npm not found. Install Node.js, then: npm i -g @openai/codex"
-        return
-    fi
-    local codex_root codex_js out
-    if ! codex_root="$(npm root --global --prefix "$CODEX_NPM_PREFIX" 2>/dev/null)"; then
-        echo "  WARNING: could not resolve the Codex npm prefix."
-        return
-    fi
-    codex_js="$codex_root/@openai/codex/bin/codex.js"
-    if [ -f "$codex_js" ] && node "$codex_js" --version >/dev/null 2>&1; then
-        echo "  Codex CLI already installed: $codex_js"
-        return
-    fi
-
-    echo "  Installing Codex CLI into $CODEX_NPM_PREFIX..."
-    if out="$(npm install --global --prefix "$CODEX_NPM_PREFIX" @openai/codex@latest 2>&1)"; then
-        echo "  Installed Codex CLI: $codex_js"
-    else
-        echo "  WARNING: codex install failed; rerun: npm install --global --prefix '$CODEX_NPM_PREFIX' @openai/codex@latest"
-        printf '%s\n' "$out" | sed 's/^/    /'
-    fi
-}
-
 # Run a command in its own process group and terminate that entire group after
 # the deadline. This bounds both the official installer and its child downloads.
 run_with_timeout() {
@@ -203,9 +176,7 @@ reload_codex_user_config() {
     fi
 }
 
-# Install OpenAI's standalone Codex package alongside the npm-managed package.
-# The official installer places a symlink in CODEX_LAUNCHER_DIR; the launcher
-# step below replaces that symlink while leaving the standalone package intact.
+# Install OpenAI's standalone Codex package.
 install_codex_standalone() {
     case "$(uname -s)" in
         Darwin|Linux) ;;
@@ -245,11 +216,30 @@ install_codex_standalone() {
     fi
 }
 
-install_codex_wrapper() {
+# Expose the official executable directly. Older installs placed a custom
+# wrapper at this path; replace it instead of modifying Codex's argv.
+install_codex_command() {
     local dest="$CODEX_LAUNCHER_DIR/codex"
-    [ ! -L "$dest" ] || rm -f "$dest"
-    install_file "$SCRIPT_DIR/global-codex-wrapper.sh" "$dest" "Codex launcher"
-    chmod +x "$dest"
+    if [ ! -x "$CODEX_STANDALONE_BIN" ]; then
+        if [ -f "$dest" ] &&
+            grep -Fq 'CODEX_NPM_PREFIX="${CODEX_NPM_PREFIX:-$HOME/.local/share/octo-codex}"' "$dest" &&
+            grep -Fq 'update_codex() {' "$dest"; then
+            rm -f "$dest"
+            echo "  Removed legacy Codex wrapper"
+        fi
+        echo "  WARNING: standalone Codex is unavailable; no official command was installed."
+        return
+    fi
+    mkdir -p "$CODEX_LAUNCHER_DIR"
+    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$CODEX_STANDALONE_BIN" ]; then
+        echo "  Official Codex command unchanged"
+        return
+    fi
+    if [ -e "$dest" ] || [ -L "$dest" ]; then
+        rm -f "$dest"
+    fi
+    ln -s "$CODEX_STANDALONE_BIN" "$dest"
+    echo "  Installed official Codex command"
 }
 
 # Install/start Codex's native managed app-server. `bootstrap` is idempotent:
@@ -418,10 +408,9 @@ install_playwright() {
 }
 
 install_swift_lsp
-install_node          # node + npm, needed by npm Codex and Playwright
-install_codex_cli     # user-owned npm prefix; launcher updates it on every start
-install_codex_standalone # official standalone package; launcher remains the PATH entry
-install_codex_wrapper # launcher: auto-update, vetted-hook trust bypass on every launch
+install_node          # node + npm, needed by Playwright
+install_codex_standalone # official standalone package
+install_codex_command # direct PATH entry; no argv-modifying wrapper
 if bootstrap_codex_app_server; then # one daemon/socket shared by Remote Control + OctoCode
     remove_obsolete_codex_remote_services # native Codex daemon owns Remote Control
 else
