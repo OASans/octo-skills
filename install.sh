@@ -104,22 +104,13 @@ install_file "$SCRIPT_DIR/global-settings.json" "$CLAUDE_DIR/settings.json" "set
 install_file "$SCRIPT_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml" "config.toml"
 install_file "$SCRIPT_DIR/global-codex-rules.rules" "$CODEX_DIR/rules/default.rules" "Codex default.rules"
 
-# Codex hooks.json is derived entirely from global-settings.json (single source of
-# truth). Each activity hook defaults OCTO_HOOK_FILE itself, while preserving an
-# OctoCode-provided path. The canonical git-sync + agent-activity hooks therefore
-# run verbatim in Codex. We port the events Codex shares and drop the Claude-only
-# extras (the Agent/Task model gate, the AskUserQuestion/ExitPlanMode matcher, the
-# Skill usage logger) by taking only the first (no-matcher) group of
-# PreToolUse/PostToolUse. Needs jq (hooks require it too).
+# Codex status comes from its App Server, so only the shared Git Sync hook is
+# installed. OctoCode activity hooks remain Claude-only. Needs jq because the
+# retained hook uses it.
 if command -v jq >/dev/null 2>&1; then
     write_if_changed \
         "$(jq '{hooks: {
-            SessionStart:      .hooks.SessionStart,
-            UserPromptSubmit:  .hooks.UserPromptSubmit,
-            PreToolUse:        [.hooks.PreToolUse[0]],
-            PostToolUse:       [.hooks.PostToolUse[0]],
-            PermissionRequest: .hooks.PermissionRequest,
-            Stop:              .hooks.Stop
+            SessionStart: .hooks.SessionStart
         }}' "$SCRIPT_DIR/global-settings.json")" \
         "$CODEX_DIR/hooks.json" "hooks.json"
 else

@@ -157,18 +157,8 @@ run_install
 cmp -s "$REPO_DIR/global-codex-config.toml" "$TEST_HOME/.codex/config.toml"
 jq -e '.env.OCTO_HOOK_FILE == "/tmp/octo-hook-octo-code-default.jsonl"' \
     "$TEST_HOME/.claude/settings.json" >/dev/null
-jq -e '
-    [
-        .hooks.PermissionRequest[0],
-        .hooks.PreToolUse[0],
-        .hooks.PostToolUse[0],
-        .hooks.Stop[0],
-        .hooks.UserPromptSubmit[0]
-    ]
-    | all(
-        .hooks[0].command
-        | startswith("OCTO_HOOK_FILE=\"${OCTO_HOOK_FILE:-/tmp/octo-hook-octo-code-default.jsonl}\"; ")
-    )
+jq --slurpfile settings "$REPO_DIR/global-settings.json" -e '
+    . == {hooks: {SessionStart: $settings[0].hooks.SessionStart}}
 ' "$TEST_HOME/.codex/hooks.json" >/dev/null
 jq -e '.remoteControlAtStartup == true' "$TEST_HOME/.claude/settings.json" >/dev/null
 cmp -s "$REPO_DIR/global-CLAUDE.md" "$TEST_HOME/.claude/CLAUDE.md"
@@ -213,42 +203,9 @@ for project_number in 1 2 3 4 5 6; do
         "[projects.\"/home/clavier/Desktop/fin-$project_number\"]" \
         'trust_level = "trusted"'
 done
-for hook_event in pre_tool_use permission_request post_tool_use session_start user_prompt_submit stop; do
-    assert_section_hash \
-        "[hooks.state.\"/home/clavier/.codex/hooks.json:$hook_event:0:0\"]"
-done
-activity_hook_command="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' \
-    "$TEST_HOME/.codex/hooks.json")"
-for hook_event in pre_tool_use permission_request post_tool_use user_prompt_submit stop; do
-    expected_hash="$(HOOK_EVENT="$hook_event" HOOK_COMMAND="$activity_hook_command" python3 -c '
-import hashlib
-import json
-import os
-
-identity = {
-    "event_name": os.environ["HOOK_EVENT"],
-    "hooks": [{
-        "async": False,
-        "command": os.environ["HOOK_COMMAND"],
-        "timeout": 600,
-        "type": "command",
-    }],
-}
-canonical = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
-print(hashlib.sha256(canonical).hexdigest())
-')"
-    assert_section_line \
-        "[hooks.state.\"/home/clavier/.codex/hooks.json:$hook_event:0:0\"]" \
-        "trusted_hash = \"sha256:$expected_hash\""
-done
-for project_number in 1 2 3 4 5 6; do
-    assert_section_line \
-        "[hooks.state.\"/home/clavier/Desktop/fin-$project_number/.codex/hooks.json:subagent_stop:0:0\"]" \
-        'trusted_hash = "sha256:ccea72763b941273d2fd51b8ea0e02e7990491c6ab34bf6882a17b61f9886f30"'
-    assert_section_line \
-        "[hooks.state.\"/home/clavier/Desktop/fin-$project_number/.codex/hooks.json:subagent_stop:0:1\"]" \
-        'trusted_hash = "sha256:6725801ba85797e6f9c611d71a6c9fe16fb3d5069251ef468cc40824ff53e9bf"'
-done
+test "$(grep -c '^\[hooks.state\.' "$CONFIG")" -eq 1
+assert_section_hash \
+    '[hooks.state."/home/clavier/.codex/hooks.json:session_start:0:0"]'
 test -f "$TEST_NPM_ROOT/@openai/codex/bin/codex.js"
 grep -q -- "--prefix $TEST_HOME/.local/share/octo-codex" "$NPM_CALLS"
 grep -qFx -- '-fsSL https://chatgpt.com/codex/install.sh' "$CURL_CALLS"
