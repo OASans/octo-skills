@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Operations"
+  short_description: "Safely inspect and recover local code agents"
+  default_prompt: "Use $knowledge-agent-operations to inspect and safely recover a local code-agent session."

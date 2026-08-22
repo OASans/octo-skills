@@ -1,34 +1,44 @@
 {
 	"folders": [
 		{
+			"name": "octo-skills",
 			"path": "."
 		},
 		{
+			"name": "octofin-data",
 			"path": "../octofin-data"
 		},
 		{
-			"path": "../fin-2"
-		},
-		{
-			"path": "../fin-4"
-		},
-		{
-			"path": "../octofin-research"
-		},
-		{
-			"path": "../fin-6"
-		},
-		{
+			"name": "fin-1",
 			"path": "../fin-1"
 		},
 		{
+			"name": "fin-2",
+			"path": "../fin-2"
+		},
+		{
+			"name": "fin-3",
 			"path": "../fin-3"
 		},
 		{
-			"path": "../octofin-raw-downloads"
+			"name": "fin-4",
+			"path": "../fin-4"
 		},
 		{
+			"name": "fin-5",
 			"path": "../fin-5"
+		},
+		{
+			"name": "fin-6",
+			"path": "../fin-6"
+		},
+		{
+			"name": "octofin-research",
+			"path": "../octofin-research"
+		},
+		{
+			"name": "octofin-raw-downloads",
+			"path": "../octofin-raw-downloads"
 		}
 	],
 	"settings": {}
