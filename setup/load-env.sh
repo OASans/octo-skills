@@ -45,5 +45,17 @@ require_env() {
   fi
 }
 
+# Set a git global config key only if its current value differs from desired.
+ensure_git_global() {
+  local key="$1" desired="$2" current
+  current="$(git config --global --get "$key" 2>/dev/null || true)"
+  if [ "$current" = "$desired" ]; then
+    echo "git config $key=$desired already set — skipping"
+  else
+    git config --global "$key" "$desired"
+    echo "git config $key set to: $desired"
+  fi
+}
+
 # Every install script sets git globals, so the identity is always required.
 require_env GIT_USER_NAME GIT_USER_EMAIL

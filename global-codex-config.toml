@@ -37,9 +37,6 @@ trust_level = "trusted"
 [projects."/home/clavier/Desktop/fin-1"]
 trust_level = "trusted"
 
-[projects."/tmp/claude-1000/-home-clavier-Desktop-octo-2/b8447a9c-ec9f-42f6-9ca7-1311b601d25f/scratchpad/codex-title-test"]
-trust_level = "trusted"
-
 [tui]
 status_line = ["model-with-reasoning", "context-usage", "five-hour-limit", "weekly-limit"]
 theme = "catppuccin-macchiato"

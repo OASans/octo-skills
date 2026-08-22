@@ -38,18 +38,6 @@ persist_brew_shellenv() {
   fi
 }
 
-# Set a git global config key only if its current value differs from desired.
-ensure_git_global() {
-  local key="$1" desired="$2" current
-  current="$(git config --global --get "$key" 2>/dev/null || true)"
-  if [ "$current" = "$desired" ]; then
-    echo "git config $key=$desired already set — skipping"
-  else
-    git config --global "$key" "$desired"
-    echo "git config $key set to: $desired"
-  fi
-}
-
 # Install a Homebrew cask if its .app isn't already in /Applications.
 # Args: <cask-name> <App Bundle Name>.app
 ensure_cask() {

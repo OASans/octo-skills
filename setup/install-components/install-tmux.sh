@@ -65,9 +65,6 @@ tmux_ge() {
   return 1
 }
 
-# Meets OctoCode's minimum? (used by the macOS path)
-tmux_version_ok() { tmux_ge "$TMUX_MIN_MAJOR" "$TMUX_MIN_MINOR"; }
-
 # Already at (or above) the Linux build target? Fails fast if the build-target
 # constant is malformed, rather than silently mis-gating the source rebuild.
 tmux_at_build_target() {
@@ -90,7 +87,7 @@ install_tmux_macos() {
   if ! command -v tmux >/dev/null 2>&1; then
     echo "Installing tmux via Homebrew..."
     brew install tmux
-  elif tmux_version_ok; then
+  elif tmux_ge "$TMUX_MIN_MAJOR" "$TMUX_MIN_MINOR"; then
     echo "tmux already OK ($(tmux -V)) — skipping"
   else
     echo "Homebrew tmux older than ${TMUX_MIN_MAJOR}.${TMUX_MIN_MINOR} — running 'brew upgrade tmux'..."

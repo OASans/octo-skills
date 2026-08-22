@@ -43,17 +43,6 @@ ensure_apt_pkg() {
   fi
 }
 
-ensure_git_global() {
-  local key="$1" desired="$2" current
-  current="$(git config --global --get "$key" 2>/dev/null || true)"
-  if [ "$current" = "$desired" ]; then
-    echo "git config $key=$desired already set — skipping"
-  else
-    git config --global "$key" "$desired"
-    echo "git config $key set to: $desired"
-  fi
-}
-
 # ---------- preflight ----------
 if ! grep -qiE 'microsoft|wsl' /proc/version 2>/dev/null; then
   echo "ERROR: This script is for WSL2. /proc/version doesn't look like WSL." >&2
