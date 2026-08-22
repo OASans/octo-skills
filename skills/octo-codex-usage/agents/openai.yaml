@@ -1,0 +1,6 @@
+interface:
+  display_name: "Octo Codex Usage"
+  short_description: "Find unusual patterns in Codex tool usage"
+  default_prompt: "Use $octo-codex-usage to analyze unusual Codex tool usage from the last seven days."
+policy:
+  allow_implicit_invocation: false
