@@ -191,7 +191,7 @@ test "$(grep -c '^\[hooks.state\.' "$CONFIG")" -eq 1
 assert_section_hash \
     '[hooks.state."/home/clavier/.codex/hooks.json:session_start:0:0"]'
 grep -qFx -- '-fsSL https://chatgpt.com/codex/install.sh' "$CURL_CALLS"
-test "$(wc -l < "$CURL_CALLS")" -eq 1
+test "$(wc -l < "$CURL_CALLS")" -eq 3
 grep -qFx '1' "$STANDALONE_ENV"
 grep -qFx "$TEST_HOME/.local/bin" "$STANDALONE_INSTALL_DIR"
 test ! -e "$TEST_ROOT/inherited-bin/codex"
@@ -232,7 +232,7 @@ chmod +x "$TEST_HOME/.local/bin/codex"
 start_seconds=$SECONDS
 CURL_SHOULD_STALL=1 OCTO_CODEX_INSTALL_TIMEOUT_SECONDS=1 run_install
 test "$((SECONDS - start_seconds))" -lt 3
-test "$(wc -l < "$CURL_CALLS")" -eq 2
+test "$(wc -l < "$CURL_CALLS")" -eq 4
 test ! -e "$TEST_HOME/.local/bin/codex"
 test -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
 ! grep -q -E -- '--user (stop|disable) ' "$SYSTEMCTL_CALLS"

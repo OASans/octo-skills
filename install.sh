@@ -189,10 +189,6 @@ install_codex_standalone() {
         echo "  WARNING: curl not found; skipped the standalone Codex CLI install."
         return
     fi
-    if [ -x "$CODEX_STANDALONE_BIN" ] && "$CODEX_STANDALONE_BIN" --version >/dev/null 2>&1; then
-        echo "  Standalone Codex CLI already installed: $CODEX_STANDALONE_BIN"
-        return
-    fi
     local out timeout_seconds="${OCTO_CODEX_INSTALL_TIMEOUT_SECONDS:-300}"
     case "$timeout_seconds" in
         ''|*[!0-9]*)
@@ -204,12 +200,12 @@ install_codex_standalone() {
         echo "  WARNING: OCTO_CODEX_INSTALL_TIMEOUT_SECONDS must be a positive integer."
         return
     fi
-    echo "  Installing official standalone Codex CLI..."
+    echo "  Installing/updating official standalone Codex CLI..."
     if out="$(run_with_timeout "$timeout_seconds" sh -c '
         curl -fsSL https://chatgpt.com/codex/install.sh | \
             CODEX_NON_INTERACTIVE=1 CODEX_INSTALL_DIR="$1" sh
     ' sh "$CODEX_LAUNCHER_DIR" 2>&1)"; then
-        echo "  Installed official standalone Codex CLI."
+        echo "  Installed/updated official standalone Codex CLI."
     else
         echo "  WARNING: standalone Codex install failed; rerun this repository's ./install.sh."
         printf '%s\n' "$out" | sed 's/^/    /'
