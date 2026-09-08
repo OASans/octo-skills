@@ -20,7 +20,7 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ## Subagents
 
-For Codex, start each sub-agent's display name or description with `agent_name [model]` (for example, `doc_review [gpt-5.6-terra]`), using the actual model selected for that agent so it is visible for auditing. If the name field restricts characters and no description field exists, keep the name valid and put this label at the start of the dispatch message.
+For Codex, include the actual selected model in the sub-agent's visible name: `agent_name [model]` (for example, `doc_review [gpt-5.6-terra]`). When the name field restricts characters, use `agent_name_model` with punctuation replaced by underscores (for example, `doc_review_gpt_5_6_terra`); always put the model in the name itself, not just the description or dispatch message.
 
 Delegate to keep the main context small and to parallelize where work truly splits. Subagents see no conversation history — every dispatch prompt must be self-contained (goal, files, contracts, decisions so far, definition of done). `model` is required on every spawn (a hook denies the start if it's missing) — pick the best model for the task: think about how hard it is and match it (cheaper/faster for mechanical or search work, stronger for reasoning-heavy work). Three modes:
 
