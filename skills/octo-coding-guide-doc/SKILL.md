@@ -37,6 +37,7 @@ description: >
 
 - **No Cross-Document References**: A document stands on its own — don't make it depend on the reader having another doc open, and don't point at sibling docs for meaning the reader needs here. Linking to a canonical source for *more* is fine; requiring it to understand *this* is not.
 - **No Duplication Across Docs**: Don't copy content that already lives in another document. One fact, one home — restating it elsewhere creates two things to keep in sync and one to forget.
+- **Stable Subsystem Entry Points**: Give each subsystem one canonical overview for cross-subsystem references. Keep detailed internal file lists inside that subsystem and generate them from source when they can be derived mechanically.
 
 ### Instructional Documents
 

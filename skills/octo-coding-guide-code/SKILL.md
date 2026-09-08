@@ -26,17 +26,24 @@ description: >
 
 ## Design & Structure
 
-*Review focus: is the code well-factored, clear, and free of duplication — can a new reader understand each unit from its boundary alone?*
+*Review focus: is the code well-factored, clear, and free of duplication — can a reader understand each unit from its boundary, and can a behavior change stay with its owner?*
 
 ### Module & Boundary Design
 
 Every unit (module, struct, trait) must answer three questions: what does it do, how do you use it, what does it depend on?
 
 - **Understandable from Outside**: A consumer should understand what a unit does from its public API alone, without reading internals. If they can't, the interface is leaking implementation details.
-- **Changeable Internals**: You should be able to restructure a unit's internals without breaking consumers. If you can't, the boundary is in the wrong place.
+- **Changeable Internals**: Internal changes stay local to their module. If restructuring internals requires consumer edits, the boundary is leaking implementation details and must be corrected.
 - **Coherent Interfaces**: A public API isn't just "minimal" — it should form a coherent contract. Group related operations, hide internal state, expose capabilities not mechanisms.
 - **Dependency Direction**: Dependencies flow one direction. Child modules consumed only by parent. Lower layers never import from higher layers. Shared types live at the shared level, not buried in sibling modules.
 - **When to Split**: If you can't describe what a unit does in one sentence, if testing it requires mocking half the system, or if it's too large to hold in context — the boundaries are wrong. Split by concern.
+
+### Change Locality
+
+- **One Owner for Shared Rules**: Resolve shared behavior in one module. Consumers use its result rather than repeat its inputs or rules.
+- **Centralized Shared Construction**: Construct large shared structures through constructors and reusable test fixtures. Callers specify only the fields relevant to them.
+- **Contracts Declared Once**: Maintain one authoritative schema and dependency declaration. Generate repetitive clients, registrations, and documentation where practical, and keep correctness checks independent of implementation logic.
+- **Change Radius Reveals Boundaries**: When a small behavior change requires widespread mechanical edits, investigate the missing boundary before propagating those edits.
 
 ### Architecture
 
@@ -95,7 +102,7 @@ Flag only real defects that would cause incorrect behavior — not hypotheticals
 
 ## Consistency & Coherence
 
-*Review focus: does this change fit the codebase it lives in — its patterns, contracts, and the assumptions other code already makes?*
+*Review focus: does this change fit the codebase it lives in — its patterns, contracts, and assumptions — while staying focused on the task?*
 
 ### Codebase Consistency
 
@@ -103,3 +110,7 @@ Flag only real defects that would cause incorrect behavior — not hypotheticals
 - **Consistent Error-Handling Style**: use the same error strategy as the surrounding layer. Don't introduce a new error mechanism for a single call site when the rest of the layer does it differently.
 - **API & Contract Adherence**: respect existing function/module contracts — signatures, invariants, return conventions, ordering guarantees. A change must not silently break assumptions made by callers, especially in the same files.
 - **Change Is Covered**: behavioral changes ship with matching test updates. New code paths get new test cases; modified behavior gets updated assertions. Flag missing or now-stale coverage for **this** change specifically (general coverage goals belong to the Correctness domain).
+
+### Change Scope
+
+- **Focused Feature Changes**: Keep feature work separate from unrelated cleanup, renaming, and restructuring.
