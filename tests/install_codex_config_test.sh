@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TEST_ROOT="$(mktemp -d)"
+TEST_ROOT="$(mktemp -d "$REPO_DIR/.install-codex-config-test.XXXXXX")"
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
 TEST_HOME="$TEST_ROOT/home"
@@ -200,16 +200,21 @@ test -x "$TEST_HOME/.local/bin/codex"
 test -L "$TEST_HOME/.local/bin/codex"
 test "$(readlink "$TEST_HOME/.local/bin/codex")" = \
     "$TEST_HOME/.codex/packages/standalone/current/bin/codex"
-test ! -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
-test ! -e "$TEST_HOME/.config/systemd/user/octo-codex-app-server.service"
-for obsolete_unit in octo-codex-remote-control.service octo-codex-app-server.service; do
-    test "$(grep -cFx -- "--user stop $obsolete_unit" "$SYSTEMCTL_CALLS")" -eq 1
-    test "$(grep -cFx -- "--user disable $obsolete_unit" "$SYSTEMCTL_CALLS")" -eq 1
-done
-test "$(grep -cFx -- '--user is-active --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 3
-test "$(grep -cFx -- '--user is-enabled --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 3
-test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 1
-! grep -q -E -- '--user (enable|start|restart) ' "$SYSTEMCTL_CALLS"
+if [[ "$(uname -s)" == Linux ]]; then
+    test ! -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
+    test ! -e "$TEST_HOME/.config/systemd/user/octo-codex-app-server.service"
+    for obsolete_unit in octo-codex-remote-control.service octo-codex-app-server.service; do
+        test "$(grep -cFx -- "--user stop $obsolete_unit" "$SYSTEMCTL_CALLS")" -eq 1
+        test "$(grep -cFx -- "--user disable $obsolete_unit" "$SYSTEMCTL_CALLS")" -eq 1
+    done
+    test "$(grep -cFx -- '--user is-active --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 3
+    test "$(grep -cFx -- '--user is-enabled --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 3
+    test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 1
+    ! grep -q -E -- '--user (enable|start|restart) ' "$SYSTEMCTL_CALLS"
+else
+    test -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
+    test ! -e "$SYSTEMCTL_CALLS"
+fi
 test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 3
 test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 3
 test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 3

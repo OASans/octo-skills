@@ -79,6 +79,10 @@ Every unit (module, struct, trait) must answer three questions: what does it do,
 - **No Silent Retry**: Do not add "if X fails, silently try Y" or "after process exits, start a shell" behavior. Silent retries hide bugs, make debugging harder, and are difficult to test. If a retry is truly necessary, get the user's explicit approval first, and document the justification in a code comment.
 - **Debuggability**: Write code that's easy to debug and extend. Avoid opaque transformations — intermediate variables with descriptive names beat long chains. Keep valuable log statements for future debugging.
 
+### Temporary Artifacts
+
+- **Project-Local Temp**: In code and tests, never write temporary artifacts to the global system temp directory; use a project-owned path under the project root and manage its creation and cleanup explicitly.
+
 ### Bug Classes
 
 Scan for the concrete defect classes that a compiler, linter, or type checker does **not** catch:

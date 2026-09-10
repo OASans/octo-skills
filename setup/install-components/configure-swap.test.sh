@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=configure-swap.sh
 source "$SCRIPT_DIR/configure-swap.sh"
 
-tmp="$(mktemp -d)"
+tmp="$(mktemp -d "$SCRIPT_DIR/../../.configure-swap-test.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
 calls="$tmp/calls"
 fstab_input="$tmp/fstab-input"
@@ -49,7 +49,7 @@ run_as_root() {
 reset_stubs
 CURRENT_SWAP_BYTES=$((32 * 1024 * 1024 * 1024))
 configure_swap >/dev/null
-check "sufficient swap -> no root commands" "0" "$(wc -l < "$calls")"
+check "sufficient swap -> no root commands" "0" "$(awk 'END { print NR }' "$calls")"
 
 # An 8 GiB host gets only the missing 24 GiB, then activates and persists it.
 reset_stubs
@@ -87,7 +87,7 @@ reset_stubs
 SWAP_TARGET_GIB=invalid
 if configure_swap >/dev/null 2>&1; then invalid_rc=0; else invalid_rc=$?; fi
 check "invalid target -> fail" "1" "$invalid_rc"
-check "invalid target -> no root commands" "0" "$(wc -l < "$calls")"
+check "invalid target -> no root commands" "0" "$(awk 'END { print NR }' "$calls")"
 
 echo "----"
 echo "passed: $pass, failed: $fail"

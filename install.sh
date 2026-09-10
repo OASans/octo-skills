@@ -123,7 +123,7 @@ run_with_timeout() {
     shift
     local command_pid timeout_pid status
     set -m
-    "$@" &
+    "$@" <&0 &
     command_pid=$!
     (
         sleep "$timeout_seconds"
@@ -278,7 +278,7 @@ bootstrap_codex_app_server() {
 # Control already owns a native daemon, so the extra server competes for the
 # same remote identity and chat writer. Remove both historical unit names.
 remove_obsolete_codex_remote_services() {
-    [ "$(uname -s)" = Linux ] || return
+    [ "$(uname -s)" = Linux ] || return 0
     local unit unit_dest cleaned=0
     for unit in octo-codex-remote-control.service octo-codex-app-server.service; do
         unit_dest="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$unit"
