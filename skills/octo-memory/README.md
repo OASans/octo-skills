@@ -1,35 +1,22 @@
-# octo-memory
+# Project memory
 
-Two-tier memory for Claude Code, keyed per repo. Goal: what a session learns once stays learned — without bloating every future session's context.
+`octo-memory` captures project-specific knowledge that changes future decisions and is expensive to rediscover. It also corrects stale topics encountered during work; ordinary tasks with no qualifying discovery need no memory step.
 
-## The two tiers
+## Storage and lifecycle
 
-**Short-term** — a local capture buffer at `~/.octo-memory/<repo>/short_term/<date>/`. Cheap notes written during sessions (gotchas, decisions, patterns). Never committed, never loaded into context. Machine-local, shared by all checkouts of the repo.
+- Captures live at `~/.octo-memory/<repo>/short_term/<date>/`, keyed by the origin repository name. They are machine-local, shared across checkouts, and unavailable to development sessions.
+- Long-term topics live in committed `.claude/skills/knowledge-*/SKILL.md` files. Descriptions are discovery cues; selected bodies provide concise constraints, rationale, and source pointers.
+- A human explicitly invokes `octo-memory-long-term` to promote captures and maintain topics, at most once per day. New topics normally require independent recurrence; the skill owns the exceptions and verification criteria.
 
-**Long-term** — one topic per `.claude/skills/knowledge-<slug>/SKILL.md`, committed and team-shared. Claude Code always loads each skill's one-line description (the index) and loads a body only when it looks relevant — so a topic costs one line per session, not a page.
+## Components
 
-## How knowledge flows
-
-1. A session learns something → `octo-memory-short-term` appends it to the buffer. Low bar, write freely.
-2. When a human explicitly runs `/octo-memory-long-term` → it consolidates at most once that day: captures that are reusable, still accurate, and **recurred** (independently captured by ≥2 sessions) become `knowledge-*` topics; causal claims must also survive a refutation attempt. Existing topics get swept — stale ones pruned, overlapping ones merged. Agents never start this pass automatically.
-
-Recurrence is the noise filter: one session calling something important is a weak signal; the same lesson resurfacing independently proves it's load-bearing. Captures that never recur silently age out — that's the filter working, not a loss. Exception: "remember this" from the user (`(user-asked)` tag) promotes immediately.
-
-## Usage telemetry
-
-A global hook logs every knowledge-topic load to `~/.octo-memory/<repo>/usage.log`. Consolidation folds that into a small script-owned `usage.md` sidecar next to each topic (`loads`, `last-loaded`) — committed, so disuse is visible in git. A topic not loaded in ~90 days is a candidate to merge into a sibling or demote back to the buffer, where it can re-earn its slot by recurring.
-
-## The pieces
-
-| Piece | Role |
+| Component | Responsibility |
 |---|---|
-| `octo-memory` (SKILL.md) | Capture orchestrator — gates, then dispatches short-term capture |
-| `octo-memory-short-term` | Capture rules — what to write, what to skip |
-| `octo-memory-long-term` | Manual consolidation — user-only promotion and staleness sweep |
-| `consolidation-due.sh` | Deduplicates manual runs to at most once a day |
-| `collect-captures.sh` | Emits captures to judge: PROMOTE (new) + CONTEXT (recurrence lookback) |
-| `usage-stats.sh` | Prints per-topic usage; `--stamp` folds the log into sidecars |
-| `mark-consolidated.sh` | Stamps the daily watermark |
-| `store-path.sh` | Shared lib — resolves `~/.octo-memory/<repo>` from the origin remote |
+| `octo-memory/SKILL.md` | Admission, capture, and encountered corrections |
+| `octo-memory-long-term/SKILL.md` | Manual promotion and maintenance |
+| `store-path.sh` | Resolve the per-repository local store |
+| `consolidation-due.sh` | Deduplicate manual runs for the day |
+| `collect-captures.sh` | Select new captures and recurrence context |
+| `mark-consolidated.sh` | Advance the completed-run watermark |
 
-Scripts own the mechanics (dates, watermarks, folding); the agent owns only judgment (promote / hold / skip / prune). Full criteria live in the three SKILL.md files.
+The former capture sub-skill is folded into `octo-memory`. Usage-based retention, the load hook, and `usage-stats.sh` are retired because their counts missed Codex and direct reads; existing machine-local usage logs may remain inert, and project `usage.md` sidecars can be removed.

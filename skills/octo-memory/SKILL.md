@@ -1,34 +1,39 @@
 ---
 name: octo-memory
 description: >
-  Capture durable project knowledge in a local short-term buffer. Use for
-  "remember this" requests and after work surfaces a reusable gotcha, decision,
-  or pattern. Never run long-term consolidation; only a user invoking
-  /octo-memory-long-term may do that.
+  Capture reusable, non-obvious project knowledge or an explicit remember request.
+  Correct encountered stale knowledge; never start long-term consolidation.
 ---
 
-Capture reusable project knowledge in the short-term memory buffer. Never initiate long-term consolidation.
-
-**Ignore the default Claude Code memory system.** Always use this project's memory instead.
-
-## Memory layout
-
-- **Long-term** — one topic per `.claude/skills/knowledge-<slug>/SKILL.md` (project-level, committed). Descriptions auto-load every session (the index); bodies load on demand. No `index.md`, no CLAUDE.md `@`-import.
-- **Short-term** — local capture buffer at `~/.octo-memory/<key>/short_term/<date>/` (`<key>` = repo name from `git remote get-url origin`). Never committed, not loaded into context; read only by `octo-memory-long-term`.
-- **Consolidation flag** — `~/.octo-memory/<key>/tracker.md` (`last_processed_date`, per machine), used only by the manually invoked `/octo-memory-long-term`.
-- **Usage log** — `~/.octo-memory/<key>/usage.log`: one line per knowledge-topic load, appended by a global hook; consolidation folds it into per-topic `usage.md` sidecars (script-owned) as its retention signal.
+Capture knowledge that will change a future decision and would be expensive to rediscover.
 
 ## Steps
 
-This skill gates and dispatches short-term capture only.
+1. Decide whether anything qualifies: a project-specific constraint, decision rationale, recurring trap, or explicit user request to remember something. If nothing qualifies, stop quietly.
+2. Check the relevant code, tests, and authoritative documentation before recording factual claims. Investigate conflicts; a file's existence or a repeated claim does not prove its behavior.
+3. If an encountered `knowledge-*` topic is wrong, correct the affected guidance and verify it against its owner. Capture a reusable correction when it meets the same admission bar; leave unrelated topics alone.
+4. Write qualifying knowledge to the local capture buffer using the procedure below. Record an independent rediscovery even if an earlier session may have captured it; consolidation uses recurrence as evidence.
 
-**Gate (run first).** Inspect what changed this session (`git diff` + `git diff --cached`, plus any change under discussion):
+## Admission
 
-- **No changes and no reusable learning or explicit memory request** → report `SKIPPED (nothing to remember)` and stop.
-- **Every change is docs/skill-only** — prose docs (README, CHANGELOG, `docs/`, comments) and/or skill files (`skills/**/SKILL.md`, `.claude/skills/**`) — **and** nothing genuinely worth remembering surfaced (a real decision, gotcha, pattern, or preference — judge honestly): report `SKIPPED (docs/skill-only, nothing to remember)` and stop. This keeps memory from over-triggering when invoked directly. Use judgement — a clearly valuable, hard-to-reconstruct learning still gets captured even from a docs/skill-only diff.
-- **Otherwise** → proceed to step 1.
+- State the future decision the knowledge changes, its scope, and any non-obvious reason. Preserve explicit user preferences as preferences rather than inferred implementation facts.
+- Skip progress reports, generic coding advice, copied architecture inventories, and facts cheaply recovered from ordinary source or documentation lookup. A concise discovery pointer qualifies when finding the owner itself was difficult.
+- Let commits and regression tests own bug histories; capture only the reusable constraint or rationale they do not make easy to discover. Keep exact commands or literals only when their spelling is essential.
 
-1. **Record new knowledge**: If you learned something reusable during this conversation (non-obvious patterns, gotchas, architectural decisions, debugging insights), run `octo-memory-short-term` to capture it. Capture even when an earlier session probably noted the same thing — independent re-captures are the recurrence signal that long-term promotion runs on. Skip if nothing non-obvious was learned.
-2. **Fix stale topics**: If you noticed a `knowledge-*` skill is wrong during your work, fix it inline and capture the correction via `octo-memory-short-term`.
+## Capture
 
-**Consolidation boundary:** Never run `consolidation-due.sh`, `collect-captures.sh`, `usage-stats.sh --stamp`, `mark-consolidated.sh`, or `octo-memory-long-term`. A human starts consolidation explicitly with `/octo-memory-long-term`.
+The buffer is machine-local, shared across checkouts of the same origin repo name, and never loaded into development sessions. Committed long-term topics live at `.claude/skills/knowledge-<slug>/SKILL.md`; their descriptions provide discovery cues and their bodies load when selected.
+
+Set `memory_skill_dir` to the directory containing this skill, then run in Bash from the target repository:
+
+```bash
+. "$memory_skill_dir/store-path.sh"
+capture_dir="$store/short_term/$(date +%F)"
+mkdir -p "$capture_dir"
+capture_file="$capture_dir/$(date +%H%M%S)-$$-$RANDOM.md"
+(set -C; : > "$capture_file") || exit 1
+```
+
+Reuse that file for the rest of this session; append one `## <topic>` heading and a few concise sentences per topic. Include a stable file or symbol pointer for verification, and tag the heading `(user-asked)` when the user explicitly requested the capture.
+
+Do not scan previous sessions' captures during development. Only a human invoking `/octo-memory-long-term` starts consolidation; never run its collection, due-check, or watermark scripts from this skill.

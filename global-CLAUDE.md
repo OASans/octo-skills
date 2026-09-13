@@ -41,11 +41,9 @@ Keep inline: quick lookups, exploratory debugging where the problem isn't unders
 
 ## Memory
 
-**Ignore the default Claude Code memory system** — it can't be shared across the team and isn't visible or tracked in git. Use `/octo-memory` for short-term capture. Long-term consolidation is manual only: a human invokes `/octo-memory-long-term`; agents never start it automatically.
-
-- **Long-term** — one topic per `.claude/skills/knowledge-<slug>/SKILL.md`, committed and team-shared. Claude Code auto-loads each skill's description (the index) and loads a body on demand — so there's **no `index.md` and no CLAUDE.md `@`-import**; it just loads.
-- **Short-term** — a local buffer at `~/.octo-memory/<repo>/short_term/` (`<repo>` from `git remote get-url origin`), shared across that repo's checkouts on one machine. Never committed, **not loaded into context**; it's only consolidation input, and losing it is fine.
-- **Consolidation** — manual only, at most once per day per machine (flag at `~/.octo-memory/<repo>/tracker.md`): `/octo-memory-long-term` promotes valuable short-term into `knowledge-*` skills and prunes stale ones.
+- Use `/octo-memory` for reusable, non-obvious project discoveries and explicit remember requests; use project `knowledge-*` skills for shared long-term knowledge. Ignore Claude Code's default memory system.
+- Treat remembered facts as scoped guidance: investigate conflicts with current implementation, tests, or authoritative documentation before applying or correcting them. Preserve explicit user constraints.
+- Only a human invoking `/octo-memory-long-term` starts consolidation. Capture, storage, recurrence, and maintenance mechanics belong to the memory skills.
 
 ## Workflow
 
@@ -53,4 +51,4 @@ A project may have its own workflow — follow it. These are additional steps th
 
 1. `git pull` first — start from a clean, synced tree (session-start auto-pull may have done this; confirm).
 2. `/octo-review` — once unit tests pass and build/lint are green, run `/octo-review` ONCE per session (repeat review isn't useful), then fix its findings.
-3. `/octo-memory` — after `/octo-review` findings are fixed and everything's green, update memory.
+3. When reusable, non-obvious knowledge surfaced or the user asked to remember something, run `/octo-memory` after review findings are fixed and checks are green.

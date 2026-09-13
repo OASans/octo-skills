@@ -46,7 +46,7 @@ Triage decides only which steps are **required** vs **validly skippable**; it ne
 
 For each step, self-assess from **this session's** evidence whether it was followed **for the current change**:
 
-- **Once-per-session steps** (the workflow marks them so — currently `/octo-review` and `/octo-memory`): one run this session is enough; don't re-run to tick a box.
+- **Once-per-session steps** (those explicitly marked that way in the workflow): one run this session is enough; don't re-run to tick a box.
 - A step that ran earlier counts **only if no material code changed after it** — if you edited more since (e.g. `/octo-review` ran, then you kept coding), it's **stale**, i.e. not-followed for the delta.
 - A valid triage skip counts as followed — report the reason.
 - A conditional step counts as followed when its condition doesn't apply (e.g. `/octo-memory` when there's genuinely nothing worth remembering → `SKIPPED (nothing to remember)`). Judge honestly.
