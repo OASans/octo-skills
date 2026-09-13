@@ -3,3 +3,7 @@
 
 # Machine-specific setup values (git identity, LAN topology). Never commit.
 setup/.env
+
+# Disposable model-evaluation traces and Python bytecode.
+.eval-workspace/
+__pycache__/

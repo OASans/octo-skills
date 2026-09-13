@@ -1,11 +1,11 @@
-# Complete Codex CLI config managed by octo-skills.
-# install.sh installs this file as ~/.codex/config.toml.
+# Shared Codex defaults. install.sh preserves host-local project and hook trust.
+# Installs to $CODEX_HOME/config.toml (default ~/.codex/config.toml).
 
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
 sandbox_mode = "workspace-write"
-model = "gpt-5.6-sol"
-model_reasoning_effort = "xhigh"
+model = "gpt-6-astra"
+model_reasoning_effort = "medium"
 model_verbosity = "low"
 personality = "pragmatic"
 
@@ -13,36 +13,9 @@ personality = "pragmatic"
 # yield explicitly; the poll still returns as soon as the command exits.
 background_terminal_max_timeout = 3600000
 
-[projects."/home/clavier/Desktop/octo-skills"]
-trust_level = "trusted"
-
-[projects."/home/clavier/Desktop/octo-1"]
-trust_level = "trusted"
-
-[projects."/home/clavier/Desktop/fin-6"]
-trust_level = "trusted"
-
-[projects."/home/clavier/Desktop/fin-5"]
-trust_level = "trusted"
-
-[projects."/home/clavier/Desktop/fin-4"]
-trust_level = "trusted"
-
-[projects."/home/clavier/Desktop/fin-3"]
-trust_level = "trusted"
-
-[projects."/home/clavier/Desktop/fin-2"]
-trust_level = "trusted"
-
-[projects."/home/clavier/Desktop/fin-1"]
-trust_level = "trusted"
-
 [tui]
 status_line = ["model-with-reasoning", "context-usage", "five-hour-limit", "weekly-limit"]
 theme = "catppuccin-macchiato"
-
-[tui.model_availability_nux]
-"gpt-5.6-sol" = 4
 
 [features]
 apps = false
@@ -64,10 +37,3 @@ hide_rate_limit_model_nudge = true
 
 [agents]
 max_threads = 20
-
-# Trust is bound to each exact hook definition. Deploy changed hooks with
-# install.sh, re-review them with /hooks, copy their hashes here, then reinstall.
-[hooks.state]
-
-[hooks.state."/home/clavier/.codex/hooks.json:session_start:0:0"]
-trusted_hash = "sha256:a4651e516e051179bb3ccc79a63c97ffabd88801ee13563a185ba6f1e3261921"

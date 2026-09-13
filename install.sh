@@ -17,7 +17,7 @@ case "$(uname -s)" in
         exit 1
         ;;
 esac
-CODEX_DIR="$HOME/.codex"
+CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 CODEX_LAUNCHER_DIR="$HOME/.local/bin"
 CODEX_STANDALONE_BIN="${CODEX_HOME:-$HOME/.codex}/packages/standalone/current/bin/codex"
 
@@ -100,7 +100,9 @@ install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CODEX_DIR/AGENTS.md"   "AGENTS.md"
 
 # Settings. Claude Code uses JSON; Codex uses TOML.
 install_file "$SCRIPT_DIR/global-settings.json" "$CLAUDE_DIR/settings.json" "settings.json"
-install_file "$SCRIPT_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml" "config.toml"
+codex_config="$(python3 "$SCRIPT_DIR/scripts/render_codex_config.py" \
+    "$SCRIPT_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml")"
+write_if_changed "$codex_config" "$CODEX_DIR/config.toml" "config.toml"
 install_file "$SCRIPT_DIR/global-codex-rules.rules" "$CODEX_DIR/rules/default.rules" "Codex default.rules"
 
 # Codex status comes from its App Server, so only the shared Git Sync hook is

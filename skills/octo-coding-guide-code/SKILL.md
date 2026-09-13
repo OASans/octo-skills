@@ -2,8 +2,7 @@
 name: octo-coding-guide-code
 guide-scope: code
 description: >
-  Print the shared coding guide for source code. Inline skill — no sub-agents.
-  Use as a reference for code reviews, implementation decisions, and plan evaluation.
+  Review source and config quality, or guide implementation decisions. Read inline when changing code; no subagents.
 ---
 
 # Coding Guide
@@ -47,14 +46,14 @@ Every unit (module, struct, trait) must answer three questions: what does it do,
 
 ### Architecture
 
-- **File Size**: Files under 500 lines. One responsibility per file.
+- **File Size**: Keep files focused on one responsibility; investigate files over 500 lines as a design signal. Follow any stricter project-enforced limit.
 - **Split Large Types**: Types mixing config, runtime state, and tracking into one blob should be split by concern.
 - **Minimal Public API**: Export the minimum needed. Every public function/type is a maintenance burden.
 - **Reduce Coupling**: Minimize dependencies between modules. Simplify complex functions.
 
 ### Code Clarity
 
-- **Snake Case Naming**: Directory names, file names, function names, and variable names all use `snake_case`. No `camelCase`, `PascalCase`, or `kebab-case` for these. (Types/classes follow language convention, e.g. `PascalCase` in Rust/Python.)
+- **Naming**: Follow the language, repository, and public API conventions. Prefer `snake_case` where those leave the choice open; do not rename unrelated code to impose it.
 - **Clarity Over Brevity**: Prefer explicit, readable code over compact one-liners. If a "simplification" makes the code harder to read, it's not simpler.
 - **Flat Control Flow**: Use early returns and guard clauses to reduce nesting. Prefer `match` over deeply nested `if let` chains. Deeply nested blocks signal a function doing too much.
 - **Meaningful Function Extraction**: Functions must encapsulate real logic, not just forward to another function. Names should make architecture self-documenting at every level — reading call sites should explain the flow without comments.
@@ -73,10 +72,10 @@ Every unit (module, struct, trait) must answer three questions: what does it do,
 
 ### Error Handling & Debugging
 
-- **Consistent Error Handling**: Pick one strategy per layer. Don't mix error handling styles arbitrarily. Add context to errors — a bare I/O error without "what failed" is unhelpful. Every error must be logged before propagating or handling.
+- **Consistent Error Handling**: Use one strategy per layer and add enough context to explain what failed. Log at the responsible boundary rather than every propagation point.
 - **Fail Fast**: Validate at system boundaries (user input, external APIs). Don't add defensive checks deep in internal code.
-- **No Unapproved Fallback**: Don't add fallback logic ("if the real path fails, quietly use a default/alternate value or code path") without explicit user approval. Silent fallbacks mask failures and produce plausible-but-wrong behavior that's hard to detect. If a fallback is genuinely required, get the user's explicit approval first, and document the justification in a code comment.
-- **No Silent Retry**: Do not add "if X fails, silently try Y" or "after process exits, start a shell" behavior. Silent retries hide bugs, make debugging harder, and are difficult to test. If a retry is truly necessary, get the user's explicit approval first, and document the justification in a code comment.
+- **Explicit Fallbacks**: Do not hide failures behind plausible defaults; make fallback behavior observable and consistent with the authorized contract. Ask only when choosing the fallback requires an unresolved product decision or permission.
+- **Bounded Retries**: Retry only failures that can safely be retried, with a limit and a visible final failure. Reuse existing authorization; ask when a retry could repeat an external effect whose outcome is unknown.
 - **Debuggability**: Write code that's easy to debug and extend. Avoid opaque transformations — intermediate variables with descriptive names beat long chains. Keep valuable log statements for future debugging.
 
 ### Temporary Artifacts
@@ -98,10 +97,10 @@ Flag only real defects that would cause incorrect behavior — not hypotheticals
 
 ### Testing
 
-- **Testability**: Code must be testable. If untestable, fix architecture first.
-- **Unit Test Coverage**: Target 100% coverage. If code is hard to test, the architecture needs fixing — not the test strategy.
+- **Testability**: Keep changed behavior testable through appropriate boundaries. Refactor only as needed to verify the authorized change.
+- **Meaningful Coverage**: Test changed behavior, boundaries, and relevant failure cases; avoid tests that merely mirror the implementation. Use coverage to locate gaps, not to force unrelated refactoring.
 - **No Real Dependencies in Unit Tests**: Never call tmux, shell, filesystem (outside tempdirs), network, HTTP, DBs, or system services from unit tests. They flake, corrupt dev state, and fail in CI. Mock at the boundary or split pure logic out. A "does-not-panic" test that shells out is negative value — delete it. Integration/E2E tests that need real systems must isolate (dedicated socket/tempdir) and clean up.
-- **No Unit Tests for Shell Scripts**: Don't write a shell script that "unit tests" another shell script — that's over-engineering. Verify a shell script by running it; keep real logic out of shell and in testable code instead.
+- **Shell Verification**: Run shell workflows as isolated integration tests with disposable fixtures and controlled external commands. Keep substantial pure logic in testable code instead of mocking individual shell statements.
 - **Regression Test for Bug Fixes**: Every bug fix ships with a regression test that fails before the fix and passes after, pinning the specific defect so it cannot silently return. No regression test, no bug fix.
 
 ## Consistency & Coherence

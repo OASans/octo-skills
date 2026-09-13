@@ -6,23 +6,27 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ### Before start
 - If the session-start context shows "GIT PULL FAILED", fix the git state before anything else (ask first if resolution could lose commits).
-- ALWAYS read `/octo-coding-guide-code` (or the project's equivalent skills) before planning or coding.
+- Read the applicable coding guides before changing source/config or planning implementation; use the documentation guide for prose changes. Load other references only when the task needs them.
 
 ### During dev
 - Branch discipline — NEVER create a branch or open a PR; you're the only worker in this checkout, so commit directly on the default branch (`main`/`master`).
-- Ownership — you own the whole codebase; any lint/build/test failure is yours to fix. NEVER `git stash`/`diff`/`log` to check if it's pre-existing — dive into the failing code and fix the root cause.
+- Ownership — investigate failing checks and fix their root causes within the authorized scope. If an unrelated failure requires a separate behavior change, report the concrete blocker and finish independent work; never dismiss a failure merely as pre-existing or stash user edits.
 - Regression test — every bug fix MUST ship with a test that would have caught it.
 
 ### Anytime
 - Input is Whisper STT — expect mistranscriptions (homophones, garbled tech terms); correct from context before acting, ask if ambiguous.
 - Messages and plans — compact, plain words, easy to read; include only what's needed, skip preamble and recaps.
 - NEVER edit any `CLAUDE.md`/`AGENTS.md` or any skill whose name contains `coding-guide` on your own — they change only when the user asks; write compact (no decorative markdown).
+- Completion — carry authorized work through implementation, relevant checks, and required workflow steps; resolve routine choices without another approval. Ask only for missing decisions or permissions that materially affect the result, and finish independent authorized work while waiting.
+- Instruction conflicts — current explicit user instructions take precedence over skill guidelines within the host's permissions. If a rule blocks completion, cite the exact file and rule and explain the unresolved decision; do not invent an approval requirement.
 
 ## Subagents
 
 For Codex, include the actual selected model in the sub-agent's visible name: `agent_name [model]` (for example, `doc_review [gpt-5.6-terra]`). When the name field restricts characters, use `agent_name_model` with punctuation replaced by underscores (for example, `doc_review_gpt_5_6_terra`); always put the model in the name itself, not just the description or dispatch message.
 
-Delegate to keep the main context small and to parallelize where work truly splits. Subagents see no conversation history — every dispatch prompt must be self-contained (goal, files, contracts, decisions so far, definition of done). `model` is required on every spawn (a hook denies the start if it's missing) — pick the best model for the task: think about how hard it is and match it (cheaper/faster for mechanical or search work, stronger for reasoning-heavy work). Three modes:
+Delegate when independent work can save time or improve quality; keep quick lookups and coupled design decisions inline. Every dispatch must be self-contained (goal, files, contracts, decisions, definition of done), select an available model explicitly, and use no history inheritance where supported; Claude Code enforces explicit model selection with a hook, while Codex follows this instruction.
+
+Use models appropriate to the task, including GPT-6 Astra and GPT-5.6 Sol on Codex; shared skills must work with both. Three modes:
 
 - Read fan-out (parallel) — search, investigation, fresh-eyes verification, distilling long output: detail-heavy work where only the conclusion needs to come back.
 - Mechanical write fan-out (parallel) — only fully-specified repeated changes: write the recipe plus one exemplar edit first, agents replicate it over disjoint files, then you build/test and fix the seams. A coupled change is never split in parallel, however big.
@@ -33,10 +37,7 @@ Keep inline: quick lookups, exploratory debugging where the problem isn't unders
 ## Codex Long-Running Work
 
 - Never busy-poll a running process or agent.
-- Empty `write_stdin` polls and `functions.wait` calls must use `yield_time_ms >= 180000`; prefer `300000` when intermediate output is unnecessary.
-- `wait_agent` should use `timeout_ms: 3600000` unless intermediate results are required.
-- When a wait is nested inside `functions.exec`, set the outer `@exec yield_time_ms` at least 30000 ms longer than the longest nested wait.
-- Non-empty `write_stdin` calls that send interactive input are exempt.
+- Use event-driven or bounded waits supported by the current tool, respecting its limits and the host's progress-update requirements. When nesting a wait, allow the outer call enough time or use its supported yield/resume mechanism.
 - Wait tools return early on completion; do not wake merely to report that work is still running.
 
 ## Memory
@@ -50,5 +51,6 @@ Keep inline: quick lookups, exploratory debugging where the problem isn't unders
 A project may have its own workflow — follow it. These are additional steps that MUST be done for every change (project-specific build/test/lint commands and extra gates like E2E live in the project's CLAUDE.md, not here):
 
 1. `git pull` first — start from a clean, synced tree (session-start auto-pull may have done this; confirm).
-2. `/octo-review` — once unit tests pass and build/lint are green, run `/octo-review` ONCE per session (repeat review isn't useful), then fix its findings.
-3. When reusable, non-obvious knowledge surfaced or the user asked to remember something, run `/octo-memory` after review findings are fixed and checks are green.
+2. Run the checks appropriate to the change and all required project gates, fixing failures before proceeding. Rerun affected checks after fixes; broaden or repeat checks only for changed behavior, failures, or unresolved concerns.
+3. `/octo-review` — after checks are green, review the completed change ONCE per session, then fix its findings and rerun affected checks. The once-per-session rule also applies after review fixes or later edits; inspect later deltas directly instead of spawning another review.
+4. When reusable, non-obvious knowledge surfaced or the user asked to remember something, run `/octo-memory` after review findings are fixed and checks are green.

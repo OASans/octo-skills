@@ -1,0 +1,11 @@
+{
+  "policy_files": [
+    "global-CLAUDE.md",
+    "skills/octo-coding-guide-code/SKILL.md",
+    "skills/octo-coding-guide-doc/SKILL.md",
+    "skills/octo-commit/SKILL.md",
+    "skills/octo-review/SKILL.md",
+    "skills/octo-simplify/SKILL.md"
+  ],
+  "cases": "cases.json"
+}

@@ -2,10 +2,7 @@
 name: octo-coding-guide-doc
 guide-scope: "**/*.md"
 description: >
-  Print the shared documentation guide — the bar every Markdown document must meet:
-  compact, self-contained, internally correct. Covers all `.md` files: design docs,
-  handover docs, skill definitions, CLAUDE.md, READMEs. Inline skill — no sub-agents.
-  Use as a reference when writing or reviewing any Markdown document.
+  Write or review Markdown, including skills and project instructions, for clarity and correctness. Read inline; no subagents.
 ---
 
 # Documentation Guide
@@ -35,7 +32,7 @@ description: >
 
 ### Self-Contained
 
-- **No Cross-Document References**: A document stands on its own — don't make it depend on the reader having another doc open, and don't point at sibling docs for meaning the reader needs here. Linking to a canonical source for *more* is fine; requiring it to understand *this* is not.
+- **Useful Entry Points**: Keep a document's purpose and essential constraints understandable on their own. A workflow may route to clearly linked supporting references for details needed only in a selected mode.
 - **No Duplication Across Docs**: Don't copy content that already lives in another document. One fact, one home — restating it elsewhere creates two things to keep in sync and one to forget.
 - **Stable Subsystem Entry Points**: Give each subsystem one canonical overview for cross-subsystem references. Keep detailed internal file lists inside that subsystem and generate them from source when they can be derived mechanically.
 
@@ -44,7 +41,7 @@ description: >
 *Applies to skills (`SKILL.md`), guides, and any document whose job is to tell a reader what to do.*
 
 - **Lead With The Spine**: Give the reader a walkable list — ordered steps for a procedure, a flat rule list for a catalogue — and hang everything else off it as reference. Themed prose with no list makes every reader re-derive one, and nothing is ever deleted from it.
-- **One Rule, Two Sentences Max**: State each rule once, imperatively, in at most two sentences — don't restate it from a second angle and don't argue for it. If it won't fit, stop and discuss it with the user instead of writing a paragraph.
+- **Compact Rules**: State each rule once, imperatively, aiming for at most two sentences. Split distinct rules or move optional detail into a reference without pausing for a prose-length decision.
 - **Cut The Incident**: Keep the rule, drop the bug that produced it. Name a case only when the rule is unusable without it, and then in a clause, not a paragraph.
 - **Rules, Not Internals**: Carry the rule, not the mechanism. Identifiers, thresholds, file layouts, and failure modes belong to the code that owns them — leave them there.
 - **Guides Cite Nothing**: A coding-guide skill carries only its own rules — never point at another skill, doc, or file. A reader follows it with the guide alone open.

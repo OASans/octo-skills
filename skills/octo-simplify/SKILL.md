@@ -1,14 +1,7 @@
 ---
 name: octo-simplify
 description: >
-  Simplify code without changing what it does: delete dead and impossible code,
-  merge duplicates, collapse one-use abstractions, shrink file count and size,
-  flatten logic. Fans out read-only finder sub-agents over its angles, verifies every
-  removal claim, applies safe changes under a green build/test gate, and proposes
-  risky ones for approval. Use ONLY when the user explicitly asks to simplify,
-  clean up, dedupe, or shrink code — never on your own initiative, never as part
-  of another workflow. `/octo-simplify` (changed files) or
-  `/octo-simplify <path>` (a directory or the whole project).
+  Simplify code while preserving behavior. Use only when explicitly asked to simplify, clean up, deduplicate, or shrink code; never as an automatic workflow step.
 ---
 
 Simplify code for the same behavior: fewer lines, fewer files, flatter logic, easier to maintain. The main agent scopes and measures, fans out finders, has removal claims verified, applies what is safe, and proposes the rest.
@@ -30,12 +23,12 @@ Throughout the skill the main agent never reads code bodies or guide bodies; sub
 
 1. **Target.** No argument: changed files — `git diff HEAD --name-only` plus `??` lines from `git status --porcelain`; both empty → `git diff @{upstream}...HEAD --name-only` (no upstream → `HEAD~1..HEAD`). With a path argument: every code file under it. Drop Markdown, binaries, generated output, lockfiles, gitignored files, and symlinks. Nothing left → reply `Nothing to simplify.` and stop.
 2. **Baseline.** Record file count, `wc -l` total, and the largest file. If `lizard`, `radon`, or `cargo clippy` is installed and applies to the target language, record its complexity figure too; never install a tool.
-3. **Guides.** `grep -l "^guide-scope:" ~/.claude/skills/*/SKILL.md .claude/skills/*/SKILL.md`, keep the guides whose scope matches a target file, and pass their paths to every finder.
+3. **Guides.** Discover `guide-scope` guides from the current host's skill catalog, using source copies when editing this package; keep those matching a target file and pass their paths to every finder.
 4. **Gate.** Take the build and test commands from the project's CLAUDE.md; if it names none, use what the repo has — test scripts, `bash -n` and JSON/TOML parse checks over the target files — and run the gate once on the clean tree. No gate at all → apply nothing; every finding is proposed and the report says so.
 
 ### 2. Find — finders over the angles
 
-Spawn one read-only sub-agent per `###` angle under **Angles** below, all in one message (`subagent_type: general-purpose`, `model: sonnet`); for a small target (≤ ~10 files) spawn one finder for all angles, since every finder reads every target file. Give each: the base prompt, its angle text, the guide paths, the target file list, and the diff command when the scope is a diff.
+Spawn one read-only sub-agent per `###` angle under **Angles** below, concurrently within the host limit (Codex: general agents with an explicit available model appropriate to the task, including Astra or Sol; Claude Code: `general-purpose`, `model: sonnet`); for a small target (≤ ~10 files) spawn one finder for all angles, since every finder reads every target file. Use self-contained assignments with no history inheritance where supported, and include the selected model in each Codex agent name. Give each: the base prompt, its angle text, the guide paths, the target file list, and the diff command when the scope is a diff.
 
 **Base prompt (all finders):**
 
@@ -44,7 +37,7 @@ Spawn one read-only sub-agent per `###` angle under **Angles** below, all in one
 > 1. Read the guide files; they are the rulebook. Your angle text says which kind of simplification you hunt.
 > 2. Read every target file in full. For each candidate, Grep callers and definitions before claiming anything is unused, duplicated, or unreachable.
 > 3. Report a candidate only when you can name the simpler form and its cost today (what is duplicated, dead, deeper than needed, or spread across more files than needed). No nameable gain, no finding; a helper that replaces one-liners and leaves the code longer is not a gain.
-> 4. Tier each finding: **safe** — behavior provably identical and the change stays inside the target files (a safe change spanning several files is still verified before it is applied); **approval** — removes a guard, fallback, error path, or validation; deletes or merges a file; changes a public signature; or touches files outside the target. An approval finding must include its proof: the type, invariant, guard, or caller that makes the code unnecessary.
+> 4. Tier each finding: **safe** — behavior and public contracts are provably identical and the change stays within the authorized scope; **approval** — requires an unresolved behavioral decision, expands scope, or risks an externally visible effect. File merges or removal of proven unreachable code can be safe, but require independent verification before application. An approval finding must include its proof: the type, invariant, guard, or caller that makes the code unnecessary.
 >
 > Never flag: style not written in a guide; a check at a system boundary (user input, external API, file, network); code a linter or compiler already reports; a pattern seen fewer than three times as duplication.
 >
@@ -52,15 +45,15 @@ Spawn one read-only sub-agent per `###` angle under **Angles** below, all in one
 
 ### 3. Verify — one verifier maximum
 
-Dedup findings on the same lines or mechanism; two findings with one gain but different mechanics both go to the verifier, and the CONFIRMED one with the smaller change wins. Bundle every **approval** finding, every safe finding that spans more than one file, and any safe finding a second finder disputed into one read-only verifier (`general-purpose`, `model: sonnet`; tell it not to spawn sub-agents). It returns per finding **CONFIRMED** (quotes the proof in the code), **PLAUSIBLE** (mechanism real, proof incomplete), or **REFUTED** (the code can reach that path, or behavior would change). Keep only CONFIRMED findings; drop the rest and count them. A REFUTED finding that exposes a real defect (the code is wrong, not merely redundant) is recorded as `bug noticed`, never fixed here.
+Dedup findings on the same lines or mechanism; two findings with one gain but different mechanics both go to the verifier, and the CONFIRMED one with the smaller change wins. Bundle every **approval** finding, every safe finding that spans more than one file or removes a guard, fallback, error path, validation, or file, and any safe finding a second finder disputed into one read-only verifier (use the host-specific model selection from step 2; tell it not to spawn subagents). It returns per finding **CONFIRMED** (quotes the proof in the code), **PLAUSIBLE** (mechanism real, proof incomplete), or **REFUTED** (the code can reach that path, or behavior would change). Keep only CONFIRMED findings; drop the rest and count them. A REFUTED finding that exposes a real defect (the code is wrong, not merely redundant) is recorded as `bug noticed`, never fixed here.
 
 ### 4. Apply the safe tier
 
-Hand each file's findings to one worker sub-agent (`general-purpose`, `model: sonnet`) with the findings, the gate commands, and the revert rule: apply the file's findings, run the build and tests; green → keep; red → revert that file's changes and report the finding as `reverted`. Run workers one at a time so each gate result belongs to one file.
+Group coupled findings into one coherent change and assign all affected files to one worker, using the host-specific model selection from step 2. Tell the worker it is not alone: preserve others' edits, apply the whole change, then run affected checks and required gates; green → keep, red → revert only that change's own edits and report it. Process groups sequentially so intermediate file states do not invalidate a correct multi-file change.
 
 ### 5. Propose the approval tier
 
-List every CONFIRMED approval finding with its proof and wait for the user to pick; running as a sub-agent with no user to ask, list them and stop. Apply the picked ones exactly as in step 4. More than ~15 items → write the full list to `./simplify-plan.md` in the project and print the top items plus the path.
+List every CONFIRMED approval finding with its proof and ask only for the unresolved authorization; reuse choices already made in this task; running as a sub-agent with no user to ask, list them and stop. Apply the picked ones exactly as in step 4. More than ~15 items → write the full list to `./simplify-plan.md` in the project and print the top items plus the path.
 
 ### 6. Report
 

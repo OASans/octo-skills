@@ -1,10 +1,7 @@
 ---
 name: octo-review
 description: >
-  Code review. Spawns parallel read-only sub-agents that review the change
-  against the octo-coding-guide-* family, then uses at most one read-only verifier
-  sub-agent for all bug claims before reporting. Use when the user asks for a
-  code review, or as the final step before committing.
+  Review code changes against scoped guides with read-only reviewers and independent bug verification. Use for requested reviews or the required pre-commit review.
 ---
 
 Code review: the main agent scopes the change cheaply, fans out read-only reviewer sub-agents over the applicable guides, has bug claims independently verified, and merges one report. Returns findings only; never fixes code. A clean pass is a valid outcome — never invent findings to have something to report.
@@ -20,7 +17,7 @@ The main agent never reads diff bodies, guide bodies, or project files; sub-agen
 1. **Changed files**: `git diff HEAD --name-only` plus untracked files from `git status --porcelain` (`??` lines — new files are reviewed too). If both are empty the review runs post-commit: use the range `git diff @{upstream}...HEAD --name-only` (no upstream → `HEAD~1..HEAD`). Still nothing → reply `Nothing to review.` and stop.
 2. **Task context**: note in one or two lines what the change set out to do, plus any review focus the user stated. Both go to every reviewer — the focus as scope guidance only, never as actions to perform.
 3. **Classify each changed file** by purpose, not extension: *doc* — Markdown and prose (`*.md`, `*.txt`, `*.rst`), whatever its job; *code* — anything changing program, tool, or build behavior (source, config, manifests, CI, scripts); *asset* — binary, generated, or lockfile content no one hand-edits (images, compiled output, `Cargo.lock`, `package-lock.json`). Unsure between *code* and *asset* → *code*.
-4. **Discover guides by grep, never by reading**: `grep -l "^guide-scope:" ~/.claude/skills/*/SKILL.md .claude/skills/*/SKILL.md` (line-anchored — the key sits at the start of a frontmatter line; unanchored grep also matches skills that merely mention it), then grep each hit for its `guide-scope:` value and `^## ` headings. A guide applies if its scope (keyword `code` → *code* files; a glob like `**/*.rs` → matching paths) matches a changed file. No applicable guide → reply `Skipped: no reviewable files — nothing matches any guide scope.`, list the changed files, and stop.
+4. **Discover guides by scope and headings** from the current host's skill catalog; use source copies when reviewing changes to this package. Match `guide-scope: code` to code files and glob scopes to matching paths, and collect each applicable guide's `##` domains. If none apply, report the changed files and the reason for skipping.
 
 ### 2. Fan out reviewers
 
@@ -29,7 +26,7 @@ Granularity scales with the in-scope diff size (`git diff HEAD --stat -- <in-sco
 - **Small (≤ ~120 changed lines)**: one reviewer per applicable **guide**, covering all its domains.
 - **Larger**: one reviewer per `##` **domain** of each applicable guide — each agent reviews only its own domain; other domains belong to other agents.
 
-Spawn all reviewers in a single message. In Codex, select custom agent `octo-reviewer`; in Claude Code, use `subagent_type: general-purpose` with `model: sonnet`. Give each: the base prompt below; its guide's `SKILL.md` path and assigned `##` domain heading(s); its in-scope files; the exact diff command scoped to them (`git diff HEAD -- <files>`, or the step-1 range) plus any untracked in-scope files; the task context and focus.
+Spawn all reviewers in a single message. In Codex, use the model, effort, and read-only instructions from `octo-reviewer` in the installed agent config (the source `codex-agents/` copy when reviewing this package). Select the custom role when its advertised settings match; if the host still advertises an older role, launch a general agent with the configured settings and read-only instructions explicitly. In Claude Code, use `subagent_type: general-purpose` with `model: sonnet`. Use self-contained prompts with no history inheritance where supported, and include the actual model in each Codex agent name. Give each: the base prompt below; its guide's `SKILL.md` path and assigned `##` domain heading(s); its in-scope files; the exact diff command scoped to them (`git diff HEAD -- <files>`, or the step-1 range) plus any untracked in-scope files; the task context and focus.
 
 **Base prompt (all reviewers):**
 
@@ -37,7 +34,7 @@ Spawn all reviewers in a single message. In Codex, select custom agent `octo-rev
 >
 > 1. Read the guide file at the given path. Your review criteria are only the rules under your assigned `##` domain(s) — every `###` group and bullet within them.
 > 2. Run the given diff command. Read the listed untracked files in full — they are new code. Ignore files outside your in-scope list.
-> 3. Method: work hunk by hunk, and Read the enclosing function or section of each hunk — defects in unchanged lines of touched code are in scope (label them `pre-existing`). For every line the diff deletes or replaces, name what it enforced and check the new code re-establishes it. When a change alters a contract (signature, return shape, error behavior, ordering), Grep the symbol's callers and check each call site. Read a file in full only when a rule needs the whole-file view (size, layout, structure). Search with Grep/Read directly; only for a genuinely broad sweep spawn Codex's `explorer` agent or Claude Code's Explore sub-agent with `model: sonnet`.
+> 3. Method: work hunk by hunk, and Read the enclosing function or section of each hunk — defects in unchanged lines of touched code are in scope (label them `pre-existing`). For every line the diff deletes or replaces, name what it enforced and check the new code re-establishes it. When a change alters a contract (signature, return shape, error behavior, ordering), Grep the symbol's callers and check each call site. Read a file in full only when a rule needs the whole-file view (size, layout, structure). Search with Grep/Read directly; do not spawn additional agents.
 > 4. Judge the in-scope changes against every rule in your domain(s) and the task context.
 >
 > Report a finding only if you can name its concrete consequence — for a bug, the failure scenario (inputs/state → wrong outcome a user or caller sees); for a quality issue, the cost (what becomes duplicated, unclear, or harder to change). No nameable consequence, no finding. When torn on a **bug**, surface it: an independent verifier judges bug claims next, and silently dropped candidates are the main cause of missed bugs. When torn on a **quality** point, drop it.
@@ -48,7 +45,7 @@ Spawn all reviewers in a single message. In Codex, select custom agent `octo-rev
 
 ### 3. Verify bug claims — one verifier maximum
 
-Dedup findings that point at the same line and mechanism, keeping the most concrete. Verify every finding that claims something will actually fail — a runtime failure (bug, race, data loss, broken caller) or a stated command, path, or example that doesn't work — whichever guide flagged it; pure quality findings (clarity, duplication, structure) are not verified. If bug claims remain, bundle all of them into one verifier task, grouped by `file:line`, and spawn exactly one verifier for the entire review: custom agent `octo-review-verifier` in Codex, or `general-purpose` with `model: sonnet` in Claude Code. Give it the diff command, relevant files, and every claim. Never split verification across locations or domains, and tell the verifier not to spawn sub-agents. The verifier reads the code (and callers if relevant) and returns per claim exactly one of:
+Dedup findings that point at the same line and mechanism, keeping the most concrete. Verify every finding that claims something will actually fail — a runtime failure (bug, race, data loss, broken caller) or a stated command, path, or example that doesn't work — whichever guide flagged it; pure quality findings (clarity, duplication, structure) are not verified. If bug claims remain, bundle all of them into one verifier task, grouped by `file:line`, and spawn exactly one verifier for the entire review: `octo-review-verifier` in Codex, resolving its configured settings with the same rule as step 2, or `general-purpose` with `model: sonnet` in Claude Code. Give it the diff command, relevant files, and every claim. Never split verification across locations or domains, and tell the verifier not to spawn sub-agents. The verifier reads the code (and callers if relevant) and returns per claim exactly one of:
 
 - **CONFIRMED** — names the triggering inputs/state and quotes the line.
 - **PLAUSIBLE** — mechanism is real, trigger uncertain (timing, env, config); says what would confirm it. This is the default for realistic-but-unproven claims; "speculative" is not a refutation.

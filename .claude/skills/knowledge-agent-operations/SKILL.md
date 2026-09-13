@@ -87,6 +87,6 @@ Inspect and recover local Claude Code and Codex sessions while preserving live w
 ## Key Files
 
 - `global-settings.json` — managed Claude Code Remote Control startup setting
-- `global-codex-config.toml` — managed Codex project trust and reviewed hook hashes
+- `global-codex-config.toml` — shared Codex defaults; `scripts/render_codex_config.py` preserves local project trust and reviewed hook hashes
 
 <!-- Last verified: 2026-08-21 -->

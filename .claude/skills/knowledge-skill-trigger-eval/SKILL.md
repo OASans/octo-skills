@@ -1,26 +1,17 @@
 ---
 name: knowledge-skill-trigger-eval
 description: >
-  Skill-creator trigger-eval gotchas: 30s-timeout false-0/3 trap, installed-skill
-  vs proxy confound, stream-json needs --verbose. Load when measuring skill triggering.
+  Diagnose skill-trigger evaluations: timeouts, registration conflicts, and trace evidence. Load when measuring skill selection.
 user-invocable: false
 ---
 
-# Skill-Creator Trigger-Eval Gotchas
+# Skill Trigger Evaluation
 
-## What
-Measuring whether a skill's description triggers (skill-creator `run_eval.py` / `run_loop.py`) has three traps:
-- **False 0/3 from the timeout.** Default `--timeout 30` under 10-way `--num-workers` kills every `claude -p` before the skill invocation streams (Opus time-to-first-tool ~111s). All-zeros across *every* query — including obvious positives AND the negatives — is a measurement artifact, not a bad description. An unparallelized run confirms the skill does trigger (first tool was `Skill`).
-- **Installed skill steals the trigger.** run_eval registers a uniquely-named proxy command; an installed skill of the same name out-competes it and is counted as not-triggered.
-- **stream-json needs --verbose.** `claude -p --output-format stream-json` errors with empty output unless `--verbose` is also passed.
+- Separate completed negative results from timeouts, CLI errors, and registration failures using exit status and traces. An all-zero result is a reason to investigate, not proof of any one cause.
+- Measure startup and first-tool latency before choosing a timeout or concurrency; retry an invalid measurement with enough time to complete. Report incomplete runs separately rather than scoring them as trigger failures.
+- Evaluate in an isolated skill catalog so an installed same-name skill cannot compete with a proxy. Do not move live installed skills aside while other agents may use them.
+- For Claude Code streaming traces, use `claude -p --output-format stream-json --verbose`. Record which skill was invoked, not merely whether a `Skill` tool appeared.
+- Test description-selected skills with positive and negative task cues, including hidden `user-invocable: false` knowledge skills. That flag hides the menu entry; it does not require invocation by name.
+- Test explicit-only workflows separately from automatic selection. A single successful trace establishes that case only, not general trigger accuracy or behavior quality.
 
-## How to Apply
-- For a real number: run with a long `--timeout` (~150s) and low `--num-workers` (3-4). Faster: skip the harness and read one `claude -p` trace — if the first tool is `Skill`, it triggers.
-- During the eval, move the installed same-name skill aside (`mv ~/.claude/skills/<name>` away, trap-restore on exit) so it can't out-compete the proxy.
-- Gate/commit-type skills are hard to measure this way (Claude can often act directly); a single qualitative trace beats a noisy harness pass.
-- **Skill families:** eval triggering only on the user-invocable entrypoint (the orchestrator). Internal `user-invocable: false` sub-skills are invoked by name, not user phrasing, so a "does it fire" eval is the wrong test — judge them on description clarity, and give each a bland "sub-step of /X, driven by the orchestrator" lead so it doesn't compete with the orchestrator for the trigger.
-
-## Key Files
-- skill-creator plugin: `scripts/run_eval.py`, `scripts/run_loop.py`
-
-<!-- Last verified: 2026-06-11, commit: 1a76995 -->
+<!-- Last verified: 2026-09-13 -->
