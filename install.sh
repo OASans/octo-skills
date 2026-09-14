@@ -86,6 +86,7 @@ for agent_file in "$SCRIPT_DIR/codex-agents"/*.toml; do
 done
 
 install_file "$SCRIPT_DIR/global-AGENTS.md" "$CODEX_DIR/AGENTS.md" "AGENTS.md"
+install_file "$SCRIPT_DIR/global-tmux.conf" "$HOME/.tmux.conf" "tmux.conf"
 
 codex_config="$(python3 "$SCRIPT_DIR/scripts/render_codex_config.py" \
     "$SCRIPT_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml")"

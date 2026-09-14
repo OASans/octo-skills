@@ -154,4 +154,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     linux) install_tmux_linux ;;
     *)     echo "Unsupported platform for tmux install: $(uname -s)" >&2; exit 1 ;;
   esac
+  # Refresh the shared config even when the installed tmux version is current.
+  component_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  cp "$component_dir/../../global-tmux.conf" "$HOME/.tmux.conf"
 fi
