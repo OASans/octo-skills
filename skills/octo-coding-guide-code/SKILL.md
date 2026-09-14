@@ -100,7 +100,7 @@ Flag only real defects that would cause incorrect behavior — not hypotheticals
 - **Testability**: Keep changed behavior testable through appropriate boundaries. Refactor only as needed to verify the authorized change.
 - **Meaningful Coverage**: Test changed behavior, boundaries, and relevant failure cases; avoid tests that merely mirror the implementation. Use coverage to locate gaps, not to force unrelated refactoring.
 - **No Real Dependencies in Unit Tests**: Never call tmux, shell, filesystem (outside tempdirs), network, HTTP, DBs, or system services from unit tests. They flake, corrupt dev state, and fail in CI. Mock at the boundary or split pure logic out. A "does-not-panic" test that shells out is negative value — delete it. Integration/E2E tests that need real systems must isolate (dedicated socket/tempdir) and clean up.
-- **Shell Verification**: Run shell workflows as isolated integration tests with disposable fixtures and controlled external commands. Keep substantial pure logic in testable code instead of mocking individual shell statements.
+- **No Shell Tests**: Never write tests for shell scripts, including regression tests. Use syntax checks and direct verification instead.
 - **Regression Test for Bug Fixes**: Every bug fix ships with a regression test that fails before the fix and passes after, pinning the specific defect so it cannot silently return. No regression test, no bug fix.
 
 ## Consistency & Coherence
