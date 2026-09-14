@@ -12,6 +12,11 @@ TEST_BIN="$TEST_ROOT/bin"
 CURL_CALLS="$TEST_ROOT/curl-calls"
 CODEX_PROXY_CALLS="$TEST_ROOT/codex-proxy-calls"
 CODEX_PROXY_STDIN="$TEST_ROOT/codex-proxy-stdin"
+CODEX_DAEMON_CALLS="$TEST_ROOT/codex-daemon-calls"
+CODEX_REMOTE_CONTROL_CALLS="$TEST_ROOT/codex-remote-control-calls"
+CODEX_BOOTSTRAP_UNMANAGED_MARKER="$TEST_ROOT/codex-bootstrap-unmanaged-marker"
+CODEX_UNMANAGED_STOPPED="$TEST_ROOT/codex-unmanaged-stopped"
+KILL_CALLS="$TEST_ROOT/kill-calls"
 STANDALONE_ENV="$TEST_ROOT/standalone-env"
 STANDALONE_INSTALL_DIR="$TEST_ROOT/standalone-install-dir"
 APP_SERVER_SOCKET="$TEST_CODEX/app-server-control/app-server-control.sock"
@@ -44,6 +49,31 @@ printf '%s\n' "$visible_bin" > "$STANDALONE_INSTALL_DIR"
 mkdir -p "$standalone_bin" "$visible_bin"
 cat > "$standalone_bin/codex" <<'CODEX'
 #!/bin/sh
+if [ "${1:-}" = app-server ] && [ "${2:-}" = daemon ]; then
+    printf '%s\n' "$*" >> "$CODEX_DAEMON_CALLS"
+    if [ "${3:-}" = bootstrap ] &&
+        [ "${CODEX_BOOTSTRAP_UNMANAGED_ONCE:-}" = 1 ] &&
+        [ ! -e "$CODEX_BOOTSTRAP_UNMANAGED_MARKER" ]; then
+        : > "$CODEX_BOOTSTRAP_UNMANAGED_MARKER"
+        echo 'app server is running but is not managed by codex app-server daemon' >&2
+        exit 1
+    fi
+    if [ "${3:-}" = restart ] && [ "${CODEX_RESTART_SHOULD_FAIL:-}" = 1 ]; then
+        echo 'simulated restart failure' >&2
+        exit 1
+    fi
+fi
+if [ "${1:-}" = remote-control ]; then
+    printf '%s\n' "$*" >> "$CODEX_REMOTE_CONTROL_CALLS"
+    if [ "${2:-}" = stop ] && [ "${CODEX_REMOTE_CONTROL_STOP_UNMANAGED:-}" = 1 ]; then
+        echo 'app server is running but is not managed by codex app-server daemon' >&2
+        exit 1
+    fi
+    if [ "${2:-}" = stop ] && [ "${CODEX_REMOTE_CONTROL_STOP_SHOULD_FAIL:-}" = 1 ]; then
+        echo 'simulated Remote Control stop failure' >&2
+        exit 1
+    fi
+fi
 if [ "${1:-}" = app-server ] && [ "${2:-}" = proxy ]; then
     printf '%s\n' "$*" >> "$CODEX_PROXY_CALLS"
     while IFS= read -r line; do
@@ -83,6 +113,40 @@ esac
 EOF
 chmod +x "$TEST_BIN/systemctl"
 
+cat > "$TEST_BIN/lsof" <<'EOF'
+#!/usr/bin/env bash
+[ ! -e "$CODEX_UNMANAGED_STOPPED" ] || exit 1
+echo 4242
+EOF
+chmod +x "$TEST_BIN/lsof"
+
+cat > "$TEST_BIN/ps" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in
+    '-p 4242 -o args=')
+        echo '/legacy/codex app-server --listen unix://'
+        ;;
+    '-eo pid=,args=')
+        echo '4343 /standalone/codex app-server proxy'
+        ;;
+esac
+EOF
+chmod +x "$TEST_BIN/ps"
+
+cat > "$TEST_BIN/kill" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$KILL_CALLS"
+case "$*" in
+    '-TERM 4242')
+        : > "$CODEX_UNMANAGED_STOPPED"
+        ;;
+    '-0 4242')
+        [ ! -e "$CODEX_UNMANAGED_STOPPED" ]
+        ;;
+esac
+EOF
+chmod +x "$TEST_BIN/kill"
+
 cat > "$TEST_CODEX/config.toml" <<'EOF'
 model = "custom-model"
 
@@ -108,11 +172,19 @@ run_install() {
         CURL_CALLS="$CURL_CALLS" STANDALONE_ENV="$STANDALONE_ENV" \
         STANDALONE_INSTALL_DIR="$STANDALONE_INSTALL_DIR" \
         CODEX_PROXY_CALLS="$CODEX_PROXY_CALLS" CODEX_PROXY_STDIN="$CODEX_PROXY_STDIN" \
+        CODEX_DAEMON_CALLS="$CODEX_DAEMON_CALLS" \
+        CODEX_REMOTE_CONTROL_CALLS="$CODEX_REMOTE_CONTROL_CALLS" \
+        CODEX_BOOTSTRAP_UNMANAGED_MARKER="$CODEX_BOOTSTRAP_UNMANAGED_MARKER" \
+        CODEX_UNMANAGED_STOPPED="$CODEX_UNMANAGED_STOPPED" KILL_CALLS="$KILL_CALLS" \
+        CODEX_BOOTSTRAP_UNMANAGED_ONCE="${CODEX_BOOTSTRAP_UNMANAGED_ONCE:-}" \
+        CODEX_RESTART_SHOULD_FAIL="${CODEX_RESTART_SHOULD_FAIL:-}" \
+        CODEX_REMOTE_CONTROL_STOP_UNMANAGED="${CODEX_REMOTE_CONTROL_STOP_UNMANAGED:-}" \
+        CODEX_REMOTE_CONTROL_STOP_SHOULD_FAIL="${CODEX_REMOTE_CONTROL_STOP_SHOULD_FAIL:-}" \
         CURL_SHOULD_STALL="${CURL_SHOULD_STALL:-}" \
         OCTO_CODEX_INSTALL_TIMEOUT_SECONDS="${OCTO_CODEX_INSTALL_TIMEOUT_SECONDS:-300}" \
         CODEX_INSTALL_DIR="$TEST_ROOT/inherited-bin" \
         SYSTEMCTL_CALLS="$SYSTEMCTL_CALLS" SYSTEMCTL_DISABLED="$SYSTEMCTL_DISABLED" \
-        "$REPO_DIR/install.sh" >/dev/null
+        "$REPO_DIR/install.sh" "$@" >/dev/null
 }
 
 assert_section_line() {
@@ -126,7 +198,7 @@ assert_section_line() {
 }
 
 
-run_install
+run_install --restart
 grep -qFx 'model = "gpt-6-astra"' "$TEST_CODEX/config.toml"
 grep -qFx 'model_reasoning_effort = "medium"' "$TEST_CODEX/config.toml"
 jq -e '.env.OCTO_HOOK_FILE == "/tmp/octo-hook-octo-code-default.jsonl"' \
@@ -201,10 +273,46 @@ else
     test -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
     test ! -e "$SYSTEMCTL_CALLS"
 fi
-test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 3
-test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 3
-test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 3
-test "$(grep -cF '"reloadUserConfig":true' "$CODEX_PROXY_STDIN")" -eq 3
+test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 2
+test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 2
+test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 2
+test "$(grep -cF '"reloadUserConfig":true' "$CODEX_PROXY_STDIN")" -eq 2
+test "$(grep -cFx 'app-server daemon bootstrap --remote-control' "$CODEX_DAEMON_CALLS")" -eq 3
+test "$(grep -cFx 'app-server daemon restart' "$CODEX_DAEMON_CALLS")" -eq 1
+
+restart_error="$TEST_ROOT/restart-error"
+if CODEX_RESTART_SHOULD_FAIL=1 run_install --restart 2>"$restart_error"; then
+    echo "Expected install.sh --restart to fail when the managed daemon cannot restart" >&2
+    exit 1
+fi
+grep -qF 'ERROR: Codex managed app-server restart failed.' "$restart_error"
+grep -qF 'simulated restart failure' "$restart_error"
+
+: > "$CODEX_DAEMON_CALLS"
+: > "$CODEX_REMOTE_CONTROL_CALLS"
+rm -f "$CODEX_BOOTSTRAP_UNMANAGED_MARKER"
+rm -f "$CODEX_UNMANAGED_STOPPED" "$KILL_CALLS"
+CODEX_BOOTSTRAP_UNMANAGED_ONCE=1 CODEX_REMOTE_CONTROL_STOP_UNMANAGED=1 \
+    run_install --restart
+test "$(grep -cFx 'app-server daemon bootstrap --remote-control' "$CODEX_DAEMON_CALLS")" -eq 2
+! grep -qFx 'app-server daemon restart' "$CODEX_DAEMON_CALLS"
+grep -qFx 'remote-control stop' "$CODEX_REMOTE_CONTROL_CALLS"
+grep -qFx -- '-TERM 4343' "$KILL_CALLS"
+grep -qFx -- '-TERM 4242' "$KILL_CALLS"
+grep -qFx -- '-0 4242' "$KILL_CALLS"
+
+: > "$CODEX_DAEMON_CALLS"
+: > "$CODEX_REMOTE_CONTROL_CALLS"
+rm -f "$CODEX_BOOTSTRAP_UNMANAGED_MARKER"
+if CODEX_BOOTSTRAP_UNMANAGED_ONCE=1 CODEX_REMOTE_CONTROL_STOP_SHOULD_FAIL=1 \
+    run_install --restart 2>"$restart_error"; then
+    echo "Expected install.sh --restart to fail when Remote Control cannot stop" >&2
+    exit 1
+fi
+grep -qF 'ERROR: could not stop the existing Remote Control app-server.' "$restart_error"
+grep -qF 'simulated Remote Control stop failure' "$restart_error"
+test "$(grep -cFx 'app-server daemon bootstrap --remote-control' "$CODEX_DAEMON_CALLS")" -eq 1
+grep -qFx 'remote-control stop' "$CODEX_REMOTE_CONTROL_CALLS"
 
 # A failed replacement bootstrap preserves a potentially working old service.
 printf '%s\n' '[Service]' > \
@@ -221,9 +329,10 @@ printf '%s\n' \
     '}' > "$TEST_HOME/.local/bin/codex"
 chmod +x "$TEST_HOME/.local/bin/codex"
 start_seconds=$SECONDS
+curl_calls_before=$(wc -l < "$CURL_CALLS")
 CURL_SHOULD_STALL=1 OCTO_CODEX_INSTALL_TIMEOUT_SECONDS=1 run_install
 test "$((SECONDS - start_seconds))" -lt 3
-test "$(wc -l < "$CURL_CALLS")" -eq 4
+test "$(wc -l < "$CURL_CALLS")" -eq "$((curl_calls_before + 1))"
 test ! -e "$TEST_HOME/.local/bin/codex"
 test -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
 ! grep -q -E -- '--user (stop|disable) ' "$SYSTEMCTL_CALLS"

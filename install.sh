@@ -20,6 +20,29 @@ esac
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 CODEX_LAUNCHER_DIR="$HOME/.local/bin"
 CODEX_STANDALONE_BIN="${CODEX_HOME:-$HOME/.codex}/packages/standalone/current/bin/codex"
+RESTART_CODEX_APP_SERVER=0
+
+usage() {
+    echo "Usage: $0 [--restart]"
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --restart)
+            RESTART_CODEX_APP_SERVER=1
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
 
 echo "Installing shared config to: $CLAUDE_DIR and $CODEX_DIR"
 
@@ -276,6 +299,91 @@ bootstrap_codex_app_server() {
     return 0
 }
 
+restart_codex_app_server() {
+    local out
+    if out="$("$CODEX_STANDALONE_BIN" app-server daemon restart 2>&1)"; then
+        echo "  Restarted Codex managed app-server"
+        return
+    fi
+
+    echo "  ERROR: Codex managed app-server restart failed." >&2
+    printf '%s\n' "$out" | sed 's/^/    /' >&2
+    return 1
+}
+
+stop_unmanaged_codex_app_server() {
+    local socket="$CODEX_DIR/app-server-control/app-server-control.sock"
+    local kill_bin owner_command owner_pid
+    local -a owner_pids proxy_pids
+
+    if ! command -v lsof >/dev/null 2>&1; then
+        echo "  ERROR: lsof is required to identify the unmanaged Codex app-server safely." >&2
+        return 1
+    fi
+    kill_bin="$(type -P kill 2>/dev/null || true)"
+    if [ -z "$kill_bin" ]; then
+        echo "  ERROR: kill command not found; cannot stop the unmanaged Codex app-server." >&2
+        return 1
+    fi
+
+    mapfile -t owner_pids < <(lsof -t -- "$socket" 2>/dev/null | sort -u)
+    if [ "${#owner_pids[@]}" -ne 1 ]; then
+        echo "  ERROR: expected one Codex app-server socket owner, found ${#owner_pids[@]}." >&2
+        return 1
+    fi
+    owner_pid="${owner_pids[0]}"
+    owner_command="$(ps -p "$owner_pid" -o args= 2>/dev/null || true)"
+    case "$owner_command" in
+        *codex*app-server*--listen\ unix://*) ;;
+        *)
+            echo "  ERROR: refused to stop unexpected socket owner PID $owner_pid: $owner_command" >&2
+            return 1
+            ;;
+    esac
+
+    mapfile -t proxy_pids < <(
+        ps -eo pid=,args= | awk \
+            '$0 ~ /[/]codex([.]js)? app-server proxy([[:space:]]|$)/ { print $1 }'
+    )
+    if [ "${#proxy_pids[@]}" -gt 0 ]; then
+        "$kill_bin" -TERM "${proxy_pids[@]}"
+    fi
+    "$kill_bin" -TERM "$owner_pid"
+
+    local attempt
+    for attempt in {1..10}; do
+        if ! "$kill_bin" -0 "$owner_pid" 2>/dev/null; then
+            return
+        fi
+        sleep 1
+    done
+    "$kill_bin" -KILL "$owner_pid"
+}
+
+replace_unmanaged_codex_app_server() {
+    local out replacement_status=0
+    if ! out="$("$CODEX_STANDALONE_BIN" remote-control stop 2>&1)"; then
+        case "$out" in
+            *"app server is running but is not managed by codex app-server daemon"*)
+                stop_unmanaged_codex_app_server
+                ;;
+            *)
+                echo "  ERROR: could not stop the existing Remote Control app-server." >&2
+                printf '%s\n' "$out" | sed 's/^/    /' >&2
+                return 1
+                ;;
+        esac
+    fi
+
+    bootstrap_codex_app_server || replacement_status=$?
+    if [ "$replacement_status" -ne 0 ]; then
+        echo "  ERROR: could not start the updated Codex managed app-server." >&2
+        return 1
+    fi
+    remove_obsolete_codex_remote_services
+    echo "  Restarted Codex Remote Control app-server under native daemon management"
+}
+
 # Older installers created a second app-server under systemd. Codex Remote
 # Control already owns a native daemon, so the extra server competes for the
 # same remote identity and chat writer. Remove both historical unit names.
@@ -409,17 +517,35 @@ install_swift_lsp
 install_node          # node + npm, needed by Playwright
 install_codex_standalone # official standalone package
 install_codex_command # direct PATH entry; no argv-modifying wrapper
-if bootstrap_codex_app_server; then # one daemon/socket shared by Remote Control + OctoCode
+bootstrap_status=0
+bootstrap_codex_app_server || bootstrap_status=$?
+if [ "$bootstrap_status" -eq 0 ]; then # one daemon/socket shared by Remote Control + OctoCode
     remove_obsolete_codex_remote_services # native Codex daemon owns Remote Control
 else
-    bootstrap_status=$?
     if [ "$bootstrap_status" -eq 2 ]; then
-        echo "  Preserved existing services because Remote Control owns the app-server."
+        if [ "$RESTART_CODEX_APP_SERVER" -eq 0 ]; then
+            echo "  Preserved existing services because Remote Control owns the app-server."
+        fi
     else
         echo "  Preserved existing services because no replacement app-server was started."
     fi
 fi
-reload_codex_user_config # refresh project trust without interrupting running tasks
+if [ "$RESTART_CODEX_APP_SERVER" -eq 1 ]; then
+    case "$bootstrap_status" in
+        0)
+            restart_codex_app_server
+            ;;
+        2)
+            replace_unmanaged_codex_app_server
+            ;;
+        *)
+            echo "  ERROR: cannot restart because no Codex app-server is available." >&2
+            exit 1
+            ;;
+    esac
+else
+    reload_codex_user_config # refresh project trust without interrupting running tasks
+fi
 install_playwright    # warms the Playwright MCP cache
 
 echo ""
