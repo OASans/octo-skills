@@ -149,6 +149,7 @@ chmod +x "$TEST_BIN/kill"
 
 cat > "$TEST_CODEX/config.toml" <<'EOF'
 model = "custom-model"
+sandbox_mode = "workspace-write"
 
 [projects."/tmp/example"]
 trust_level = "trusted"
@@ -199,6 +200,8 @@ assert_section_line() {
 
 
 run_install --restart
+grep -qFx 'sandbox_mode = "danger-full-access"' "$TEST_CODEX/config.toml"
+grep -qFx 'approval_policy = "on-request"' "$TEST_CODEX/config.toml"
 grep -qFx 'model = "gpt-6-astra"' "$TEST_CODEX/config.toml"
 grep -qFx 'model_reasoning_effort = "medium"' "$TEST_CODEX/config.toml"
 jq -e '.env.OCTO_HOOK_FILE == "/tmp/octo-hook-octo-code-default.jsonl"' \
@@ -225,8 +228,38 @@ grep -qFx 'name = "personal-agent"'  "$TEST_CODEX/agents/personal-agent.toml"
 rm -f "$TEST_HOME/.local/bin/codex"
 printf '%s\n' '#!/bin/sh' 'exit 99' > "$TEST_HOME/.local/bin/codex"
 chmod +x "$TEST_HOME/.local/bin/codex"
+# Normal installs must not invoke any operation that can interrupt a live turn.
+for calls in "$CURL_CALLS" "$CODEX_DAEMON_CALLS" "$SYSTEMCTL_CALLS"; do
+    if [ -e "$calls" ]; then
+        cp "$calls" "$calls.before-normal"
+    fi
+done
 run_install
 run_install
+# An installed binary is enough to preserve a runtime with a missing socket.
+rm -f "$APP_SERVER_SOCKET"
+run_install
+# Preserve socket/PID owners even when the standalone binary is unavailable.
+chmod -x "$TEST_CODEX/packages/standalone/current/bin/codex"
+: > "$APP_SERVER_SOCKET"
+run_install
+rm -f "$APP_SERVER_SOCKET"
+mkdir -p "$TEST_CODEX/app-server-daemon"
+printf '%s\n' '{"pid":4242}' > "$TEST_CODEX/app-server-daemon/app-server.pid"
+run_install
+rm -f "$TEST_CODEX/app-server-daemon/app-server.pid"
+chmod +x "$TEST_CODEX/packages/standalone/current/bin/codex"
+: > "$APP_SERVER_SOCKET"
+for calls in "$CURL_CALLS" "$CODEX_DAEMON_CALLS" "$SYSTEMCTL_CALLS"; do
+    if [ -e "$calls.before-normal" ]; then
+        cmp "$calls.before-normal" "$calls"
+    else
+        test ! -e "$calls"
+    fi
+done
+test ! -e "$CODEX_PROXY_CALLS"
+test ! -e "$CODEX_REMOTE_CONTROL_CALLS"
+test ! -e "$KILL_CALLS"
 
 CONFIG="$TEST_CODEX/config.toml"
 cmp -s "$TEST_ROOT/first-config.toml" "$CONFIG"
@@ -249,7 +282,7 @@ assert_section_line '["hooks"."state"."local-hooks:session_start:0:0"]' '"enable
 ! grep -qF '/home/clavier' "$CONFIG"
 ! test -e "$TEST_HOME/.codex/config.toml"
 grep -qFx -- '-fsSL https://chatgpt.com/codex/install.sh' "$CURL_CALLS"
-test "$(wc -l < "$CURL_CALLS")" -eq 3
+test "$(wc -l < "$CURL_CALLS")" -eq 1
 grep -qFx '1' "$STANDALONE_ENV"
 grep -qFx "$TEST_HOME/.local/bin" "$STANDALONE_INSTALL_DIR"
 test ! -e "$TEST_ROOT/inherited-bin/codex"
@@ -265,19 +298,15 @@ if [[ "$(uname -s)" == Linux ]]; then
         test "$(grep -cFx -- "--user stop $obsolete_unit" "$SYSTEMCTL_CALLS")" -eq 1
         test "$(grep -cFx -- "--user disable $obsolete_unit" "$SYSTEMCTL_CALLS")" -eq 1
     done
-    test "$(grep -cFx -- '--user is-active --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 3
-    test "$(grep -cFx -- '--user is-enabled --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 3
+    test "$(grep -cFx -- '--user is-active --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 1
+    test "$(grep -cFx -- '--user is-enabled --quiet octo-codex-app-server.service' "$SYSTEMCTL_CALLS")" -eq 1
     test "$(grep -cFx -- '--user daemon-reload' "$SYSTEMCTL_CALLS")" -eq 1
     ! grep -q -E -- '--user (enable|start|restart) ' "$SYSTEMCTL_CALLS"
 else
     test -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
     test ! -e "$SYSTEMCTL_CALLS"
 fi
-test "$(grep -cFx "app-server proxy --sock $APP_SERVER_SOCKET" "$CODEX_PROXY_CALLS")" -eq 2
-test "$(grep -cF '"method":"config/batchWrite"' "$CODEX_PROXY_STDIN")" -eq 2
-test "$(grep -cF '"edits":[]' "$CODEX_PROXY_STDIN")" -eq 2
-test "$(grep -cF '"reloadUserConfig":true' "$CODEX_PROXY_STDIN")" -eq 2
-test "$(grep -cFx 'app-server daemon bootstrap --remote-control' "$CODEX_DAEMON_CALLS")" -eq 3
+test "$(grep -cFx 'app-server daemon bootstrap --remote-control' "$CODEX_DAEMON_CALLS")" -eq 1
 test "$(grep -cFx 'app-server daemon restart' "$CODEX_DAEMON_CALLS")" -eq 1
 
 restart_error="$TEST_ROOT/restart-error"
@@ -336,3 +365,11 @@ test "$(wc -l < "$CURL_CALLS")" -eq "$((curl_calls_before + 1))"
 test ! -e "$TEST_HOME/.local/bin/codex"
 test -e "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
 ! grep -q -E -- '--user (stop|disable) ' "$SYSTEMCTL_CALLS"
+
+# With no installed executable or server ownership markers, normal installation
+# still provisions Codex and bootstraps it without an explicit restart.
+: > "$CODEX_DAEMON_CALLS"
+run_install
+grep -qFx 'app-server daemon bootstrap --remote-control' "$CODEX_DAEMON_CALLS"
+! grep -qFx 'app-server daemon restart' "$CODEX_DAEMON_CALLS"
+test -x "$TEST_CODEX/packages/standalone/current/bin/codex"

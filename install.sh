@@ -164,43 +164,6 @@ run_with_timeout() {
     return "$status"
 }
 
-# Refresh a running app-server's user config without restarting it. Replacing
-# config.toml on disk is not enough: a durable daemon can retain its old project
-# trust map until it exits, causing trusted project .codex/ layers to warn and
-# stay disabled. An empty batch write preserves the managed file byte-for-byte;
-# reloadUserConfig updates every loaded thread in place.
-reload_codex_user_config() {
-    local socket="$CODEX_DIR/app-server-control/app-server-control.sock"
-    [ -e "$socket" ] || return 0
-
-    local codex_bin="$CODEX_STANDALONE_BIN"
-    if [ ! -x "$codex_bin" ]; then
-        codex_bin="$(command -v codex 2>/dev/null || true)"
-    fi
-    if [ -z "$codex_bin" ]; then
-        echo "  WARNING: config.toml installed, but Codex is unavailable for a live config reload."
-        return
-    fi
-
-    local response
-    if response="$(
-        (
-            printf '%s\n' \
-                '{"id":1,"method":"initialize","params":{"clientInfo":{"name":"octo-skills-installer","version":"1"}}}' \
-                '{"method":"initialized","params":{}}' \
-                "{\"id\":2,\"method\":\"config/batchWrite\",\"params\":{\"edits\":[],\"filePath\":\"$CODEX_DIR/config.toml\",\"reloadUserConfig\":true}}"
-            sleep 1
-        ) |
-            run_with_timeout 5 "$codex_bin" app-server proxy --sock "$socket" 2>/dev/null
-    )" &&
-        printf '%s\n' "$response" | grep -q '"id":2.*"status":"ok"'; then
-        echo "  Reloaded config.toml in the running Codex app-server"
-    else
-        echo "  WARNING: config.toml installed, but the running Codex app-server did not reload it."
-        echo "           New sessions will use it after the app-server next starts."
-    fi
-}
-
 # Install OpenAI's standalone Codex package.
 install_codex_standalone() {
     case "$(uname -s)" in
@@ -263,10 +226,8 @@ install_codex_command() {
     echo "  Installed official Codex command"
 }
 
-# Install/start Codex's native managed app-server. `bootstrap` is idempotent:
-# when Remote Control already owns the daemon it reuses that process and socket,
-# so OctoCode can attach through `codex app-server proxy` without competing
-# with a second server.
+# Bootstrap may replace the running server. Only use it for a fresh install or
+# when the user explicitly requests --restart.
 bootstrap_codex_app_server() {
     case "$(uname -s)" in
         Darwin|Linux) ;;
@@ -515,36 +476,47 @@ install_playwright() {
 
 install_swift_lsp
 install_node          # node + npm, needed by Playwright
-install_codex_standalone # official standalone package
-install_codex_command # direct PATH entry; no argv-modifying wrapper
-bootstrap_status=0
-bootstrap_codex_app_server || bootstrap_status=$?
-if [ "$bootstrap_status" -eq 0 ]; then # one daemon/socket shared by Remote Control + OctoCode
-    remove_obsolete_codex_remote_services # native Codex daemon owns Remote Control
+# Avoid touching the runtime on an existing installation, even when its socket
+# is temporarily absent. Updating the package/bootstrap can replace the daemon;
+# live config reloads can also change permissions underneath active turns.
+if [ "$RESTART_CODEX_APP_SERVER" -eq 0 ] && {
+    [ -x "$CODEX_STANDALONE_BIN" ] ||
+    [ -e "$CODEX_DIR/app-server-control/app-server-control.sock" ] ||
+    [ -e "$CODEX_DIR/app-server-daemon/app-server.pid" ]
+}; then
+    install_codex_command
+    echo "  Preserved existing Codex runtime; use --restart to update and restart it."
+    echo "  Installed configuration will apply when Codex next loads it."
 else
-    if [ "$bootstrap_status" -eq 2 ]; then
-        if [ "$RESTART_CODEX_APP_SERVER" -eq 0 ]; then
-            echo "  Preserved existing services because Remote Control owns the app-server."
-        fi
+    install_codex_standalone # official standalone package
+    install_codex_command # direct PATH entry; no argv-modifying wrapper
+    bootstrap_status=0
+    bootstrap_codex_app_server || bootstrap_status=$?
+    if [ "$bootstrap_status" -eq 0 ]; then # one daemon/socket shared by Remote Control + OctoCode
+        remove_obsolete_codex_remote_services # native Codex daemon owns Remote Control
     else
-        echo "  Preserved existing services because no replacement app-server was started."
+        if [ "$bootstrap_status" -eq 2 ]; then
+            if [ "$RESTART_CODEX_APP_SERVER" -eq 0 ]; then
+                echo "  Preserved existing services because Remote Control owns the app-server."
+            fi
+        else
+            echo "  Preserved existing services because no replacement app-server was started."
+        fi
     fi
-fi
-if [ "$RESTART_CODEX_APP_SERVER" -eq 1 ]; then
-    case "$bootstrap_status" in
-        0)
-            restart_codex_app_server
-            ;;
-        2)
-            replace_unmanaged_codex_app_server
-            ;;
-        *)
-            echo "  ERROR: cannot restart because no Codex app-server is available." >&2
-            exit 1
-            ;;
-    esac
-else
-    reload_codex_user_config # refresh project trust without interrupting running tasks
+    if [ "$RESTART_CODEX_APP_SERVER" -eq 1 ]; then
+        case "$bootstrap_status" in
+            0)
+                restart_codex_app_server
+                ;;
+            2)
+                replace_unmanaged_codex_app_server
+                ;;
+            *)
+                echo "  ERROR: cannot restart because no Codex app-server is available." >&2
+                exit 1
+                ;;
+        esac
+    fi
 fi
 install_playwright    # warms the Playwright MCP cache
 

@@ -3,7 +3,7 @@
 
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
-sandbox_mode = "workspace-write"
+sandbox_mode = "danger-full-access"
 model = "gpt-6-astra"
 model_reasoning_effort = "medium"
 model_verbosity = "low"
