@@ -11,7 +11,7 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 ### During dev
 - Branch discipline — NEVER create a branch or open a PR; you're the only worker in this checkout, so commit directly on the default branch (`main`/`master`).
 - Ownership — investigate failing checks and fix their root causes within the authorized scope. If an unrelated failure requires a separate behavior change, report the concrete blocker and finish independent work; never dismiss a failure merely as pre-existing or stash user edits.
-- Regression test — every bug fix MUST ship with a test that would have caught it.
+- Regression test — every bug fix MUST ship with a test that would have caught it, except shell scripts. Never add regression tests for shell scripts.
 
 ### Anytime
 - Input is Whisper STT — expect mistranscriptions (homophones, garbled tech terms); correct from context before acting, ask if ambiguous.
