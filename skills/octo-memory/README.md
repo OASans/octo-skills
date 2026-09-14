@@ -5,7 +5,7 @@
 ## Storage and lifecycle
 
 - Captures live at `~/.octo-memory/<repo>/short_term/<date>/`, keyed by the origin repository name. They are machine-local, shared across checkouts, and unavailable to development sessions.
-- Long-term topics live in committed `.claude/skills/knowledge-*/SKILL.md` files. Descriptions are discovery cues; selected bodies provide concise constraints, rationale, and source pointers.
+- Long-term topics live in committed `.codex/skills/knowledge-*/SKILL.md` files. Descriptions are discovery cues; selected bodies provide concise constraints, rationale, and source pointers.
 - A human explicitly invokes `octo-memory-long-term` to promote captures and maintain topics, at most once per day. New topics normally require independent recurrence; the skill owns the exceptions and verification criteria.
 
 ## Components

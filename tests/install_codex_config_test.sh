@@ -28,7 +28,7 @@ mkdir -p \
     "$PLAYWRIGHT_CACHE/chromium-test" \
     "$TEST_BIN"
 : > "$APP_SERVER_SOCKET"
-for command_name in codex node npm npx sourcekit-lsp; do
+for command_name in codex node npm npx; do
     ln -s "$(type -P true)" "$TEST_BIN/$command_name"
 done
 
@@ -163,6 +163,9 @@ theme = "ansi"
 EOF
 mkdir -p "$TEST_CODEX/agents"
 printf '%s\n' 'name = "personal-agent"' > "$TEST_CODEX/agents/personal-agent.toml"
+mkdir -p "$TEST_CODEX/skills/retired-skill" "$TEST_CODEX/skills/.system/builtin"
+printf '%s\n' 'retired' > "$TEST_CODEX/skills/retired-skill/SKILL.md"
+printf '%s\n' 'builtin' > "$TEST_CODEX/skills/.system/builtin/SKILL.md"
 mkdir -p "$TEST_HOME/.config/systemd/user"
 printf '%s\n' '[Service]' > \
     "$TEST_HOME/.config/systemd/user/octo-codex-remote-control.service"
@@ -204,14 +207,15 @@ grep -qFx 'sandbox_mode = "danger-full-access"' "$TEST_CODEX/config.toml"
 grep -qFx 'approval_policy = "on-request"' "$TEST_CODEX/config.toml"
 grep -qFx 'model = "gpt-6-astra"' "$TEST_CODEX/config.toml"
 grep -qFx 'model_reasoning_effort = "medium"' "$TEST_CODEX/config.toml"
-jq -e '.env.OCTO_HOOK_FILE == "/tmp/octo-hook-octo-code-default.jsonl"' \
-    "$TEST_HOME/.claude/settings.json" >/dev/null
-jq --slurpfile settings "$REPO_DIR/global-settings.json" -e '
-    . == {hooks: {SessionStart: $settings[0].hooks.SessionStart}}
-' "$TEST_CODEX/hooks.json" >/dev/null
-jq -e '.remoteControlAtStartup == true' "$TEST_HOME/.claude/settings.json" >/dev/null
-cmp -s "$REPO_DIR/global-CLAUDE.md" "$TEST_HOME/.claude/CLAUDE.md"
-cmp -s "$REPO_DIR/global-CLAUDE.md" "$TEST_CODEX/AGENTS.md"
+[ ! -e "$TEST_HOME/.claude" ]
+cmp -s "$REPO_DIR/global-codex-hooks.json" "$TEST_CODEX/hooks.json"
+jq -e '.hooks | keys == ["SessionStart"]' "$TEST_CODEX/hooks.json" >/dev/null
+cmp -s "$REPO_DIR/global-AGENTS.md" "$TEST_CODEX/AGENTS.md"
+[ ! -e "$TEST_CODEX/skills/retired-skill" ]
+grep -qFx 'builtin' "$TEST_CODEX/skills/.system/builtin/SKILL.md"
+for skill_dir in "$REPO_DIR/skills"/*/; do
+    diff -r "$skill_dir" "$TEST_CODEX/skills/$(basename "$skill_dir")"
+done
 cmp -s "$REPO_DIR/codex-agents/octo-reviewer.toml" "$TEST_CODEX/agents/octo-reviewer.toml"
 cmp -s "$REPO_DIR/codex-agents/octo-review-verifier.toml" "$TEST_CODEX/agents/octo-review-verifier.toml"
 for agent_name in octo-reviewer octo-review-verifier; do
@@ -221,8 +225,8 @@ for agent_name in octo-reviewer octo-review-verifier; do
 done
 grep -qFx 'model = "gpt-5.6-sol"' "$TEST_CODEX/agents/octo-reviewer.toml"
 grep -qFx 'model_reasoning_effort = "low"' "$TEST_CODEX/agents/octo-reviewer.toml"
-grep -qFx 'model = "gpt-5.6-terra"' "$TEST_CODEX/agents/octo-review-verifier.toml"
-grep -qFx 'model_reasoning_effort = "high"' "$TEST_CODEX/agents/octo-review-verifier.toml"
+grep -qFx 'model = "gpt-5.6-sol"' "$TEST_CODEX/agents/octo-review-verifier.toml"
+grep -qFx 'model_reasoning_effort = "low"' "$TEST_CODEX/agents/octo-review-verifier.toml"
 cp "$TEST_CODEX/config.toml" "$TEST_ROOT/first-config.toml"
 grep -qFx 'name = "personal-agent"'  "$TEST_CODEX/agents/personal-agent.toml"
 rm -f "$TEST_HOME/.local/bin/codex"

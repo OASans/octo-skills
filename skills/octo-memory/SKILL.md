@@ -22,7 +22,7 @@ Capture knowledge that will change a future decision and would be expensive to r
 
 ## Capture
 
-The buffer is machine-local, shared across checkouts of the same origin repo name, and never loaded into development sessions. Committed long-term topics live at `.claude/skills/knowledge-<slug>/SKILL.md`; their descriptions provide discovery cues and their bodies load when selected.
+The buffer is machine-local, shared across checkouts of the same origin repo name, and never loaded into development sessions. Committed long-term topics live at `.codex/skills/knowledge-<slug>/SKILL.md`; their descriptions provide discovery cues and their bodies load when selected.
 
 Set `memory_skill_dir` to the directory containing this skill, then run in Bash from the target repository:
 

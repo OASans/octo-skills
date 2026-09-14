@@ -2,7 +2,7 @@
 
 Provision a fresh machine for OctoCode development: dev tools, desktop apps, Rust, tmux, CUDA, and (on Linux) an internal-only SSH server.
 
-The repo's top-level `install.sh` deploys shared Claude Code + Codex skills and config, and installs Codex CLI. Platform scripts set up the machine; the macOS script also runs `install.sh` as its final step so Codex is ready immediately.
+The repo's top-level `install.sh` deploys shared Codex skills and config, and installs Codex CLI. Platform scripts set up the machine; the macOS script also runs `install.sh` as its final step so Codex is ready immediately.
 
 ## First: create `.env`
 

@@ -8,7 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class SkillContractTest(unittest.TestCase):
     def test_skill_identity_and_reference_links(self):
-        for base in (ROOT / 'skills', ROOT / '.claude/skills'):
+        for base in (ROOT / 'skills', ROOT / '.codex/skills'):
+            self.assertTrue(base.is_dir())
+            self.assertFalse(base.is_symlink())
             for skill in base.glob('*/SKILL.md'):
                 with self.subTest(skill=skill.parent.name):
                     text = skill.read_text()
@@ -20,17 +22,16 @@ class SkillContractTest(unittest.TestCase):
                     for target in re.findall(r'\]\((references/[^)#]+)(?:#[^)]*)?\)', body):
                         self.assertTrue((skill.parent / target).is_file(), target)
 
-    def test_explicit_only_skills_have_codex_policy(self):
-        for skill in (ROOT / 'skills').glob('*/SKILL.md'):
-            front = skill.read_text().split('---', 2)[1]
-            if re.search(r'^disable-model-invocation: true$', front, re.M):
-                policy = skill.parent / 'agents/openai.yaml'
-                with self.subTest(skill=skill.parent.name):
-                    self.assertTrue(policy.is_file())
-                    self.assertRegex(policy.read_text(), r'policy:\s*\n\s+allow_implicit_invocation: false\s*\n')
+    def test_existing_explicit_only_skills_remain_explicit_only(self):
+        # Pin the migration guarantees independently of the deployed policy files.
+        for name in ('octo-blueprint', 'octo-codex-usage', 'octo-memory-long-term'):
+            policy = ROOT / 'skills' / name / 'agents/openai.yaml'
+            with self.subTest(skill=name):
+                self.assertTrue(policy.is_file())
+                self.assertRegex(policy.read_text(), r'policy:\s*\n\s+allow_implicit_invocation: false\s*\n')
 
     def test_blueprint_documented_examples_have_their_headings(self):
-        knowledge = ROOT / '.claude/skills/knowledge-octo-blueprint/SKILL.md'
+        knowledge = ROOT / '.codex/skills/knowledge-octo-blueprint/SKILL.md'
         entries = knowledge.read_text().split('## Key Files', 1)[1]
         examples = 0
         for line in entries.splitlines():

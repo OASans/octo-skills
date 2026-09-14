@@ -2,7 +2,6 @@
 name: octo-blueprint
 description: >
   Grade a package against the team blueprint and propose prioritized improvements. Run only when explicitly invoked, optionally with a target path.
-disable-model-invocation: true
 ---
 
 # Octo Blueprint
@@ -13,7 +12,7 @@ Grade a package against the blueprint and return prioritized action items. Run o
 
 1. **Pick the target.** The current project root by default, or a path the user named with the invocation.
 2. **Load the blueprint and list its dimensions.** Read the headings in [the blueprint](references/blueprint.md) and collect its `###` dimensions; each grader reads only its assigned dimension and the structure contract. If it defines no dimensions yet (the skeleton state), there is nothing to grade — report *"The blueprint is not yet defined."* and stop.
-3. **Grade dimensions in parallel — one sub-agent per `###` dimension.** Spawn one read-only subagent per dimension, concurrently within the host limit. On Codex, explicitly select an available model appropriate to the dimension (Astra or Sol); on Claude Code use `general-purpose` with `model: sonnet`. Give each the base instructions below, target path, blueprint reference path, and assigned `###` heading; the assignment must be self-contained and the Codex agent name must include its selected model.
+3. **Grade dimensions in parallel — one sub-agent per `###` dimension.** Spawn one read-only subagent per dimension, concurrently within the host limit. Explicitly select an available model appropriate to the dimension (Astra or Sol). Give each the base instructions below, target path, blueprint reference path, and assigned `###` heading; the assignment must be self-contained, use no history inheritance, and the agent name must include its selected model.
 
    **Base instructions (shared by all agents):**
 

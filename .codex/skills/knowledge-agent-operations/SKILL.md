@@ -1,17 +1,16 @@
 ---
 name: knowledge-agent-operations
 description: >
-  Safe local code-agent rescue operations for Claude Code and Codex: inspect tmux and
+  Safe local code-agent rescue operations for Codex: inspect tmux and
   process state, check memory, message another session, stop it gracefully, and resume
   or reconnect its exact conversation. Load when diagnosing, unblocking, controlling,
-  restarting, recovering, or reconnecting Claude Code, Codex, fin-*, or another local
+  restarting, recovering, or reconnecting Codex, fin-*, or another local
   agent without interrupting live work.
-user-invocable: false
 ---
 
 # Local Agent Operations
 
-Inspect and recover local Claude Code and Codex sessions while preserving live work and conversation state.
+Inspect and recover local Codex sessions while preserving live work and conversation state.
 
 ## Steps
 
@@ -42,19 +41,8 @@ Inspect and recover local Claude Code and Codex sessions while preserving live w
    ```
 
 6. Prefer asking a working agent to finish its current batch and stop safely. Do not interrupt it until it confirms the batch is complete unless the user explicitly requests an immediate interruption.
-7. When authorized to stop an idle session, use its normal exit command (`/exit` for Claude Code or `/quit` for Codex), verify the TUI exits to a shell, and confirm its descendants are gone. Never use broad commands such as `pkill`, `killall`, or `tmux kill-session`.
+7. When authorized to stop an idle session, use its normal exit command (`/quit`), verify the TUI exits to a shell, and confirm its descendants are gone. Never use broad commands such as `pkill`, `killall`, or `tmux kill-session`.
 8. Before restarting, record the exact agent type, conversation or thread ID, working directory, and desired work state. Confirm the old writer exited so only one process owns the conversation.
-
-## Claude Code Recovery
-
-1. Resume the exact conversation and explicitly enable Remote Control:
-
-   ```bash
-   claude --resume "SESSION_ID" --remote-control "SESSION_NAME"
-   ```
-
-2. Use `--continue` only when the most recent conversation in that directory is unambiguous. `remoteControlAtStartup` may enable Remote Control globally, but pass `--remote-control` during recovery so the launch does not depend on that setting.
-3. Restart the target session after changing hooks, settings, or environment variables because Claude Code reads them at startup. Verify the resumed pane and phone connection before declaring recovery complete.
 
 ## Codex Recovery
 
@@ -86,7 +74,6 @@ Inspect and recover local Claude Code and Codex sessions while preserving live w
 
 ## Key Files
 
-- `global-settings.json` — managed Claude Code Remote Control startup setting
 - `global-codex-config.toml` — shared Codex defaults; `scripts/render_codex_config.py` preserves local project trust and reviewed hook hashes
 
 <!-- Last verified: 2026-08-21 -->

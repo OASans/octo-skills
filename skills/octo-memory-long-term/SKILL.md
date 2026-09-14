@@ -3,7 +3,6 @@ name: octo-memory-long-term
 description: >
   Manually consolidate short-term captures into verified knowledge topics and
   prune stale or duplicated guidance. Run only when the user explicitly invokes it.
-disable-model-invocation: true
 ---
 
 Consolidate only when a human explicitly invokes `/octo-memory-long-term`; never start from capture, startup, workflow completion, or inferred need.
@@ -30,14 +29,13 @@ PROMOTE contains complete capture days from the watermark through yesterday; CON
 
 ## Topic shape
 
-Use one `.claude/skills/knowledge-<slug>/SKILL.md` per coherent topic:
+Use one `.codex/skills/knowledge-<slug>/SKILL.md` per coherent topic:
 
 ```markdown
 ---
 name: knowledge-<slug>
 description: >
   <Specific task cues and when this topic should be loaded.>
-user-invocable: false
 ---
 
 # <Topic>

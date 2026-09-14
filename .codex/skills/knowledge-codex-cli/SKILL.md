@@ -2,13 +2,12 @@
 name: knowledge-codex-cli
 description: >
   Configure or troubleshoot the shared Codex installation, Git Sync hooks, and native app-server ownership.
-user-invocable: false
 ---
 
 # Shared Codex Installation
 
-- Codex uses `AGENTS.md` for instructions and `config.toml` for settings; Claude Code's JSON settings are not interchangeable with TOML. The installer honors `CODEX_HOME`, defaulting to `~/.codex`.
-- Only Git Sync is shared with Codex: `install.sh` derives `hooks.json` as `{"hooks":{"SessionStart":…}}` from `global-settings.json`. Activity, model-selection, and skill-logging hooks remain Claude-only; Codex status comes from its App Server.
+- Codex uses `AGENTS.md` for instructions and `config.toml` for settings. The installer honors `CODEX_HOME`, defaulting to `~/.codex`.
+- `install.sh` copies `global-codex-hooks.json` directly to `hooks.json` for SessionStart Git Sync. Codex status comes from its App Server.
 - Hook trust is bound to the exact hook definition and path. The installer preserves this host's project trust and `hooks.state` from its existing config; it never copies another machine's approvals or approves changed hooks.
 - `global-codex-config.toml` owns shared defaults; `scripts/render_codex_config.py` preserves local trust when rendering them. Python 3.11+ supplies the TOML parser; older Python needs `tomli` or pip's bundled parser.
 - On macOS/Linux, `install.sh` provisions OpenAI's standalone package on a fresh installation. Existing installations require `--restart` for package updates and daemon management; normal installs preserve the runtime. `~/.local/bin/codex` points directly to the official executable.

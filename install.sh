@@ -3,20 +3,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Detect target directories. Claude Code lives in ~/.claude (%APPDATA%\Claude on
-# Windows); Codex CLI always uses ~/.codex (CODEX_HOME).
-case "$(uname -s)" in
-    Darwin|Linux)
-        CLAUDE_DIR="$HOME/.claude"
-        ;;
-    MINGW*|MSYS*|CYGWIN*)
-        CLAUDE_DIR="$APPDATA/Claude"
-        ;;
-    *)
-        echo "Unsupported OS: $(uname -s)"
-        exit 1
-        ;;
-esac
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 CODEX_LAUNCHER_DIR="$HOME/.local/bin"
 CODEX_STANDALONE_BIN="${CODEX_HOME:-$HOME/.codex}/packages/standalone/current/bin/codex"
@@ -44,7 +30,7 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
-echo "Installing shared config to: $CLAUDE_DIR and $CODEX_DIR"
+echo "Installing Codex config to: $CODEX_DIR"
 
 # install_skills <target-skills-dir>: mirror skills/* into the target EXACTLY —
 # a skill removed from this package is removed there on install.
@@ -84,29 +70,12 @@ write_if_changed() {
     fi
 }
 
-# install_file <src> <dest> <label>: render src into dest, substituting the
-# /__HOME__ path placeholder with the real home dir.
-#
-# Why the placeholder: Claude Code permission allow-rule paths are matched
-# literally by picomatch and do NOT expand ~, and a single leading / is
-# project-root-relative (not the filesystem root). So an out-of-tree allow path
-# like the ~/.octo-memory memory store must be an absolute path with a // prefix
-# (// => absolute, then Claude Code strips one slash). Sources keep it portable as
-# /__HOME__/... — $HOME already starts with /, so the expansion yields the required
-# //home/... double-slash form. patsub_replacement is disabled first so a literal &
-# (or |, \) in $HOME is kept verbatim instead of meaning "the matched text" (bash
-# 5.0+) — the sed equivalent would mis-expand & and break on a | delimiter. Files
-# without the placeholder (CLAUDE.md, AGENTS.md) are copied unchanged.
+# install_file <src> <dest> <label>: copy a managed text file when changed.
 install_file() {
-    local src="$1" dest="$2" label="$3" content
-    [ -f "$src" ] || return 0
-    shopt -u patsub_replacement 2>/dev/null || true
-    content="$(cat "$src")"
-    write_if_changed "${content//__HOME__/$HOME}" "$dest" "$label"
+    local src="$1" dest="$2" label="$3"
+    write_if_changed "$(cat "$src")" "$dest" "$label"
 }
 
-# Skills: same SKILL.md standard for both agents (agentskills.io open spec).
-install_skills "$CLAUDE_DIR/skills"
 install_skills "$CODEX_DIR/skills"
 
 # Reusable Codex agents. Preserve unrelated personal agents in the target.
@@ -116,27 +85,16 @@ for agent_file in "$SCRIPT_DIR/codex-agents"/*.toml; do
         "Codex agent $(basename "$agent_file" .toml)"
 done
 
-# Global memory / prompt: one source (global-CLAUDE.md) -> Claude CLAUDE.md and
-# Codex AGENTS.md (merged root-first by Codex, same as CLAUDE.md).
-install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"  "CLAUDE.md"
-install_file "$SCRIPT_DIR/global-CLAUDE.md" "$CODEX_DIR/AGENTS.md"   "AGENTS.md"
+install_file "$SCRIPT_DIR/global-AGENTS.md" "$CODEX_DIR/AGENTS.md" "AGENTS.md"
 
-# Settings. Claude Code uses JSON; Codex uses TOML.
-install_file "$SCRIPT_DIR/global-settings.json" "$CLAUDE_DIR/settings.json" "settings.json"
 codex_config="$(python3 "$SCRIPT_DIR/scripts/render_codex_config.py" \
     "$SCRIPT_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml")"
 write_if_changed "$codex_config" "$CODEX_DIR/config.toml" "config.toml"
 install_file "$SCRIPT_DIR/global-codex-rules.rules" "$CODEX_DIR/rules/default.rules" "Codex default.rules"
 
-# Codex status comes from its App Server, so only the shared Git Sync hook is
-# installed. OctoCode activity hooks remain Claude-only. Needs jq because the
-# retained hook uses it.
+# Git Sync uses jq to format session context. Preserve existing hooks if missing.
 if command -v jq >/dev/null 2>&1; then
-    write_if_changed \
-        "$(jq '{hooks: {
-            SessionStart: .hooks.SessionStart
-        }}' "$SCRIPT_DIR/global-settings.json")" \
-        "$CODEX_DIR/hooks.json" "hooks.json"
+    install_file "$SCRIPT_DIR/global-codex-hooks.json" "$CODEX_DIR/hooks.json" "hooks.json"
 else
     echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
 fi
@@ -381,38 +339,7 @@ remove_obsolete_codex_remote_services() {
     fi
 }
 
-# Install Swift LSP (sourcekit-lsp) — required by swift-lsp plugin
-install_swift_lsp() {
-    if command -v sourcekit-lsp >/dev/null 2>&1; then
-        echo "  Swift LSP already installed: $(command -v sourcekit-lsp)"
-        return
-    fi
-
-    case "$(uname -s)" in
-        Darwin)
-            if xcode-select -p >/dev/null 2>&1 && command -v sourcekit-lsp >/dev/null 2>&1; then
-                echo "  Swift LSP available via Xcode"
-                return
-            fi
-            if command -v brew >/dev/null 2>&1; then
-                echo "  Installing Swift via Homebrew (provides sourcekit-lsp)..."
-                brew install swift
-            else
-                echo "  WARNING: sourcekit-lsp not found. Install Xcode from the App Store"
-                echo "           or install Homebrew and run: brew install swift"
-            fi
-            ;;
-        Linux)
-            echo "  WARNING: sourcekit-lsp not found. Install the Swift toolchain from"
-            echo "           https://www.swift.org/download/ to enable the swift-lsp plugin."
-            ;;
-        *)
-            echo "  WARNING: sourcekit-lsp not found. Install Swift to enable the swift-lsp plugin."
-            ;;
-    esac
-}
-
-# Install Node.js + npm — the runtime for the Codex CLI and Playwright MCP.
+# Install Node.js + npm for Playwright MCP.
 # brew on macOS, the system package manager on Linux (sudo). A failed install is
 # a warning, not fatal — the consumers below degrade to their own warnings.
 install_node() {
@@ -474,7 +401,6 @@ install_playwright() {
     npx -y playwright@latest install chromium >/dev/null 2>&1 || true
 }
 
-install_swift_lsp
 install_node          # node + npm, needed by Playwright
 # Avoid touching the runtime on an existing installation, even when its socket
 # is temporarily absent. Updating the package/bootstrap can replace the daemon;
@@ -522,8 +448,8 @@ install_playwright    # warms the Playwright MCP cache
 
 echo ""
 echo "Done. Installed skills:"
-ls -1 "$CLAUDE_DIR/skills/"
+ls -1 "$CODEX_DIR/skills/"
 echo ""
-echo "Skills are available in ALL projects for both Claude Code (~/.claude) and Codex (~/.codex)."
-echo "Codex review agents are available in ALL projects from ~/.codex/agents/."
-echo "Project-specific skills go in <project>/.claude/skills/ (or <project>/.codex/skills/)."
+echo "Skills are available in ALL projects from $CODEX_DIR/skills/."
+echo "Codex review agents are available in ALL projects from $CODEX_DIR/agents/."
+echo "Project-specific skills go in <project>/.codex/skills/."

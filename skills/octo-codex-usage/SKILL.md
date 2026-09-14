@@ -4,7 +4,6 @@ description: >
   Analyze recent local Codex sessions for repeated unusual command patterns that may
   deserve purpose-built tools. Run only when a user explicitly invokes
   `/octo-codex-usage`, optionally with a number of days.
-disable-model-invocation: true
 ---
 
 # Octo Codex Usage

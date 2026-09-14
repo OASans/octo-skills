@@ -19,7 +19,9 @@ SUITE = json.loads((ROOT / 'evals/suite.json').read_text())
 
 def read_package(revision):
     parts = []
-    for name in SUITE['policy_files']:
+    suite = SUITE if revision == 'working' else json.loads(subprocess.check_output(
+        ['git', 'show', revision + ':evals/suite.json'], cwd=ROOT, text=True))
+    for name in suite['policy_files']:
         if revision == 'working':
             text = (ROOT / name).read_text()
         else:

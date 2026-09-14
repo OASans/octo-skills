@@ -10,7 +10,7 @@ description: >
 > **Guide family.** This is one guide in a family of scoped guides (`octo-coding-guide-*`),
 > each carrying a `guide-scope` in its frontmatter that says which changed files it
 > covers. This guide's scope is `**/*.md` — every Markdown document, whatever its job:
-> design docs, handover notes, skill definitions (`SKILL.md`), `CLAUDE.md`, READMEs.
+> design docs, handover notes, skill definitions (`SKILL.md`), `AGENTS.md`, READMEs.
 > They differ in content but share one quality bar, captured below. A Markdown change
 > is reviewed against this guide and no code guide — Markdown is prose, not code, so
 > code-correctness rules do not apply to it.

@@ -1,6 +1,6 @@
 # Global Context
 
-Shared, project-agnostic rules — they apply in every project. A project's own CLAUDE.md extends these with project-specific details (build/test commands, architecture, E2E steps); it never repeats them.
+Shared, project-agnostic rules — they apply in every project. A project's own AGENTS.md extends these with project-specific details (build/test commands, architecture, E2E steps); it never repeats them.
 
 ## Most Important Instructions
 
@@ -16,15 +16,15 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 ### Anytime
 - Input is Whisper STT — expect mistranscriptions (homophones, garbled tech terms); correct from context before acting, ask if ambiguous.
 - Messages and plans — compact, plain words, easy to read; include only what's needed, skip preamble and recaps.
-- NEVER edit any `CLAUDE.md`/`AGENTS.md` or any skill whose name contains `coding-guide` on your own — they change only when the user asks; write compact (no decorative markdown).
+- NEVER edit any `AGENTS.md` or any skill whose name contains `coding-guide` on your own — they change only when the user asks; write compact (no decorative markdown).
 - Completion — carry authorized work through implementation, relevant checks, and required workflow steps; resolve routine choices without another approval. Ask only for missing decisions or permissions that materially affect the result, and finish independent authorized work while waiting.
 - Instruction conflicts — current explicit user instructions take precedence over skill guidelines within the host's permissions. If a rule blocks completion, cite the exact file and rule and explain the unresolved decision; do not invent an approval requirement.
 
 ## Subagents
 
-For Codex, include the actual selected model in the sub-agent's visible name: `agent_name [model]` (for example, `doc_review [gpt-5.6-terra]`). When the name field restricts characters, use `agent_name_model` with punctuation replaced by underscores (for example, `doc_review_gpt_5_6_terra`); always put the model in the name itself, not just the description or dispatch message.
+Include the actual selected model in the sub-agent's visible name: `agent_name [model]` (for example, `doc_review [gpt-5.6-terra]`). When the name field restricts characters, use `agent_name_model` with punctuation replaced by underscores (for example, `doc_review_gpt_5_6_terra`); always put the model in the name itself, not just the description or dispatch message.
 
-Delegate when independent work can save time or improve quality; keep quick lookups and coupled design decisions inline. Every dispatch must be self-contained (goal, files, contracts, decisions, definition of done), select an available model explicitly, and use no history inheritance where supported; Claude Code enforces explicit model selection with a hook, while Codex follows this instruction.
+Delegate when independent work can save time or improve quality; keep quick lookups and coupled design decisions inline. Every dispatch must be self-contained (goal, files, contracts, decisions, definition of done), select an available model explicitly, and use no history inheritance where supported.
 
 Use models appropriate to the task, including GPT-6 Astra and GPT-5.6 Sol on Codex; shared skills must work with both. Three modes:
 
@@ -42,13 +42,13 @@ Keep inline: quick lookups, exploratory debugging where the problem isn't unders
 
 ## Memory
 
-- Use `/octo-memory` for reusable, non-obvious project discoveries and explicit remember requests; use project `knowledge-*` skills for shared long-term knowledge. Ignore Claude Code's default memory system.
+- Use `/octo-memory` for reusable, non-obvious project discoveries and explicit remember requests; use project `knowledge-*` skills for shared long-term knowledge.
 - Treat remembered facts as scoped guidance: investigate conflicts with current implementation, tests, or authoritative documentation before applying or correcting them. Preserve explicit user constraints.
 - Only a human invoking `/octo-memory-long-term` starts consolidation. Capture, storage, recurrence, and maintenance mechanics belong to the memory skills.
 
 ## Workflow
 
-A project may have its own workflow — follow it. These are additional steps that MUST be done for every change (project-specific build/test/lint commands and extra gates like E2E live in the project's CLAUDE.md, not here):
+A project may have its own workflow — follow it. These are additional steps that MUST be done for every change (project-specific build/test/lint commands and extra gates like E2E live in the project's AGENTS.md, not here):
 
 1. `git pull` first — start from a clean, synced tree (session-start auto-pull may have done this; confirm).
 2. Run the checks appropriate to the change and all required project gates, fixing failures before proceeding. Rerun affected checks after fixes; broaden or repeat checks only for changed behavior, failures, or unresolved concerns.

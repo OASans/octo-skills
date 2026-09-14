@@ -23,12 +23,12 @@ Throughout the skill the main agent never reads code bodies or guide bodies; sub
 
 1. **Target.** No argument: changed files — `git diff HEAD --name-only` plus `??` lines from `git status --porcelain`; both empty → `git diff @{upstream}...HEAD --name-only` (no upstream → `HEAD~1..HEAD`). With a path argument: every code file under it. Drop Markdown, binaries, generated output, lockfiles, gitignored files, and symlinks. Nothing left → reply `Nothing to simplify.` and stop.
 2. **Baseline.** Record file count, `wc -l` total, and the largest file. If `lizard`, `radon`, or `cargo clippy` is installed and applies to the target language, record its complexity figure too; never install a tool.
-3. **Guides.** Discover `guide-scope` guides from the current host's skill catalog, using source copies when editing this package; keep those matching a target file and pass their paths to every finder.
-4. **Gate.** Take the build and test commands from the project's CLAUDE.md; if it names none, use what the repo has — test scripts, `bash -n` and JSON/TOML parse checks over the target files — and run the gate once on the clean tree. No gate at all → apply nothing; every finding is proposed and the report says so.
+3. **Guides.** Discover `guide-scope` guides from the Codex skill catalog, using source copies when editing this package; keep those matching a target file and pass their paths to every finder.
+4. **Gate.** Take the build and test commands from the project's AGENTS.md; if it names none, use what the repo has — test scripts, `bash -n` and JSON/TOML parse checks over the target files — and run the gate once on the clean tree. No gate at all → apply nothing; every finding is proposed and the report says so.
 
 ### 2. Find — finders over the angles
 
-Spawn one read-only sub-agent per `###` angle under **Angles** below, concurrently within the host limit (Codex: general agents with an explicit available model appropriate to the task, including Astra or Sol; Claude Code: `general-purpose`, `model: sonnet`); for a small target (≤ ~10 files) spawn one finder for all angles, since every finder reads every target file. Use self-contained assignments with no history inheritance where supported, and include the selected model in each Codex agent name. Give each: the base prompt, its angle text, the guide paths, the target file list, and the diff command when the scope is a diff.
+Spawn one read-only sub-agent per `###` angle under **Angles** below, concurrently within the host limit, using general agents with an explicit available model appropriate to the task, including Astra or Sol; for a small target (≤ ~10 files) spawn one finder for all angles, since every finder reads every target file. Use self-contained assignments with no history inheritance, and include the selected model in each agent name. Give each: the base prompt, its angle text, the guide paths, the target file list, and the diff command when the scope is a diff.
 
 **Base prompt (all finders):**
 
@@ -45,11 +45,11 @@ Spawn one read-only sub-agent per `###` angle under **Angles** below, concurrent
 
 ### 3. Verify — one verifier maximum
 
-Dedup findings on the same lines or mechanism; two findings with one gain but different mechanics both go to the verifier, and the CONFIRMED one with the smaller change wins. Bundle every **approval** finding, every safe finding that spans more than one file or removes a guard, fallback, error path, validation, or file, and any safe finding a second finder disputed into one read-only verifier (use the host-specific model selection from step 2; tell it not to spawn subagents). It returns per finding **CONFIRMED** (quotes the proof in the code), **PLAUSIBLE** (mechanism real, proof incomplete), or **REFUTED** (the code can reach that path, or behavior would change). Keep only CONFIRMED findings; drop the rest and count them. A REFUTED finding that exposes a real defect (the code is wrong, not merely redundant) is recorded as `bug noticed`, never fixed here.
+Dedup findings on the same lines or mechanism; two findings with one gain but different mechanics both go to the verifier, and the CONFIRMED one with the smaller change wins. Bundle every **approval** finding, every safe finding that spans more than one file or removes a guard, fallback, error path, validation, or file, and any safe finding a second finder disputed into one read-only verifier (use the model selection from step 2; tell it not to spawn subagents). It returns per finding **CONFIRMED** (quotes the proof in the code), **PLAUSIBLE** (mechanism real, proof incomplete), or **REFUTED** (the code can reach that path, or behavior would change). Keep only CONFIRMED findings; drop the rest and count them. A REFUTED finding that exposes a real defect (the code is wrong, not merely redundant) is recorded as `bug noticed`, never fixed here.
 
 ### 4. Apply the safe tier
 
-Group coupled findings into one coherent change and assign all affected files to one worker, using the host-specific model selection from step 2. Tell the worker it is not alone: preserve others' edits, apply the whole change, then run affected checks and required gates; green → keep, red → revert only that change's own edits and report it. Process groups sequentially so intermediate file states do not invalidate a correct multi-file change.
+Group coupled findings into one coherent change and assign all affected files to one worker, using the model selection from step 2. Tell the worker it is not alone: preserve others' edits, apply the whole change, then run affected checks and required gates; green → keep, red → revert only that change's own edits and report it. Process groups sequentially so intermediate file states do not invalidate a correct multi-file change.
 
 ### 5. Propose the approval tier
 

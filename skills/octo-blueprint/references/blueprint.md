@@ -10,9 +10,9 @@
 > **Status: in progress.** Dimensions are filled in over time — the list below is
 > not yet exhaustive.
 
-### CLAUDE.md
+### AGENTS.md
 
-*What good looks like: CLAUDE.md is the agent's front door — whoever opens it grasps what the project is and how to work in it fast, without wading through detail that belongs in code or other docs.*
+*What good looks like: AGENTS.md is the agent's front door — whoever opens it grasps what the project is and how to work in it fast, without wading through detail that belongs in code or other docs.*
 
 **Sections — in the order they appear in the file:**
 
@@ -31,7 +31,7 @@
   - **Verify every line — don't trust the text**: read each script (or run its `--help`) and confirm the path exists and the purpose, flags, and inputs still match what it actually does; the folder has no script the section omits, and nothing listed is stale or renamed.
   - *Scope: the `ai_tools/` folder's own quality is a separate dimension; here, just check the section is scripts-only, path-led, accurate, in sync, and compact.*
 - **Workflow** — the project-specific gates an agent runs before review, layered on the global workflow and split by cost into a fast loop and a slow verification pass. Recommended heading: **`Workflow`**.
-  - **Doesn't restate the global workflow** (already in the global `~/.claude/CLAUDE.md`): no `git pull` at start, no `/octo-review`, no `/octo-memory` at end. Reference the global as given and add only what's project-specific — e.g. open with *"Project-specific gates, on top of the global workflow:"*.
+  - **Doesn't restate the global workflow** (already in the global `~/.codex/AGENTS.md`): no `git pull` at start, no `/octo-review`, no `/octo-memory` at end. Reference the global as given and add only what's project-specific — e.g. open with *"Project-specific gates, on top of the global workflow:"*.
   - **Exactly two subsections, split by cost — and only these two.** The cheap gates get rerun constantly while the expensive ones run once, so the split keeps a slow suite from blocking fast iteration. Any other one-off gate (version bump, dependency-manifest update) folds into the nearer subsection or the file's notes — never a third subsection.
     - **`Dev loop`** — the fast, cheap gates (build → unit tests → lint/format) as a tight loop: edit → run them in order → fix what's red → rerun, never advancing past a red gate. Rerun on every change; state the exit condition plainly as *every fast gate green*.
     - **`Verification`** — the expensive, slow gates (E2E, integration, coverage), run once the dev loop is green. It's the final pre-review check and what proves the change *meets its requirement*, not merely that the harness is healthy. Conditional gates name their trigger (e.g. a suite that runs only when its subsystem changed).
@@ -51,18 +51,18 @@
 
 **Whole-file discipline:**
 
-- **Only the sections this blueprint names — a closed set.** A CLAUDE.md contains exactly the sections above and no ad-hoc ones; an unlisted heading is itself a finding. Growing the set is a deliberate edit to *this blueprint*, never a one-off in a package.
+- **Only the sections this blueprint names — a closed set.** An AGENTS.md contains exactly the sections above and no ad-hoc ones; an unlisted heading is itself a finding. Growing the set is a deliberate edit to *this blueprint*, never a one-off in a package.
   - Content that fits no section goes in **Additional notes** (capped at five); when that overflows, the overflow earns its own section here or moves to a `knowledge-*` skill — the file never sprouts an unsanctioned heading.
-- **No knowledge, no doc index** — CLAUDE.md holds operational essentials an agent needs early and often; it's never a place for knowledge or a catalogue of where knowledge lives.
-  - Per-topic knowledge belongs in on-demand `knowledge-*` skills — their descriptions self-index every session, their bodies load only when relevant — so don't inline knowledge here, and don't list skills or docs as a reference shelf (CLAUDE.md is always-loaded; conditional content is the wrong fit).
+- **No knowledge, no doc index** — AGENTS.md holds operational essentials an agent needs early and often; it's never a place for knowledge or a catalogue of where knowledge lives.
+  - Per-topic knowledge belongs in on-demand `knowledge-*` skills — their descriptions self-index every session, their bodies load only when relevant — so don't inline knowledge here, and don't list skills or docs as a reference shelf (AGENTS.md is always-loaded; conditional content is the wrong fit).
   - Pointing the agent at a skill *as a workflow step* is fine; cataloguing knowledge for browsing is not.
 - **No markdown tables** — the reader is an agent, not a human.
-  - No `|`-delimited tables anywhere in CLAUDE.md.
+  - No `|`-delimited tables anywhere in AGENTS.md.
   - Use nested bullets or short prose instead — they parse and diff cleaner and don't misalign when edited.
 
 ### ai_tools/
 
-*What good looks like: the `ai_tools/` folder is the package's runnable harness — a complete set of wrapper scripts for every common task (clean, build, test, e2e) so an agent runs one short command instead of rebuilding a long one, and the script path is always the handle. (Scope: this dimension grades the folder itself; the CLAUDE.md `## AI Tools` section that catalogs the scripts is graded by the CLAUDE.md dimension.)*
+*What good looks like: the `ai_tools/` folder is the package's runnable harness — a complete set of wrapper scripts for every common task (clean, build, test, e2e) so an agent runs one short command instead of rebuilding a long one, and the script path is always the handle. (Scope: this dimension grades the folder itself; the AGENTS.md `## AI Tools` section that catalogs the scripts is graded by the AGENTS.md dimension.)*
 
 **Shape — each tool is one script or one folder, same handle either way:**
 

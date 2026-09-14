@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location('runner', Path(__file__).resolve().parents[1] / 'evals/run_scenarios.py')
 runner = importlib.util.module_from_spec(SPEC)
@@ -35,6 +36,15 @@ class ScenarioRunnerTest(unittest.TestCase):
     def test_manifest_policy_inputs_exist(self):
         for name in runner.SUITE['policy_files']:
             self.assertTrue((runner.ROOT / name).is_file())
+
+    def test_baseline_uses_its_own_manifest_after_policy_rename(self):
+        with patch.object(runner.subprocess, 'check_output', side_effect=[
+                '{"policy_files": ["old-policy.md"]}', 'original instructions']) as read:
+            self.assertEqual(runner.read_package('old'), 'old-policy.md\noriginal instructions')
+        self.assertEqual([call.args[0] for call in read.call_args_list], [
+            ['git', 'show', 'old:evals/suite.json'],
+            ['git', 'show', 'old:old-policy.md'],
+        ])
 
 
 if __name__ == '__main__':
