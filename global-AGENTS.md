@@ -36,9 +36,7 @@ Keep inline: quick lookups, exploratory debugging where the problem isn't unders
 
 ## Codex Long-Running Work
 
-- Never busy-poll a running process or agent.
-- Use event-driven or bounded waits supported by the current tool, respecting its limits and the host's progress-update requirements. When nesting a wait, allow the outer call enough time or use its supported yield/resume mechanism.
-- Wait tools return early on completion; do not wake merely to report that work is still running.
+- Never busy-poll a running process or agent. Use a long wait that returns on activity or completion, within tool limits and progress-update requirements.
 
 ## Memory
 
