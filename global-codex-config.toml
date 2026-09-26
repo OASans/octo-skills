@@ -20,6 +20,7 @@ theme = "catppuccin-macchiato"
 [features]
 apps = false
 fast_mode = false
+image_generation = false
 memories = false
 
 [features.multi_agent_v2]
@@ -37,3 +38,7 @@ hide_rate_limit_model_nudge = true
 
 [agents]
 max_threads = 20
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = ["-y", "chrome-devtools-mcp@1.10.1", "--autoConnect", "--no-usage-statistics", "--no-performance-crux"]

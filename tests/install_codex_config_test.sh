@@ -224,9 +224,9 @@ for agent_name in octo-reviewer octo-review-verifier; do
     grep -qFx "name = \"$agent_name\"" "$agent_config"
     grep -qFx 'sandbox_mode = "read-only"' "$agent_config"
 done
-grep -qFx 'model = "gpt-5.6-sol"' "$TEST_CODEX/agents/octo-reviewer.toml"
+grep -qFx 'model = "gpt-6-sol"' "$TEST_CODEX/agents/octo-reviewer.toml"
 grep -qFx 'model_reasoning_effort = "low"' "$TEST_CODEX/agents/octo-reviewer.toml"
-grep -qFx 'model = "gpt-5.6-sol"' "$TEST_CODEX/agents/octo-review-verifier.toml"
+grep -qFx 'model = "gpt-6-sol"' "$TEST_CODEX/agents/octo-review-verifier.toml"
 grep -qFx 'model_reasoning_effort = "low"' "$TEST_CODEX/agents/octo-review-verifier.toml"
 cp "$TEST_CODEX/config.toml" "$TEST_ROOT/first-config.toml"
 grep -qFx 'name = "personal-agent"'  "$TEST_CODEX/agents/personal-agent.toml"
