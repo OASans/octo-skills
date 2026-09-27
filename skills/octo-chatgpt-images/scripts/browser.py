@@ -296,9 +296,7 @@ def download(page, src):
     return data, extensions[value['type']]
 
 
-def close_image_tab(state, observation):
-    if state['mode'] != 'images':
-        return 'kept'
+def close_completed_tab(state, observation):
     try:
         current = observe(state['page'])
         draft = composer(state['page'])
@@ -344,7 +342,7 @@ def collect(args):
         state.update(phase='complete', url=observation['url'], artifacts=artifacts)
         state.pop('error', None)
         save(run, state)
-        state['tab'] = close_image_tab(state, observation)
+        state['tab'] = close_completed_tab(state, observation)
         save(run, state)
         print(json.dumps({'phase': 'complete', 'run': str(run), 'url': state['url'],
                           'artifacts': artifacts, 'tab': state['tab']}))

@@ -175,29 +175,28 @@ class BrowserTests(unittest.TestCase):
                 browser.submit(args, MagicMock())
             mocks['click'].assert_not_called()
 
-    def test_tab_cleanup_only_closes_unchanged_images(self):
+    def test_tab_cleanup_closes_unchanged_images_and_analysis(self):
         observation = {'url': 'saved', 'users': ['Draw'], 'complete': True}
         with patch.object(browser, 'observe', return_value=observation) as observe, \
                 patch.object(browser, 'composer', return_value=dict(text='', files=[], busy=False)) as composer, \
                 patch.object(browser, 'cli') as cli:
-            self.assertEqual(browser.close_image_tab(dict(mode='analysis'), observation), 'kept')
-            observe.assert_not_called()
-            state = dict(mode='images', page=7)
-            self.assertEqual(browser.close_image_tab(state, observation), 'closed')
-            cli.assert_called_once_with('close_page', 7)
-            cli.reset_mock()
+            for mode in ('images', 'analysis'):
+                state = dict(mode=mode, page=7)
+                self.assertEqual(browser.close_completed_tab(state, observation), 'closed')
+                cli.assert_called_once_with('close_page', 7)
+                cli.reset_mock()
             for draft in (dict(text='Follow up', files=[], busy=False),
                           dict(text='', files=['ref.png'], busy=False),
                           dict(text='', files=[], busy=True)):
                 composer.return_value = draft
-                self.assertTrue(browser.close_image_tab(state, observation).startswith('kept:'))
+                self.assertTrue(browser.close_completed_tab(state, observation).startswith('kept:'))
             composer.return_value = dict(text='', files=[], busy=False)
             observe.return_value = {**observation, 'users': ['Draw', 'Follow up']}
-            self.assertTrue(browser.close_image_tab(state, observation).startswith('kept:'))
+            self.assertTrue(browser.close_completed_tab(state, observation).startswith('kept:'))
             cli.assert_not_called()
             observe.return_value = observation
             cli.side_effect = browser.BrowserError('disconnected')
-            self.assertEqual(browser.close_image_tab(state, observation), 'close failed: disconnected')
+            self.assertEqual(browser.close_completed_tab(state, observation), 'close failed: disconnected')
 
     def test_collection_saves_before_cleanup_and_preserves_tab_on_failure(self):
         url = 'https://chatgpt.com/c/6ab83f53-4ee8-83ea-b640-29791f4c725a'
@@ -211,7 +210,7 @@ class BrowserTests(unittest.TestCase):
         args.run.resolve.return_value = run
         with patch.object(browser.fcntl, 'flock'), patch('builtins.print'), \
                 patch.multiple(browser, observe=DEFAULT, network_evidence=DEFAULT,
-                               download=DEFAULT, save=DEFAULT, close_image_tab=DEFAULT) as mocks:
+                               download=DEFAULT, save=DEFAULT, close_completed_tab=DEFAULT) as mocks:
             mocks['observe'].return_value = observation
             mocks['network_evidence'].return_value = dict(chatgpt_conversation_request=True)
             mocks['download'].return_value = (b'image data', 'png')
@@ -220,14 +219,42 @@ class BrowserTests(unittest.TestCase):
                 mocks['save'].assert_called_once()
                 (run / 'image-1.png').write_bytes.assert_called_once_with(b'image data')
                 return 'closed'
-            mocks['close_image_tab'].side_effect = close
+            mocks['close_completed_tab'].side_effect = close
             browser.collect(args)
             self.assertEqual(mocks['save'].call_args.args[1]['tab'], 'closed')
-            mocks['close_image_tab'].reset_mock()
+            mocks['close_completed_tab'].reset_mock()
             mocks['download'].side_effect = browser.BrowserError('download failed')
             with self.assertRaises(browser.BrowserError):
                 browser.collect(args)
-            mocks['close_image_tab'].assert_not_called()
+            mocks['close_completed_tab'].assert_not_called()
+
+    def test_analysis_collection_saves_response_before_closing(self):
+        url = 'https://chatgpt.com/c/6ab83f53-4ee8-83ea-b640-29791f4c725a'
+        observation = dict(url=url, users=['Analyze'], streaming=False, complete=True,
+                           text='Analysis result')
+        run = MagicMock()
+        paths = {}
+        run.__truediv__.side_effect = lambda name: paths.setdefault(name, MagicMock())
+        (run / 'run.json').read_text.return_value = json.dumps(
+            dict(phase='submitted', mode='analysis', prompt='Analyze', page=7, url=url))
+        args = SimpleNamespace(run=Mock())
+        args.run.resolve.return_value = run
+        with patch.object(browser.fcntl, 'flock'), patch('builtins.print'), \
+                patch.multiple(browser, observe=DEFAULT, network_evidence=DEFAULT,
+                               save=DEFAULT, close_completed_tab=DEFAULT) as mocks:
+            mocks['observe'].return_value = observation
+            mocks['network_evidence'].return_value = dict(chatgpt_conversation_request=True)
+
+            def close(state, observation):
+                (run / 'response.md').write_text.assert_called_once_with('Analysis result\n')
+                mocks['save'].assert_called_once()
+                self.assertEqual(state['url'], url)
+                self.assertEqual(state['phase'], 'complete')
+                return 'closed'
+
+            mocks['close_completed_tab'].side_effect = close
+            browser.collect(args)
+            self.assertEqual(mocks['save'].call_args.args[1]['tab'], 'closed')
 
     def test_collect_completed_run_does_not_touch_browser_or_resend(self):
         run = MagicMock()
