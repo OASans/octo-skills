@@ -113,10 +113,14 @@ def select_model(page, mode):
     return model_proof(page, mode)
 
 
-def snapshot_uid(page, role, label):
+def snapshot_uid(page, role, label, *, allow_description=False):
     snapshot = cli('take_snapshot', page)
-    pattern = r'uid=(\S+) ' + re.escape(role) + ' ' + re.escape(json.dumps(label))
-    matches = re.findall(pattern, snapshot)
+    pattern = r'uid=(\S+) ' + re.escape(role) + r' ("(?:[^"\\\n]|\\.)*")'
+    matches = []
+    for uid, name in re.findall(pattern, snapshot):
+        name = json.loads(name)
+        if name == label or (allow_description and name.startswith(label + ' ')):
+            matches.append(uid)
     if len(matches) != 1:
         raise BrowserError(f'Expected one {label!r} control, found {len(matches)}')
     return matches[0]
@@ -136,7 +140,7 @@ def upload(page, files):
     if not files:
         return
     click(page, 'button[aria-label="Add files and more"]')
-    uid = snapshot_uid(page, 'button', 'Add photos & files')
+    uid = snapshot_uid(page, 'button', 'Add photos & files', allow_description=True)
     cli('upload_file', page, uid, *files)
     wait_until(lambda: attachments_match(files, composer(page)['files']), 60)
 

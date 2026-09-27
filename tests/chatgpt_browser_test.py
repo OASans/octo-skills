@@ -14,6 +14,31 @@ SPEC.loader.exec_module(browser)
 
 
 class BrowserTests(unittest.TestCase):
+    def test_upload_accepts_button_description_and_requires_unique_match(self):
+        with patch.object(browser, 'click'), patch.object(browser, 'cli') as cli, \
+                patch.object(browser, 'composer', return_value={'files': ['context.md']}):
+            for label in ('Add photos & files', 'Add photos & files Upload from computer'):
+                with self.subTest(label=label):
+                    cli.reset_mock()
+                    cli.return_value = f'  uid=14_132 button "{label}"\n'
+                    browser.upload(15, ['context.md'])
+                    cli.assert_any_call('upload_file', 15, '14_132', 'context.md')
+            for snapshot in ('uid=1 button "Add photos & filesOther"',
+                             'uid=1 link "Add photos & files Upload from computer"',
+                             'uid=1 button "Add photos & files"\n'
+                             'uid=2 button "Add photos & files Upload from computer"'):
+                with self.subTest(snapshot=snapshot):
+                    cli.reset_mock()
+                    cli.return_value = snapshot
+                    with self.assertRaises(browser.BrowserError):
+                        browser.upload(15, ['context.md'])
+                    self.assertFalse(any(c.args[0] == 'upload_file' for c in cli.call_args_list))
+
+    @patch.object(browser, 'cli', return_value='uid=1 textbox "Ask ChatGPT elsewhere"')
+    def test_snapshot_matching_is_exact_by_default(self, cli):
+        with self.assertRaises(browser.BrowserError):
+            browser.snapshot_uid(15, 'textbox', 'Ask ChatGPT')
+
     def test_images_accept_instant_only(self):
         browser.validate_model('images', {'text': 'Instant\nInstant, 1 of 5.', 'value': '0'})
         for proof in ({'text': '6\nPro', 'value': '4'},
