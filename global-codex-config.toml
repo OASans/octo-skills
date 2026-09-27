@@ -40,5 +40,7 @@ hide_rate_limit_model_nudge = true
 max_threads = 20
 
 [mcp_servers.chrome-devtools]
+# Browser skills share the CLI daemon instead of starting a server per agent.
+enabled = false
 command = "npx"
 args = ["-y", "chrome-devtools-mcp@1.10.1", "--autoConnect", "--no-usage-statistics", "--no-performance-crux"]

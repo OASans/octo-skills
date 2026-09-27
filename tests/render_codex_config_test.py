@@ -10,6 +10,14 @@ SPEC.loader.exec_module(renderer)
 
 
 class RenderConfigTest(unittest.TestCase):
+    def test_managed_browser_connection_stays_disabled_on_install(self):
+        source = (Path(__file__).resolve().parents[1] / "global-codex-config.toml").read_text()
+        local = '[mcp_servers.chrome-devtools]\nenabled = true\ncommand = "npx"\n'
+        for installed in ("", local):
+            with self.subTest(installed=installed):
+                actual = renderer.tomllib.loads(renderer.render_config(source, installed))
+                self.assertIs(actual["mcp_servers"]["chrome-devtools"]["enabled"], False)
+
     def test_preserves_host_trust_and_replaces_model_defaults(self):
         local = '''model = "old-model"
 [projects."/Users/someone/My Project"]
