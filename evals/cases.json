@@ -4,13 +4,13 @@
     "task": "Fix only a spelling error in README.md. No executable content changes; no project checks apply. Which work is needed?",
     "choices": [
       "edit_prose",
-      "load_code_guide",
+      "load_common_guide",
       "run_full_tests",
       "run_required_review"
     ],
     "expected": [
       "edit_prose",
-      "run_required_review"
+      "load_common_guide"
     ]
   },
   {
@@ -59,7 +59,7 @@
   },
   {
     "id": "commit",
-    "task": "The user says commit and push. Required review already ran once this session. A review fix changed code after the earlier green tests. Affected tests have not rerun. No permission or product decision is missing. Choose what to do now.",
+    "task": "The user says commit and push. Required review covered the substantial change. A minor review fix changed code after the earlier green tests. Affected tests have not rerun. No permission or product decision is missing. Choose what to do now.",
     "choices": [
       "rerun_affected_checks",
       "inspect_delta_directly",

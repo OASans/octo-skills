@@ -6,12 +6,12 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ### Before start
 - If the session-start context shows "GIT PULL FAILED", fix the git state before anything else (ask first if resolution could lose commits).
-- Read the applicable coding guides before changing source/config or planning implementation; use the documentation guide for prose changes. Load other references only when the task needs them.
+- Read `octo-coding-guide-code` before implementation or prose changes; load specialist guidance only when relevant.
 
 ### During dev
 - Branch discipline — NEVER create a branch or open a PR; you're the only worker in this checkout, so commit directly on the default branch (`main`/`master`).
 - Ownership — investigate failing checks and fix their root causes within the authorized scope. If an unrelated failure requires a separate behavior change, report the concrete blocker and finish independent work; never dismiss a failure merely as pre-existing or stash user edits.
-- Regression test — every bug fix MUST ship with a test that would have caught it, except shell scripts. Never add regression tests for shell scripts.
+- Verification — follow the common coding guide for behavior-focused checks and regression coverage; project instructions own required commands.
 
 ### Anytime
 - Input is Whisper STT — expect mistranscriptions (homophones, garbled tech terms); correct from context before acting, ask if ambiguous.
@@ -50,5 +50,5 @@ A project may have its own workflow — follow it. These are additional steps th
 
 1. `git pull` first — start from a clean, synced tree (session-start auto-pull may have done this; confirm).
 2. Run the checks appropriate to the change and all required project gates, fixing failures before proceeding. Rerun affected checks after fixes; broaden or repeat checks only for changed behavior, failures, or unresolved concerns.
-3. `/octo-review` — after checks are green, review the completed change ONCE per session, then fix its findings and rerun affected checks. The once-per-session rule also applies after review fixes or later edits; inspect later deltas directly instead of spawning another review.
+3. Inspect every change and run applicable checks. Main-agent inspection is enough for obvious, local, easily reversed changes; run `/octo-review` when requested, for substantial behavior/contract changes, concrete high-impact effects, or material unresolved correctness uncertainty. Resolve actionable in-scope findings and rerun affected checks; inspect minor fixes directly, but independently review substantial later deltas, including consequential conflict resolutions. When skipping independent review, give a brief reason.
 4. When reusable, non-obvious knowledge surfaced or the user asked to remember something, run `/octo-memory` after review findings are fixed and checks are green.

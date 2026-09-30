@@ -12,7 +12,7 @@ Rules that hold in every step:
 
 - **Same behavior.** Only how the code works changes, never what it does. A finding whose fix alters observable behavior is not a simplification.
 - **Internal boundaries can move.** Update in-scope callers and tests to use the new owner instead of preserving redundant wrappers or re-exports. Preserve external contracts; an unknown consumer is not proof that a boundary is internal.
-- **The coding guide judges.** Every finding cites a rule from the `octo-coding-guide-*` family; *Clarity Over Brevity* is the tie-breaker, so a nested ternary or dense one-liner never counts as a win.
+- **The coding guide judges.** Every finding cites relevant common or specialist guidance; prefer readability over brevity, so denser code alone never counts as a win.
 - **Numbers measure, they don't decide.** Line and file counts are reported before and after; a change is kept because it is simpler, not because the count went down.
 - **A check leaves only with proof.** Removing a guard, fallback, error path, or validation needs a cited reason it cannot trigger — the type, the invariant, or the boundary that already validated it.
 
@@ -24,7 +24,7 @@ Throughout the skill the main agent never reads code bodies or guide bodies; sub
 
 1. **Target.** No argument: changed files — `git diff HEAD --name-only` plus `??` lines from `git status --porcelain`; both empty → `git diff @{upstream}...HEAD --name-only` (no upstream → `HEAD~1..HEAD`). With a path argument: every code file under it. Drop Markdown, binaries, generated output, lockfiles, gitignored files, and symlinks. Nothing left → reply `Nothing to simplify.` and stop.
 2. **Baseline.** Record file count, `wc -l` total, and the largest file. If `lizard`, `radon`, or `cargo clippy` is installed and applies to the target language, record its complexity figure too; never install a tool.
-3. **Guides.** Discover `guide-scope` guides from the Codex skill catalog, using source copies when editing this package; keep those matching a target file and pass their paths to every finder.
+3. **Guides.** Use the common `octo-coding-guide-code` (`guide-scope: all`) and specialist guides whose glob scopes match the target files. Use source copies when editing this package and pass relevant paths to each finder.
 4. **Gate.** Take the build and test commands from the project's AGENTS.md; if it names none, use what the repo has — test scripts, `bash -n` and JSON/TOML parse checks over the target files. Establish a passing baseline, reusing successful checks from this session when the relevant code has not changed; preserve existing edits. No gate at all → apply nothing; every finding is proposed and the report says so.
 5. **Groups and coverage.** Group related files by concern, keeping likely reuse candidates together; size groups by source volume rather than file count. Aim for at most about 40 KiB of source per finder, leaving room for guides, callers, and findings; split larger groups and inspect an oversized file in bounded sections.
 
@@ -47,7 +47,7 @@ After multiple groups finish, give one finder their compact findings and reusabl
 > 3. Report a candidate only when you can name the simpler form and its cost today (what is duplicated, dead, deeper than needed, or spread across more files than needed). No nameable gain, no finding; a helper that replaces one-liners and leaves the code longer is not a gain.
 > 4. Tier each finding: **safe** — behavior and external contracts are provably identical and the change stays within the authorized scope; **approval** — requires an unresolved behavioral decision, expands scope, or risks an externally visible effect. File merges or removal of proven unreachable code can be safe, but require independent verification before application. An approval finding must include its proof: the type, invariant, guard, or caller that makes the code unnecessary.
 >
-> Never flag: style not written in a guide; a check at a system boundary (user input, external API, file, network); code a linter or compiler already reports; a pattern seen fewer than three times as duplication.
+> Never flag: style not written in a guide; a check at a system boundary (user input, external API, file, network); code a linter or compiler already reports.
 >
 > Return at most 10 findings, largest gain first, each as `file:line — [tier] [<Guide rule>] current → simpler form — gain — evidence`. With no findings, say `No simplifications found.`; always append inspected/partial/pending paths and a short list of reusable patterns with locations for the cross-group check.
 
@@ -79,11 +79,11 @@ Unused functions, types, imports, parameters, and config; unreachable branches; 
 
 ### Duplication & reuse
 
-The same pattern three or more times → one helper; near-duplicate functions merged into one with a parameter; new code that re-implements a helper the codebase already has. Name the helper to call or create.
+Shared rules that can diverge → one owner; near-duplicate functions merged when they express the same contract; new code that re-implements an existing helper. Name the maintenance gain and the helper to call or create; repetition count alone does not justify extraction.
 
 ### Structure
 
-Tiny files merged into their only consumer; files over 500 lines split by concern; one-use abstractions collapsed — an interface with a single implementation, a factory that builds one thing, a function that only forwards to another; deep nesting flattened with early returns. Name the resulting file layout.
+Merge or split files where responsibility boundaries become clearer; collapse abstractions that add no useful boundary; flatten confusing nesting. Name the concrete gain and resulting layout; size or caller count alone does not justify restructuring.
 
 ### Altitude
 

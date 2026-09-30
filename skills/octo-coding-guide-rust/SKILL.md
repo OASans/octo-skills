@@ -9,21 +9,7 @@ description: >
 
 # Rust Guide
 
-> **Guide family.** This is one guide in a family of scoped guides (`octo-coding-guide-*`),
-> each carrying a `guide-scope` in its frontmatter that says which changed files it
-> covers. This guide's scope is `**/*.rs` — it adds Rust-specific rules on top of the
-> general `octo-coding-guide-code` (scope `code`), which a Rust change is also reviewed
-> against. Keep this guide to Rust specifics only; general code quality lives in the
-> coding guide.
->
-> **Structure contract.** Each `##` section below is a self-contained *review
-> domain*: a single coherent focus, reviewable **only** against the rules within it,
-> with no overlap onto another domain. `###` headings are rule groups inside a domain.
-> Keep the `*Review focus:*` line accurate — it states the domain's one job in a sentence.
-
-## Rust Guidance
-
-*Review focus: where the change touches Rust, does it follow this codebase's conventions for test layout, pattern matching, global state, and module layout?*
+Use alongside the common coding guide when changing Rust.
 
 ### Test Layout
 

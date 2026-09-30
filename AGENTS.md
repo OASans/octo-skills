@@ -18,24 +18,23 @@ Codex skills and config, available in ALL projects once installed.
 
 | Skill | Type | Description |
 |-------|------|-------------|
-| `/octo-coding-guide-code` | Reference (guide) | Code quality standards. `guide-scope: code` — source, config, build scripts |
+| `/octo-coding-guide-code` | Reference (guide) | Common implementation, verification, and documentation rules. `guide-scope: all` |
 | `/octo-coding-guide-rust` | Reference (guide) | Rust-specific conventions. `guide-scope: **/*.rs` |
-| `/octo-coding-guide-doc` | Reference (guide) | Documentation bar — compact, self-contained, correct. `guide-scope: **/*.md` |
-| `/octo-review` | Workflow | Code review; discovers the `octo-coding-guide-*` family, fans out parallel reviewers over the guides the diff touches, then verifies bug claims before reporting |
+| `/octo-review` | Workflow | One holistic reviewer when independent review is needed; one verifier for concrete failure claims |
 | `/octo-commit` | Workflow | Primary commit path: verify the AGENTS.md workflow was followed, then write a meaningful + compact commit. Never pushes |
-| `/octo-simplify` | Workflow (on request) | Simplify code for the same behavior: fans out finders over its `###` angles, verifies removal claims, applies safe changes under the build/test gate, proposes risky ones for approval. Only on explicit user request; never auto-runs |
+| `/octo-simplify` | Workflow (on request) | Simplify code for the same behavior using bounded file groups, verified findings, and relevant checks. Only on explicit user request |
 | `/octo-blueprint` | Blueprint | Definition of a good AI-agent-native package + a review that grades the current package and returns action items. Explicitly-invoked only; never auto-runs. One parallel sub-agent per `###` blueprint dimension |
 | `/octo-memory` | Memory | Capture durable learnings in the short-term buffer |
 | `/octo-memory-long-term` | Memory (manual) | User-only consolidation of short-term captures into long-term topics |
 
 ## Skill Relationships
 
-- The `octo-coding-guide-*` skills (`octo-coding-guide-code`, `octo-coding-guide-rust`, `octo-coding-guide-doc`, …) are a **family of scoped review guides**. Each declares a `guide-scope` in frontmatter (which changed files it covers) and holds one or more `##` review domains. Scopes may overlap (a `.rs` change is reviewed by both the coding guide and the Rust guide); Markdown is reviewed by the doc guide only, never the code guides. Keep each guide to its own scope — don't duplicate another guide's rules.
-- `/octo-review` is **structure-driven by the guide family**: it discovers every skill with a `guide-scope` frontmatter key, keeps the guides whose scope the diff touches, and fans out read-only reviewer sub-agents over their `##` domains — one per domain on large diffs, one per guide on small ones (criteria partitioned, no overlap). Findings that claim a runtime failure are then checked together by at most one independent verifier sub-agent before reporting. Adding a `##` domain to a guide — or adding a whole new `octo-coding-guide-*` skill — grows the review with no edit to `/octo-review`. Keep `##` domains coherent and their `*Review focus:*` line accurate.
-- `/octo-commit` is **structure-driven by AGENTS.md's `## Workflow`**: it verifies every workflow step (e.g. `/octo-review`, `/octo-memory`) was followed before committing, and completes missing authorized steps before committing. Add a step to the workflow and `/octo-commit` enforces it with no edit here. It is the primary commit path and never pushes.
-- `/octo-memory` owns selective capture and corrections to encountered stale topics. `/octo-memory-long-term` owns recurrence-based promotion and maintenance, and runs only when explicitly invoked by a human.
-- `/octo-simplify` is the **fixing counterpart of `/octo-review`**: both judge against the `octo-coding-guide-*` family, but review reports and simplify edits. Because it deletes code it runs only on explicit user request (stated in its description, so an agent can invoke it when asked) and stays out of the `## Workflow`; its output is reviewed by `/octo-review` like any other change. Structure-driven by its own `###` angles — one finder each on a large target, one finder for all on a small one.
-- `/octo-blueprint` is **explicitly-invoked only** — configured by `agents/openai.yaml` policy (the agent can't auto-invoke it; a human runs `/octo-blueprint`), so it is never part of the `## Workflow`. Its entrypoint carries the workflow and routes graders to `references/blueprint.md`, organized as `###` dimensions. Like `/octo-review` it is **structure-driven**, but by its own `###` dimensions rather than the coding guide: each dimension is one grading domain graded by one dedicated sub-agent (partitioned, no overlap), so adding a `###` dimension adds a grading agent with no edit to the steps. Where `/octo-review` grades a code diff against the `octo-coding-guide-*` family, this grades a whole package against the blueprint; dimensions are filled in over time as `###` sections.
+- `octo-coding-guide-code` is the common entrypoint, including documentation rules. Specialist guides such as `octo-coding-guide-rust` add guidance only for their `guide-scope`; headings never determine agent count.
+- `/octo-review` defaults to one reviewer across the change and relevant guidance, with at most one independent verifier for failure claims. Global instructions own review triggers and freshness.
+- `/octo-commit` enforces the merged AGENTS.md workflow, completes missing authorized steps, and checks that required review/checks cover the current change. It never pushes without user authorization.
+- `/octo-memory` owns selective capture and corrections to encountered stale topics. `/octo-memory-long-term` owns consolidation and runs only when explicitly invoked by a human.
+- `/octo-simplify` edits only on explicit request, using the same quality guidance as review. Its own workflow partitions work by bounded file groups; it is not an automatic development step.
+- `/octo-blueprint` is explicit-only via `agents/openai.yaml`. It grades a whole package against `references/blueprint.md`, with one agent per `###` dimension; it is not part of the development workflow.
 
 ## Editing Skills
 
