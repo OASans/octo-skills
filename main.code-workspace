@@ -21,16 +21,8 @@
 			"path": "../fin-3"
 		},
 		{
-			"name": "fin-4",
-			"path": "../fin-4"
-		},
-		{
-			"name": "fin-5",
-			"path": "../fin-5"
-		},
-		{
-			"name": "fin-6",
-			"path": "../fin-6"
+			"name": "beam",
+			"path": "../octo-beam"
 		},
 		{
 			"name": "octofin-research",
