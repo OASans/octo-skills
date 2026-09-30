@@ -2,7 +2,7 @@
 
 Run `python3 evals/run_scenarios.py --baseline <git-revision>` from this checkout with a logged-in Codex CLI. The baseline revision must contain `evals/suite.json`; each revision supplies its own policy paths so file renames remain comparable. This opt-in check compares baseline and working instructions using the primary and reviewer models/efforts from the current source configs, with at most two requests running concurrently; these currently resolve to Astra/medium and Sol/low.
 
-The seven scenarios cover a prose fix, a bug with regression coverage, coupled simplification, a concrete review defect, commit prerequisites, an ambiguous data-policy choice, and syncing with unrelated user edits. `suite.json` defines the policy fixture and case file; extend it when a new scenario needs another instruction source. Models select actions from each scenario's choices; expected answers stay outside the model prompt.
+The ten scenarios cover a prose fix, a bug with regression coverage, coupled simplification, a concrete review defect, commit prerequisites, an ambiguous data-policy choice, syncing with unrelated user edits, browser Deep Research routing, uncertain submission recovery, and uploaded-package verification. `suite.json` defines the policy fixture and case file; extend it when a new scenario needs another instruction source. Models select actions from each scenario's choices; expected answers stay outside the model prompt.
 
 The runner uses isolated Codex homes, read-only sandboxes, and temporary links to the existing login, removed after each run. Disposable traces and a machine-readable summary stay under the gitignored `.eval-workspace/`; do not publish raw traces or credentials. The runner uses the installer's Python/TOML parser requirements.
 

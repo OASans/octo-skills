@@ -2,7 +2,7 @@
 """Submit and collect ChatGPT website jobs through Google's Chrome DevTools CLI.
 
 Start writes a run directory before sending; collect never sends or retries a job.
-Requires chrome-devtools (chrome-devtools-mcp package) and connected Linux Chrome.
+Requires chrome-devtools (chrome-devtools-mcp package) and signed-in Chrome on Linux or macOS.
 """
 import argparse
 import base64
@@ -31,9 +31,10 @@ def cli(*args):
     return result.stdout
 
 
-def evaluate(page, body):
-    message = cli('evaluate_script', 'async () => {' + body + '}', '--pageId', page,
-                  '--waitForStableDom', 'false')
+def evaluate(page, body, *, uid=None):
+    args = ('--args', uid) if uid else ()
+    message = cli('evaluate_script', 'async (root) => {' + body + '}', '--pageId', page,
+                  '--waitForStableDom', 'false', *args)
     match = re.search(r'```json\n(.*?)\n```', message, re.S)
     if not match:
         raise BrowserError(message)
@@ -166,6 +167,36 @@ def verify_draft(draft, prompt, files):
         raise BrowserError('Composer attachments do not match the intended files')
 
 
+def research_proof(page):
+    return evaluate(page, '''const e=document.querySelector('[role=textbox][contenteditable=true]');
+      return [...e.querySelectorAll('[app-mention-path]')].map(m=>({
+        name:m.getAttribute('app-mention-name'), path:m.getAttribute('app-mention-path'),
+        label:m.getAttribute('app-mention-display-name')}));''')
+
+
+def validate_research(proof):
+    if proof != [{'name': 'deep-research', 'path': 'app://connector_openai_deep_research',
+                  'label': 'Deep research'}]:
+        raise BrowserError('Deep Research plugin is not selected; nothing will be sent')
+
+
+def select_research(page):
+    click(page, 'button[aria-label="Add files and more"]')
+    uid = snapshot_uid(page, 'button', 'Deep research', allow_description=True)
+    cli('click', page, uid)
+    proof = wait_until(lambda: research_proof(page))
+    validate_research(proof)
+    return proof
+
+
+def verify_research_draft(draft, prompt, files):
+    # The UI inserts its chip at the current caret, at either end of our filled prompt.
+    expected = (prompt.strip() + '\nDeep research', 'Deep research ' + prompt.strip())
+    if draft.get('text') not in expected:
+        raise BrowserError('Research composer does not match the requested prompt')
+    verify_draft(draft, draft['text'], files)
+
+
 def request_model(page, request_id):
     data = json.loads(cli('get_network_request', page, '--reqid', request_id,
                           '--output-format=json'))['networkRequest']['requestBody']
@@ -176,7 +207,8 @@ def request_model(page, request_id):
 def validate_request_model(mode, model):
     if not isinstance(model, str) or not model:
         raise BrowserError('No model identifier in captured browser submission')
-    valid = model == 'gpt-6-pro' if mode == 'analysis' else 'pro' not in model.lower()
+    valid = (mode == 'research' or
+             (model == 'gpt-6-pro' if mode == 'analysis' else 'pro' not in model.lower()))
     if not valid:
         raise BrowserError(f'Unexpected submitted model for {mode}: {model}')
 
@@ -216,12 +248,75 @@ def observe(page):
           .map(i=>({alt:i.alt,src:i.currentSrc||i.src,width:i.naturalWidth,height:i.naturalHeight}))};''')
 
 
+def research_root_uid(snapshot):
+    frames = list(re.finditer(r'(?m)^( *)uid=\S+ Iframe "Deep research"\s*$', snapshot))
+    if len(frames) > 1:
+        raise BrowserError('Multiple research widgets; cannot identify the original task')
+    if not frames:
+        return None
+    frame = frames[0]
+    for line in snapshot[frame.end():].splitlines():
+        match = re.match(r'( *)uid=(\S+) (\S+)', line)
+        if not match:
+            continue
+        if len(match[1]) <= len(frame[1]):
+            break
+        if match[3] == 'main':
+            return match[2]
+    return None
+
+
+def observe_research(page):
+    uid = research_root_uid(cli('take_snapshot', page))
+    if not uid:
+        return {'phase': 'waiting', 'text': '', 'complete': False}
+    data = evaluate(page, r'''const buttons=[...root.querySelectorAll('button')]
+      .map(b=>b.getAttribute('aria-label')||b.innerText.trim());
+      const pages=[...root.querySelectorAll('[class*="_reportPage_"]')];
+      return {status:root.innerText, text:pages.map(p=>p.innerText).join('\n\n'), buttons,
+        links:pages.flatMap(p=>[...p.querySelectorAll('a[href]')])
+          .filter(a=>/^https?:/.test(a.href)).map(a=>({title:a.innerText.trim(),url:a.href}))};''', uid=uid)
+    data['complete'] = research_finished(data)
+    data['phase'] = ('complete' if data['complete'] else
+                     'researching' if 'Stop research' in data['buttons'] else
+                     'awaiting_plan' if any(b.startswith('Start') for b in data['buttons']) else 'needs_input')
+    return data
+
+
+def research_finished(data):
+    return bool(re.match(r'^Research completed in\b', data['status']) and data['text'] and
+                'Export' in data['buttons'] and 'Stop research' not in data['buttons'])
+
+
+def observe_run(page, mode):
+    observation = observe(page)
+    if mode == 'research':
+        research = observation['research'] = observe_research(page)
+        if (research['phase'] == 'waiting' and observation['complete'] and
+                not observation['streaming'] and observation['text']):
+            research['phase'] = 'needs_input'
+        observation['research_complete'] = research['complete']
+        if research['complete']:
+            observation['text'] = research['text']
+    return observation
+
+
 def conversation_url(url):
     return url if re.fullmatch(r'https://chatgpt\.com/c/[0-9a-f-]{36}', url) else None
 
 
+def prompt_visible(state, observation):
+    expected = state.get('submitted_prompt', state['prompt'])
+    users = observation['users']
+    if state.get('mode') == 'research':
+        # The rendered plugin chip adds a line break absent from the composer.
+        expected = ' '.join(expected.split())
+        users = [' '.join(text.split()) for text in users]
+    return expected in users
+
+
 def verify_conversation(state, observation):
-    if state['prompt'] not in observation['users']:
+    if not prompt_visible(state, observation):
         raise BrowserError('Cannot confirm original prompt in this tab; never resend automatically')
     previous = conversation_url(state.get('url') or '')
     if previous and previous != observation['url']:
@@ -262,20 +357,33 @@ def submit(args, run):
         draft = composer(page)
         if draft['text'] or draft['files']:
             raise BrowserError('Existing browser draft preserved; clear it before starting a new run')
-        state['model'] = select_model(page, args.mode)
+        if args.mode != 'research':
+            state['model'] = select_model(page, args.mode)
         upload(page, files)
         uid = snapshot_uid(page, 'textbox', 'Ask ChatGPT')
         cli('fill', page, uid, prompt)
+        if args.mode == 'research':
+            state['research'] = select_research(page)
         wait_until(lambda: composer(page)['send'] and not composer(page)['busy'], 60)
-        state['model'] = model_proof(page, args.mode)
-        verify_draft(composer(page), prompt, files)
+        if args.mode == 'research':
+            state['research'] = research_proof(page)
+            validate_research(state['research'])
+            draft = composer(page)
+            verify_research_draft(draft, prompt, files)
+            state['submitted_prompt'] = draft['text']
+        else:
+            state['model'] = model_proof(page, args.mode)
+            verify_draft(composer(page), prompt, files)
         state['phase'] = 'sending'
         save(run, state)  # A timeout after this point must never trigger a resend.
         click(page, 'button[aria-label="Send"]')
-        wait_until(lambda: prompt in observe(page)['users'], 30)
+        wait_until(lambda: prompt_visible(state, observe(page)), 30)
         state.update(phase='submitted', url=conversation_url(observe(page)['url']))
         save(run, state)
-        print(json.dumps({'phase': state['phase'], 'run': str(run), 'url': state['url'], 'model': state['model']}))
+        result = {'phase': state['phase'], 'run': str(run), 'url': state['url']}
+        key = 'research' if args.mode == 'research' else 'model'
+        result[key] = state[key]
+        print(json.dumps(result))
     except Exception as error:
         state['error'] = str(error)
         save(run, state)
@@ -283,7 +391,11 @@ def submit(args, run):
 
 
 def is_finished(mode, observation):
-    if observation.get('streaming') or not observation.get('complete'):
+    if observation.get('streaming'):
+        return False
+    if mode == 'research':
+        return bool(observation.get('research_complete') and observation.get('text'))
+    if not observation.get('complete'):
         return False
     return bool(observation.get('images') if mode == 'images' else observation.get('text'))
 
@@ -302,7 +414,7 @@ def download(page, src):
 
 def close_completed_tab(state, observation):
     try:
-        current = observe(state['page'])
+        current = observe_run(state['page'], state['mode'])
         draft = composer(state['page'])
         if (current != observation or draft['text'] or draft['files'] or draft['busy']):
             return 'kept: tab changed after collection'
@@ -323,10 +435,15 @@ def collect(args):
         if state['phase'] not in ('sending', 'submitted'):
             raise BrowserError('Run was not submitted; inspect the preserved browser tab')
         page = state['page']
-        observation = observe(page)
+        observation = observe_run(page, state['mode'])
         verify_conversation(state, observation)
         if not conversation_url(observation['url']) or not is_finished(state['mode'], observation):
-            print(json.dumps({'phase': 'pending', 'run': str(run), 'url': observation['url']}))
+            result = {'phase': 'pending', 'run': str(run), 'url': observation['url']}
+            if state['mode'] == 'research':
+                research = observation['research']
+                result['research_phase'] = research['phase']
+                result['progress'] = research.get('status') or research['text'] or observation['text']
+            print(json.dumps(result))
             return
         evidence = network_evidence(page, state['mode'])
         if not evidence['chatgpt_conversation_request']:
@@ -341,7 +458,16 @@ def collect(args):
                 artifacts.append({'file': path.name, 'sha256': hashlib.sha256(data).hexdigest(),
                                   'width': item['width'], 'height': item['height']})
         else:
-            (run / 'response.md').write_text(observation['text'] + '\n')
+            response = observation['text']
+            if state['mode'] == 'research':
+                sources = observation['research']['links']
+                (run / 'sources.json').write_text(json.dumps(sources, indent=2) + '\n')
+                artifacts.append({'file': 'sources.json'})
+                if sources:
+                    response += '\n\nSource links\n\n' + '\n'.join(
+                        f'- [{s["title"] or s["url"]}]({s["url"]})' for s in sources)
+                response += '\n\nConversation: ' + observation['url']
+            (run / 'response.md').write_text(response + '\n')
             artifacts.append({'file': 'response.md'})
         state.update(phase='complete', url=observation['url'], artifacts=artifacts)
         state.pop('error', None)
@@ -356,7 +482,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
     send = sub.add_parser('start')
-    send.add_argument('mode', choices=['images', 'analysis'])
+    send.add_argument('mode', choices=['images', 'analysis', 'research'])
     send.add_argument('--prompt', type=Path, required=True)
     send.add_argument('--attach', type=Path, action='append', default=[])
     send.add_argument('--run', type=Path, required=True)

@@ -106,5 +106,49 @@
       "preserve_unrelated_edits",
       "report_sync_blocker"
     ]
+  },
+  {
+    "id": "browser_research",
+    "task": "The user explicitly asks for one ChatGPT browser Deep Research report with an attached project package. The browser plugin is available; the brief is complete. Which actions fit this request?",
+    "choices": [
+      "prepare_question_and_relevant_artifacts",
+      "use_browser_research_mode",
+      "use_pro_analysis_instead",
+      "use_api_research_instead",
+      "collect_one_cited_report"
+    ],
+    "expected": [
+      "prepare_question_and_relevant_artifacts",
+      "use_browser_research_mode",
+      "collect_one_cited_report"
+    ]
+  },
+  {
+    "id": "research_send_timeout",
+    "task": "A browser Deep Research start timed out after run.json entered the sending phase. The tab is preserved and it is unclear whether the question was sent. What should you do?",
+    "choices": [
+      "inspect_saved_run_and_tab",
+      "collect_same_run",
+      "start_duplicate_task",
+      "switch_to_api"
+    ],
+    "expected": [
+      "inspect_saved_run_and_tab",
+      "collect_same_run"
+    ]
+  },
+  {
+    "id": "research_package_verification",
+    "task": "A finished browser Deep Research report says it could not read the uploaded ZIP, and does not reproduce the hidden verification marker inside it. No further research task was authorized. What should you do?",
+    "choices": [
+      "save_report_and_conversation_link",
+      "report_unreadable_package",
+      "claim_package_based_analysis",
+      "start_another_task_automatically"
+    ],
+    "expected": [
+      "save_report_and_conversation_link",
+      "report_unreadable_package"
+    ]
   }
 ]

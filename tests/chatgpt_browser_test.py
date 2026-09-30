@@ -14,6 +14,70 @@ SPEC.loader.exec_module(browser)
 
 
 class BrowserTests(unittest.TestCase):
+    def test_research_selection_requires_the_actual_plugin(self):
+        proof = [{'name': 'deep-research', 'path': 'app://connector_openai_deep_research',
+                  'label': 'Deep research'}]
+        browser.validate_research(proof)
+        for wrong in ([], [{**proof[0], 'path': 'app://another_plugin'}], proof * 2):
+            with self.subTest(proof=wrong), self.assertRaises(browser.BrowserError):
+                browser.validate_research(wrong)
+
+    def test_research_draft_preserves_prompt_and_attachment_checks(self):
+        for text in ('Deep research Research this', 'Research this\nDeep research'):
+            draft = dict(text=text, files=['artifacts.zip'], send=True, busy=False)
+            browser.verify_research_draft(draft, 'Research this', ['artifacts.zip'])
+            for change in ({'text': 'Deep research A different question'}, {'files': []},
+                           {'busy': True}, {'send': False}):
+                with self.subTest(change=change), self.assertRaises(browser.BrowserError):
+                    browser.verify_research_draft({**draft, **change}, 'Research this', ['artifacts.zip'])
+
+    def test_research_submission_recovers_rendered_plugin_line_break(self):
+        state = dict(mode='research', prompt='Research this', submitted_prompt='Deep research Research this')
+        observation = dict(users=['Deep research\n Research this'], url='https://chatgpt.com/')
+        browser.verify_conversation(state, observation)
+        with self.assertRaises(browser.BrowserError):
+            browser.verify_conversation(state, {**observation, 'users': ['Deep research Research something else']})
+
+    def test_research_acknowledgment_is_not_a_finished_report(self):
+        acknowledgment = dict(streaming=False, complete=True, text='Research has started')
+        self.assertFalse(browser.is_finished('research', acknowledgment))
+        self.assertFalse(browser.is_finished('research', {**acknowledgment, 'research_complete': False}))
+        self.assertTrue(browser.is_finished('research', {**acknowledgment, 'research_complete': True}))
+        self.assertFalse(browser.is_finished('research', {
+            **acknowledgment, 'research_complete': True, 'streaming': True}))
+
+    def test_research_completion_requires_finished_widget_and_report(self):
+        data = dict(status='Research completed in 1m', text='Cited report', buttons=['Export'])
+        self.assertTrue(browser.research_finished(data))
+        for change in ({'status': 'Researching...'}, {'text': ''}, {'buttons': []},
+                       {'buttons': ['Export', 'Stop research']}):
+            with self.subTest(change=change):
+                self.assertFalse(browser.research_finished({**data, **change}))
+
+    def test_research_clarification_without_widget_needs_input(self):
+        acknowledgment = dict(complete=True, streaming=False, text='Which country?')
+        with patch.object(browser, 'observe', return_value=acknowledgment), \
+                patch.object(browser, 'observe_research', return_value=dict(
+                    phase='waiting', complete=False, text='')):
+            observation = browser.observe_run(7, 'research')
+        self.assertEqual(observation['research']['phase'], 'needs_input')
+        self.assertFalse(browser.is_finished('research', observation))
+
+    def test_research_root_is_scoped_to_one_named_iframe(self):
+        snapshot = ('uid=1 main\n'
+                    '  uid=2 Iframe "Another plugin"\n'
+                    '    uid=3 main\n'
+                    '  uid=4 Iframe "Deep research"\n'
+                    '    uid=5 RootWebArea "sandbox"\n'
+                    '      uid=6 Iframe\n'
+                    '        uid=7 main\n'
+                    '  uid=8 main\n')
+        self.assertEqual(browser.research_root_uid(snapshot), '7')
+        self.assertIsNone(browser.research_root_uid('uid=1 main\n'))
+        self.assertIsNone(browser.research_root_uid('uid=1 Iframe "Deep research"\nuid=2 main\n'))
+        with self.assertRaises(browser.BrowserError):
+            browser.research_root_uid(snapshot + '  uid=9 Iframe "Deep research"\n    uid=10 main\n')
+
     def test_upload_accepts_button_description_and_requires_unique_match(self):
         with patch.object(browser, 'click'), patch.object(browser, 'cli') as cli, \
                 patch.object(browser, 'composer', return_value={'files': ['context.md']}):
@@ -275,6 +339,42 @@ class BrowserTests(unittest.TestCase):
                 mocks['save'].assert_called_once()
                 self.assertEqual(state['url'], url)
                 self.assertEqual(state['phase'], 'complete')
+                return 'closed'
+
+            mocks['close_completed_tab'].side_effect = close
+            browser.collect(args)
+            self.assertEqual(mocks['save'].call_args.args[1]['tab'], 'closed')
+
+    def test_research_collection_saves_report_and_sources_before_closing(self):
+        url = 'https://chatgpt.com/c/6ab83f53-4ee8-83ea-b640-29791f4c725a'
+        observation = dict(url=url, users=['Deep research\n Research this'], streaming=False,
+                           complete=True, text='Research started')
+        sources = [dict(title='Official source', url='https://example.com/source')]
+        research = dict(phase='complete', complete=True, text='Final research report', links=sources)
+        run = MagicMock()
+        paths = {}
+        run.__truediv__.side_effect = lambda name: paths.setdefault(name, MagicMock())
+        (run / 'run.json').read_text.return_value = json.dumps(dict(
+            phase='sending', mode='research', prompt='Research this',
+            submitted_prompt='Deep research Research this', page=7, url=None))
+        args = SimpleNamespace(run=Mock())
+        args.run.resolve.return_value = run
+        with patch.object(browser.fcntl, 'flock'), patch('builtins.print'), \
+                patch.multiple(browser, observe=DEFAULT, observe_research=DEFAULT,
+                               network_evidence=DEFAULT, save=DEFAULT, close_completed_tab=DEFAULT) as mocks:
+            mocks['observe'].return_value = observation
+            mocks['observe_research'].return_value = research
+            mocks['network_evidence'].return_value = dict(chatgpt_conversation_request=True)
+
+            def close(state, observation):
+                content = (run / 'response.md').write_text.call_args.args[0]
+                self.assertIn('Final research report', content)
+                self.assertIn('[Official source](https://example.com/source)', content)
+                self.assertIn(url, content)
+                self.assertNotIn('Research started', content)
+                self.assertEqual(json.loads((run / 'sources.json').write_text.call_args.args[0]), sources)
+                self.assertEqual(state['phase'], 'complete')
+                mocks['save'].assert_called_once()
                 return 'closed'
 
             mocks['close_completed_tab'].side_effect = close
