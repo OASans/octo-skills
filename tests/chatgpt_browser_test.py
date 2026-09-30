@@ -1,8 +1,12 @@
 """Browser helper safety contracts; real UI behavior is exercised separately."""
 import importlib.util
+import html
 import json
 from pathlib import Path
+import re
+import shutil
 import subprocess
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
@@ -11,6 +15,105 @@ PATH = Path(__file__).resolve().parents[1] / 'skills/octo-chatgpt-images/scripts
 SPEC = importlib.util.spec_from_file_location('chatgpt_browser', PATH)
 browser = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(browser)
+
+
+class BrowserDOMTests(unittest.TestCase):
+    """Exercise the observer against synthetic DOMs in isolated, offline Chrome."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.chrome = (shutil.which('google-chrome') or shutil.which('chromium') or
+                      shutil.which('chromium-browser'))
+        if not cls.chrome:
+            raise unittest.SkipTest('Offline DOM regression checks require Chrome or Chromium')
+
+    def observe_html(self, markup):
+        def evaluate_fixture(page, body):
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                fixture = root / 'conversation.html'
+                fixture.write_text('<!doctype html><meta charset="utf-8">' + markup +
+                    '<pre id="result"></pre><script>window.addEventListener("load", async () => {'
+                    'try { const result = await (async () => {' + body + '})();'
+                    'document.getElementById("result").textContent = JSON.stringify(result);'
+                    '} catch(error) { document.getElementById("result").textContent = '
+                    'JSON.stringify({error: String(error)}); }});</script>')
+                result = subprocess.run([self.chrome, '--headless', '--no-sandbox', '--disable-gpu',
+                    '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
+                    '--user-data-dir=' + str(root / 'profile'), '--dump-dom', fixture.as_uri()],
+                    capture_output=True, text=True, timeout=30)
+                self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+                output = re.search(r'<pre id="result">(.*?)</pre>', result.stdout, re.S)
+                self.assertIsNotNone(output, result.stdout)
+                value = json.loads(html.unescape(output[1]))
+                self.assertNotIn('error', value)
+                return value
+        with patch.object(browser, 'evaluate', side_effect=evaluate_fixture):
+            return browser.observe(1)
+
+    def image(self, label='Generated image 1'):
+        return (f'<img alt="{label}" width="2" height="2" '
+                'src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">')
+
+    def test_collapsed_prompt_matches_without_show_more_control(self):
+        prompt = 'Extract the character.\n\nKeep every important detail.'
+        observation = self.observe_html('<main><div><h4>You said:</h4>'
+            '<div data-user-message-bubble><div data-search-result-target style="max-height:20px;overflow:hidden">'
+            f'<div dir="auto" style="white-space:pre-wrap">{prompt}</div></div>'
+            '<button>Show more</button></div></div><div><h4>ChatGPT said:</h4>' +
+            self.image() + '<button aria-label="Copy image"></button></div></main>')
+        self.assertEqual(observation['users'], [prompt])
+        self.assertTrue(browser.prompt_visible(dict(prompt=prompt), observation))
+        self.assertTrue(browser.is_finished('images', observation))
+        self.assertEqual(len(observation['images']), 1)
+
+    def test_rendered_research_chip_keeps_its_text_and_block_separator(self):
+        observation = self.observe_html('<main><div><h4>You said:</h4>'
+            '<div data-user-message-bubble><div data-search-result-target>'
+            '<div>Deep research</div><div dir="auto">Research this</div></div>'
+            '<button>Show more</button></div></div></main>')
+        state = dict(mode='research', prompt='Research this',
+                     submitted_prompt='Deep research Research this')
+        self.assertTrue(browser.prompt_visible(state, observation))
+
+    def test_current_assistant_text_is_collected_without_role_attributes(self):
+        observation = self.observe_html('<main><div><h4>You said:</h4>'
+            '<div data-user-message-bubble><div dir="auto">Analyze</div></div></div>'
+            '<div><h4>ChatGPT said:</h4><p>The completed answer.</p>'
+            '<button aria-label="Copy"></button></div></main>')
+        self.assertEqual(observation['text'], 'The completed answer.')
+        self.assertTrue(browser.is_finished('analysis', observation))
+
+    def test_completion_toolbar_can_follow_the_reply_outside_its_block(self):
+        observation = self.observe_html('<main><div><div><h4>ChatGPT said:</h4>' +
+            self.image() + '</div><div><button aria-label="Copy image"></button>'
+            '</div></div></main>')
+        self.assertTrue(browser.is_finished('images', observation))
+
+    def test_old_images_and_completion_do_not_finish_a_new_reply(self):
+        for latest in ('<div><h4>You said:</h4><div data-user-message-bubble>Revise</div></div>',
+                       '<div><h4>ChatGPT said:</h4><p>Generating...</p></div>'):
+            with self.subTest(latest=latest):
+                observation = self.observe_html('<main><div><h4>ChatGPT said:</h4>' +
+                    self.image() + '<button aria-label="Copy image"></button></div>' + latest +
+                    '</main><div role="status">Response complete</div>')
+                self.assertEqual(observation['images'], [])
+                self.assertFalse(browser.is_finished('images', observation))
+
+    def test_legacy_reply_and_hidden_controls_are_supported(self):
+        observation = self.observe_html('<main><div data-message-author-role="user">'
+            '<div data-user-message-bubble>Draw</div></div>'
+            '<div data-conversation-role="assistant">Done' + self.image() +
+            '<button aria-label="Copy"></button></div>'
+            '<div data-conversation-role="assistant" style="display:none">Hidden reply</div>'
+            '</main><button aria-label="Stop" style="display:none"></button>')
+        self.assertEqual(observation['users'], ['Draw'])
+        self.assertEqual(observation['text'], 'Done')
+        self.assertTrue(browser.is_finished('images', observation))
+        streaming = self.observe_html('<main><div><h4>ChatGPT said:</h4>' + self.image() +
+            '<button aria-label="Copy image"></button></div></main>'
+            '<button aria-label="Stop streaming"></button>')
+        self.assertFalse(browser.is_finished('images', streaming))
 
 
 class BrowserTests(unittest.TestCase):

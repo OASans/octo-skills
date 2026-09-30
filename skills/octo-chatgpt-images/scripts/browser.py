@@ -238,13 +238,33 @@ def network_evidence(page, mode):
 
 
 def observe(page):
-    return evaluate(page, '''const turns=[...document.querySelectorAll('[data-conversation-role="assistant"]')];
-      const main=document.querySelector('main'); const last=turns.at(-1)?.parentElement;
-      return {url:location.href, users:[...document.querySelectorAll('[data-user-message-bubble]')]
-        .map(e=>e.innerText.trim()), text:last?.innerText || '',
-        streaming:!!document.querySelector('button[data-testid="stop-button"],button[aria-label="Stop streaming"],button[aria-label="Stop"]'),
-        complete:[...document.querySelectorAll('[role="status"]')].some(e=>e.innerText==='Response complete'),
-        images:[...main.querySelectorAll('img')].filter(i=>/^Generated image/.test(i.alt)&&i.complete&&i.naturalWidth>0)
+    return evaluate(page, r'''const visible=e=>!!e && e.getClientRects().length>0 &&
+      getComputedStyle(e).visibility!=='hidden' && getComputedStyle(e).display!=='none';
+      const main=[...document.querySelectorAll('main')].find(visible);
+      if(!main) throw new Error('Visible conversation missing');
+      // Current Chat uses accessible turn headings instead of role attributes.
+      let turns=[...main.querySelectorAll('h4')]
+        .filter(e=>/^(You said:|ChatGPT said:)$/.test(e.textContent.trim()) && visible(e.parentElement));
+      if(!turns.length) turns=[...main.querySelectorAll('[data-message-author-role], [data-conversation-role]')]
+        .filter(visible);
+      const marker=turns.at(-1);
+      const role=marker?.getAttribute('data-message-author-role') || marker?.getAttribute('data-conversation-role');
+      const assistant=role==='assistant' || marker?.textContent.trim()==='ChatGPT said:';
+      const last=assistant ? (marker.tagName==='H4' ? marker.parentElement : marker) : null;
+      return {url:location.href, users:[...main.querySelectorAll('[data-user-message-bubble]')]
+        .filter(visible).map(e=>{
+          const content=e.querySelector('[data-search-result-target]') || e.querySelector('[dir="auto"]') || e;
+          return content.innerText.trim();
+        }),
+        text:last?.innerText.replace(/^ChatGPT said:\s*/, '').trim() || '',
+        streaming:[...document.querySelectorAll('button[data-testid="stop-button"],button[aria-label="Stop streaming"],button[aria-label="Stop"]')].some(visible),
+        complete:!!last && ([...document.querySelectorAll('[role="status"]')]
+          .some(e=>visible(e)&&e.innerText==='Response complete') ||
+          [...main.querySelectorAll('button')].some(e=>visible(e)&&
+            (marker.compareDocumentPosition(e)&Node.DOCUMENT_POSITION_FOLLOWING)&&
+            /^(Copy|Copy image|Good response|Bad response)$/.test(e.getAttribute('aria-label')||''))),
+        images:[...(last?.querySelectorAll('img') || [])]
+          .filter(i=>visible(i)&&/^Generated image/.test(i.alt)&&i.complete&&i.naturalWidth>0)
           .map(i=>({alt:i.alt,src:i.currentSrc||i.src,width:i.naturalWidth,height:i.naturalHeight}))};''')
 
 
