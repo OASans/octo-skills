@@ -233,7 +233,7 @@ restart_codex_app_server() {
 
 stop_unmanaged_codex_app_server() {
     local socket="$CODEX_DIR/app-server-control/app-server-control.sock"
-    local kill_bin owner_command owner_pid
+    local kill_bin owner_command owner_pid pid
     local -a owner_pids proxy_pids
 
     if ! command -v lsof >/dev/null 2>&1; then
@@ -246,7 +246,9 @@ stop_unmanaged_codex_app_server() {
         return 1
     fi
 
-    mapfile -t owner_pids < <(lsof -t -- "$socket" 2>/dev/null | sort -u)
+    while IFS= read -r pid; do
+        owner_pids+=("$pid")
+    done < <(lsof -t -- "$socket" 2>/dev/null | sort -u)
     if [ "${#owner_pids[@]}" -ne 1 ]; then
         echo "  ERROR: expected one Codex app-server socket owner, found ${#owner_pids[@]}." >&2
         return 1
@@ -261,9 +263,11 @@ stop_unmanaged_codex_app_server() {
             ;;
     esac
 
-    mapfile -t proxy_pids < <(
+    while IFS= read -r pid; do
+        proxy_pids+=("$pid")
+    done < <(
         ps -eo pid=,args= | awk \
-            '$0 ~ /[/]codex([.]js)? app-server proxy([[:space:]]|$)/ { print $1 }'
+            '$0 ~ /\/codex([.]js)? app-server proxy([[:space:]]|$)/ { print $1 }'
     )
     if [ "${#proxy_pids[@]}" -gt 0 ]; then
         "$kill_bin" -TERM "${proxy_pids[@]}"
