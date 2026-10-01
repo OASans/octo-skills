@@ -248,6 +248,16 @@ class BrowserTests(unittest.TestCase):
         self.assertFalse(browser.attachments_match(['context.md'], ['context.md', 'secret.env']))
         self.assertFalse(browser.attachments_match([], ['secret.env']))
 
+    def test_completed_upload_timestamp_rename_preserves_draft_verification(self):
+        draft = dict(text='Review this', files=['context(20261001-004849).md'],
+                     send=True, busy=False)
+        browser.verify_draft(draft, 'Review this', ['/project/context.md'])
+        for names in (['context(20261001-004849).txt'], ['other(20261001-004849).md'],
+                      ['context(arbitrary).md'], ['context(20261001-004849).md', 'secret.env'],
+                      ['context(20261001-004849).md', 'context.md']):
+            with self.subTest(names=names), self.assertRaises(browser.BrowserError):
+                browser.verify_draft({**draft, 'files': names}, 'Review this', ['/project/context.md'])
+
     @patch.object(browser, 'request_model', return_value='gpt-5-6')
     @patch.object(browser, 'cli')
     def test_network_evidence_removes_queries_and_rejects_codex(self, cli, request_model):

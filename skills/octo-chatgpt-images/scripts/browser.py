@@ -150,7 +150,9 @@ def attachments_match(expected, actual):
     remaining = list(actual)
     for path in expected:
         name = Path(path).name
-        pattern = re.escape(Path(name).stem) + r'(?:\(\d+\))?' + re.escape(Path(name).suffix)
+        # Chat may rename a completed upload after its initial chip appears.
+        pattern = (re.escape(Path(name).stem) + r'(?:\((?:\d+|\d{8}-\d{6})\))?'
+                   + re.escape(Path(name).suffix))
         match = next((item for item in remaining if re.fullmatch(pattern, item)), None)
         if match is None:
             return False
@@ -164,7 +166,8 @@ def verify_draft(draft, prompt, files):
     if draft.get('busy') or not draft.get('send'):
         raise BrowserError('Uploads or send control are not ready')
     if not attachments_match(files, draft.get('files', [])):
-        raise BrowserError('Composer attachments do not match the intended files')
+        raise BrowserError(f'Composer attachments do not match: expected '
+                           f'{[Path(p).name for p in files]!r}, found {draft.get("files", [])!r}')
 
 
 def research_proof(page):
