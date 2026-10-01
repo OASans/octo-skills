@@ -46,7 +46,7 @@ Inspect and recover local Codex sessions while preserving live work and conversa
 
 ## Codex Recovery
 
-1. Inspect the native Remote Control daemon without restarting it. `codex remote-control start` owns it — there are no systemd units (`install.sh` removes the historical `octo-codex-*` services):
+1. Inspect the actual Remote Control socket/process owner and any historical `octo-codex-*` service without restarting them. Native Codex is the intended owner, but normal installs preserve existing runtime ownership; `install.sh` removes obsolete services only after successful native bootstrap:
 
    ```bash
    pgrep -af 'codex.*app-server'
@@ -76,4 +76,4 @@ Inspect and recover local Codex sessions while preserving live work and conversa
 
 - `global-codex-config.toml` — shared Codex defaults; `scripts/render_codex_config.py` preserves local project trust and reviewed hook hashes
 
-<!-- Last verified: 2026-08-21 -->
+<!-- Last verified: 2026-09-30, commit: edc4ecb -->

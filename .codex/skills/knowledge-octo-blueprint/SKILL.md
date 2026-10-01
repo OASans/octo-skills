@@ -11,7 +11,7 @@ description: >
 `octo-blueprint` defines a good **AI-agent-native package** and reviews a target package against it, emitting prioritized action items. **Explicitly-invoked only** (`agents/openai.yaml` sets `policy.allow_implicit_invocation: false`) — never auto-runs.
 
 The skill has three parts:
-- **Steps** — the review fans out **one read-only host-appropriate subagent per `###` dimension** (parallel, like `/octo-review`): each grades its dimension's rules met/partial/unmet/N-A and drafts an action item per gap; the main agent only merges + prioritizes. Read-only (proposes, never edits).
+- **Steps** — the review fans out **one read-only host-appropriate subagent per `###` dimension**: each grades its dimension's rules met/partial/unmet/N-A and drafts an action item per gap; the main agent only merges + prioritizes. Read-only (proposes, never edits).
 - **Output** — P0/P1/P2 action-item list.
 - **The Blueprint** (`references/blueprint.md`) — the rules, as `###` **dimensions** (e.g. `### AGENTS.md`), governed by a `> Structure contract` blockquote. Each dimension is graded by its own sub-agent against every rule it holds.
 
@@ -26,4 +26,4 @@ The skill has three parts:
 - `skills/octo-blueprint/SKILL.md` — workflow and rubric routing.
 - `skills/octo-blueprint/references/blueprint.md` — `### AGENTS.md` and `### ai_tools/` dimensions and their worked rule examples.
 
-<!-- Last verified: 2026-09-13 -->
+<!-- Last verified: 2026-09-30, commit: edc4ecb -->

@@ -64,7 +64,7 @@ def date(value):
 
 def redact(text):
     text = re.sub(r'(?i)\b(?:sk-[\w-]{16,}|gh[pousr]_[\w]{20,})\b', '[REDACTED]', text)
-    return re.sub(r'(?im)((?:api[_-]?key|password|access[_-]?token|secret)\s*[=:]\s*)\S+',
+    return re.sub(r'(?im)((?:api[_-]?key|password|access[_-]?token|secret)[ \t]*[=:][ \t]*)\S+',
                   r'\1[REDACTED]', text)
 
 

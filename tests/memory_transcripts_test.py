@@ -175,6 +175,11 @@ class MemoryTests(unittest.TestCase):
         self.finish(packet)
         self.assertFalse(self.prepare().exists())
 
+    def test_redaction_keeps_source_control_flow_across_newlines(self):
+        code = 'if parts.password:\n    return url\n'
+        self.assertEqual(memory.redact(code), code)
+        self.assertEqual(memory.redact('password = secretvalue'), 'password = [REDACTED]')
+
 
 if __name__ == '__main__':
     unittest.main()
