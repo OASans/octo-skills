@@ -16,6 +16,7 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 ### Anytime
 - Input is Whisper STT — expect mistranscriptions (homophones, garbled tech terms); correct from context before acting, ask if ambiguous.
 - Messages and plans — compact, plain words, easy to read; include only what's needed, skip preamble and recaps.
+- Model selection — do not use `gpt-6-sol`, `gpt-5.6-sol`, or `gpt-6-astra`, including for subagents, unless the user explicitly requests that model.
 - NEVER edit any `AGENTS.md` or any skill whose name contains `coding-guide` on your own — they change only when the user asks; write compact (no decorative markdown).
 - Completion — carry authorized work through implementation, relevant checks, and required workflow steps; resolve routine choices without another approval. Ask only for missing decisions or permissions that materially affect the result, and finish independent authorized work while waiting.
 - Instruction conflicts — current explicit user instructions take precedence over skill guidelines within the host's permissions. If a rule blocks completion, cite the exact file and rule and explain the unresolved decision; do not invent an approval requirement.
@@ -26,7 +27,7 @@ Include the actual selected model in the sub-agent's visible name: `agent_name [
 
 Delegate when independent work can save time or improve quality; keep quick lookups and coupled design decisions inline. Every dispatch must be self-contained (goal, files, contracts, decisions, definition of done), select an available model explicitly, and use no history inheritance where supported.
 
-Use models appropriate to the task, including GPT-6 Astra and GPT-5.6 Sol on Codex; shared skills must work with both. Three modes:
+Use models appropriate to the task within the model-selection rule above. Three modes:
 
 - Read fan-out (parallel) — search, investigation, fresh-eyes verification, distilling long output: detail-heavy work where only the conclusion needs to come back.
 - Mechanical write fan-out (parallel) — only fully-specified repeated changes: write the recipe plus one exemplar edit first, agents replicate it over disjoint files, then you build/test and fix the seams. A coupled change is never split in parallel, however big.

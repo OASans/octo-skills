@@ -206,7 +206,7 @@ run_install --restart
 cmp "$REPO_DIR/global-tmux.conf" "$TEST_HOME/.tmux.conf"
 grep -qFx 'sandbox_mode = "danger-full-access"' "$TEST_CODEX/config.toml"
 grep -qFx 'approval_policy = "on-request"' "$TEST_CODEX/config.toml"
-grep -qFx 'model = "gpt-6-astra"' "$TEST_CODEX/config.toml"
+grep -qFx 'model = "gpt-6.1-sol"' "$TEST_CODEX/config.toml"
 grep -qFx 'model_reasoning_effort = "medium"' "$TEST_CODEX/config.toml"
 [ ! -e "$TEST_HOME/.claude" ]
 cmp -s "$REPO_DIR/global-codex-hooks.json" "$TEST_CODEX/hooks.json"
