@@ -24,7 +24,7 @@ class SkillContractTest(unittest.TestCase):
 
     def test_existing_explicit_only_skills_remain_explicit_only(self):
         # Pin the migration guarantees independently of the deployed policy files.
-        for name in ('octo-blueprint', 'octo-codex-usage', 'octo-memory-long-term'):
+        for name in ('octo-blueprint', 'octo-codex-usage', 'octo-memory', 'octo-memory-long-term'):
             policy = ROOT / 'skills' / name / 'agents/openai.yaml'
             with self.subTest(skill=name):
                 self.assertTrue(policy.is_file())

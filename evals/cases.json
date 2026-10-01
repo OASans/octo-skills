@@ -150,5 +150,36 @@
       "save_report_and_conversation_link",
       "report_unreadable_package"
     ]
+  },
+  {
+    "id": "memory_ordinary_task",
+    "task": "A small code fix uncovered a reusable project constraint. The user requested only the fix and checks, with no memory or remember request. What should you do?",
+    "choices": [
+      "finish_fix_and_required_checks",
+      "retrieve_relevant_existing_knowledge",
+      "run_memory_capture",
+      "scan_project_transcripts",
+      "launch_browser_memory_audit"
+    ],
+    "expected": [
+      "finish_fix_and_required_checks",
+      "retrieve_relevant_existing_knowledge"
+    ]
+  },
+  {
+    "id": "memory_manual_week",
+    "task": "The user explicitly requests a project memory audit without a date window. prepare produces a new packet and there is no uncertain browser submission. What should you do?",
+    "choices": [
+      "use_last_seven_days",
+      "use_browser_gpt6_pro_with_markdown_and_zip",
+      "analyze_memory_locally_instead",
+      "checkpoint_before_browser_completion",
+      "verify_facts_before_promotion"
+    ],
+    "expected": [
+      "use_last_seven_days",
+      "use_browser_gpt6_pro_with_markdown_and_zip",
+      "verify_facts_before_promotion"
+    ]
   }
 ]

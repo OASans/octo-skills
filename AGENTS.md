@@ -24,15 +24,15 @@ Codex skills and config, available in ALL projects once installed.
 | `/octo-commit` | Workflow | Primary commit path: verify the AGENTS.md workflow was followed, then write a meaningful + compact commit. Never pushes |
 | `/octo-simplify` | Workflow (on request) | Simplify code for the same behavior using bounded file groups, verified findings, and relevant checks. Only on explicit user request |
 | `/octo-blueprint` | Blueprint | Definition of a good AI-agent-native package + a review that grades the current package and returns action items. Explicitly-invoked only; never auto-runs. One parallel sub-agent per `###` blueprint dimension |
-| `/octo-memory` | Memory | Capture durable learnings in the short-term buffer |
-| `/octo-memory-long-term` | Memory (manual) | User-only consolidation of short-term captures into long-term topics |
+| `/octo-memory` | Memory (manual) | Audit transcripts through browser Pro and publish verified topics |
+| `/octo-memory-long-term` | Memory (manual) | Compatibility entrypoint for the manual memory audit |
 
 ## Skill Relationships
 
 - `octo-coding-guide-code` is the common entrypoint, including documentation rules. Specialist guides such as `octo-coding-guide-rust` add guidance only for their `guide-scope`; headings never determine agent count.
 - `/octo-review` defaults to one reviewer across the change and relevant guidance, with at most one independent verifier for failure claims. Global instructions own review triggers and freshness.
 - `/octo-commit` enforces the merged AGENTS.md workflow, completes missing authorized steps, and checks that required review/checks cover the current change. It never pushes without user authorization.
-- `/octo-memory` owns selective capture and corrections to encountered stale topics. `/octo-memory-long-term` owns consolidation and runs only when explicitly invoked by a human.
+- `/octo-memory` owns explicitly requested transcript audits, global progress tracking, and verified topic publication. Existing knowledge remains available during ordinary tasks; `/octo-memory-long-term` delegates manual audits to it.
 - `/octo-simplify` edits only on explicit request, using the same quality guidance as review. Its own workflow partitions work by bounded file groups; it is not an automatic development step.
 - `/octo-blueprint` is explicit-only via `agents/openai.yaml`. It grades a whole package against `references/blueprint.md`, with one agent per `###` dimension; it is not part of the development workflow.
 

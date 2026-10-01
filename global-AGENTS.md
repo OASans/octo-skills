@@ -40,9 +40,9 @@ Keep inline: quick lookups, exploratory debugging where the problem isn't unders
 
 ## Memory
 
-- Use `/octo-memory` for reusable, non-obvious project discoveries and explicit remember requests; use project `knowledge-*` skills for shared long-term knowledge.
+- Use project `knowledge-*` skills for selective memory retrieval. Run `/octo-memory` only when the user explicitly requests a memory audit or asks to remember something; never add capture or transcript analysis to ordinary task completion.
 - Treat remembered facts as scoped guidance: investigate conflicts with current implementation, tests, or authoritative documentation before applying or correcting them. Preserve explicit user constraints.
-- Only a human invoking `/octo-memory-long-term` starts consolidation. Capture, storage, recurrence, and maintenance mechanics belong to the memory skills.
+- `/octo-memory` owns manual transcript analysis, durable progress tracking, verification, and maintenance. `/octo-memory-long-term` is a manual compatibility entrypoint.
 
 ## Workflow
 
@@ -51,4 +51,3 @@ A project may have its own workflow — follow it. These are additional steps th
 1. `git pull` first — start from a clean, synced tree (session-start auto-pull may have done this; confirm).
 2. Run the checks appropriate to the change and all required project gates, fixing failures before proceeding. Rerun affected checks after fixes; broaden or repeat checks only for changed behavior, failures, or unresolved concerns.
 3. Inspect every change and run applicable checks. Main-agent inspection is enough for obvious, local, easily reversed changes; run `/octo-review` when requested, for substantial behavior/contract changes, concrete high-impact effects, or material unresolved correctness uncertainty. Resolve actionable in-scope findings and rerun affected checks; inspect minor fixes directly, but independently review substantial later deltas, including consequential conflict resolutions. When skipping independent review, give a brief reason.
-4. When reusable, non-obvious knowledge surfaced or the user asked to remember something, run `/octo-memory` after review findings are fixed and checks are green.
