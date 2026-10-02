@@ -127,10 +127,40 @@ def snapshot_uid(page, role, label, *, allow_description=False):
     return matches[0]
 
 
+PROMPT_TEXT_SCRIPT = r'''const promptText=e=>{
+      if(!e) return undefined;
+      const icon='[data-rich-text-generated-autolink] [data-inline-url-icon][aria-hidden="true"][contenteditable="false"]';
+      if(!e.querySelector(icon)) return e.innerText.trim();
+      // innerText adds layout breaks around URL icons; retain actual DOM text and breaks.
+      let text='', boundary=0;
+      const append=value=>{
+        if(!value) return;
+        if(boundary && text) {
+          const trailing=text.match(/\n*$/)[0].length;
+          text+='\n'.repeat(Math.max(0,boundary-trailing));
+        }
+        boundary=0;
+        text+=value;
+      };
+      const read=node=>{
+        if(node.nodeType===Node.TEXT_NODE) { append(node.data); return; }
+        if(node.nodeType!==Node.ELEMENT_NODE || node.matches(icon)) return;
+        if(node.tagName==='BR') { append('\n'); return; }
+        const separator=node.tagName==='P' ? 2 :
+          /^(DIV|PRE|BLOCKQUOTE|LI|UL|OL)$/.test(node.tagName) ? 1 : 0;
+        boundary=Math.max(boundary,separator);
+        node.childNodes.forEach(read);
+        boundary=Math.max(boundary,separator);
+      };
+      e.childNodes.forEach(read);
+      return text.trim();
+    };'''
+
+
 def composer(page):
-    return evaluate(page, '''const e=document.querySelector('[role=textbox][contenteditable=true]');
+    return evaluate(page, PROMPT_TEXT_SCRIPT + '''const e=document.querySelector('[role=textbox][contenteditable=true]');
       const f=e?.closest('form');
-      return {text:e?.innerText?.trim(),
+      return {text:promptText(e),
         files:[...f.querySelectorAll('[data-composer-attachments] button[aria-label^="Remove "]')]
           .map(b=>b.getAttribute('aria-label').slice(7)),
         busy:!!f?.querySelector('[role="progressbar"], [aria-busy="true"]'),
@@ -241,7 +271,7 @@ def network_evidence(page, mode):
 
 
 def observe(page):
-    return evaluate(page, r'''const visible=e=>!!e && e.getClientRects().length>0 &&
+    return evaluate(page, PROMPT_TEXT_SCRIPT + r'''const visible=e=>!!e && e.getClientRects().length>0 &&
       getComputedStyle(e).visibility!=='hidden' && getComputedStyle(e).display!=='none';
       const main=[...document.querySelectorAll('main')].find(visible);
       if(!main) throw new Error('Visible conversation missing');
@@ -257,7 +287,7 @@ def observe(page):
       return {url:location.href, users:[...main.querySelectorAll('[data-user-message-bubble]')]
         .filter(visible).map(e=>{
           const content=e.querySelector('[data-search-result-target]') || e.querySelector('[dir="auto"]') || e;
-          return content.innerText.trim();
+          return promptText(content);
         }),
         text:last?.innerText.replace(/^ChatGPT said:\s*/, '').trim() || '',
         streaming:[...document.querySelectorAll('button[data-testid="stop-button"],button[aria-label="Stop streaming"],button[aria-label="Stop"]')].some(visible),

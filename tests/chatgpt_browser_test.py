@@ -27,7 +27,7 @@ class BrowserDOMTests(unittest.TestCase):
         if not cls.chrome:
             raise unittest.SkipTest('Offline DOM regression checks require Chrome or Chromium')
 
-    def observe_html(self, markup):
+    def observe_html(self, markup, reader=None):
         def evaluate_fixture(page, body):
             with tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
@@ -49,7 +49,64 @@ class BrowserDOMTests(unittest.TestCase):
                 self.assertNotIn('error', value)
                 return value
         with patch.object(browser, 'evaluate', side_effect=evaluate_fixture):
-            return browser.observe(1)
+            return (reader or browser.observe)(1)
+
+    def decorated_link(self, url):
+        # The observed composer wraps literal URLs with a decorative SVG widget.
+        return (f'<span data-rich-text-generated-autolink="" text-link-href="{url}">'
+                '<span class="Label-arpLwJ"><span data-inline-url-icon="" '
+                'aria-hidden="true" contenteditable="false" style="display:block">'
+                '<span class="IconContainer-K62H88" contenteditable="false">'
+                '<svg width="20" height="20"><path d="M10 2.125 L10 17.875"></path></svg>'
+                f'</span><span class="Label-arpLwJ"></span></span>{url}</span></span>')
+
+    def composer_html(self, content):
+        return ('<form><div role="textbox" contenteditable="true" style="white-space:pre-wrap">'
+                + content + '</div><button aria-label="Send"></button></form>')
+
+    def test_decorated_composer_urls_keep_literal_text_and_real_breaks(self):
+        first = 'https://www.sec.gov/files/form4.pdf'
+        second = 'https://www.sec.gov/data-research/sec-markets-data/insider-transactions-data-sets'
+        prompt = f'Primary sources:\n\nRead {first} and {second}.\nKeep  two spaces\tand a tab.\n\nEnd.'
+        content = ('<p>Primary sources:<br><br>Read ' + self.decorated_link(first) +
+                   ' and ' + self.decorated_link(second) +
+                   '.<br>Keep  two spaces\tand a tab.<br><br>End.</p>')
+        draft = self.observe_html(self.composer_html(content), browser.composer)
+        self.assertEqual(draft['text'], prompt)
+        browser.verify_draft(draft, prompt, [])
+        for changed in (prompt.replace(first, '\n' + first),
+                        prompt.replace('\n\n', '\n', 1),
+                        prompt.replace('two spaces', 'different words'),
+                        prompt.replace('Keep  two', 'Keep two'),
+                        prompt.replace('form4.pdf', 'form3.pdf')):
+            with self.subTest(changed=changed), self.assertRaises(browser.BrowserError):
+                browser.verify_draft(draft, changed, [])
+
+    def test_decorated_sent_prompt_and_research_chip_preserve_block_separators(self):
+        url = 'https://www.sec.gov/files/form4.pdf'
+        content = '<p>Read ' + self.decorated_link(url) + '</p><p>Keep\nthese lines.</p>'
+        prompt = f'Read {url}\n\nKeep\nthese lines.'
+        observation = self.observe_html('<main><div><h4>You said:</h4>'
+            '<div data-user-message-bubble><div data-search-result-target>'
+            '<div>Deep research</div><div dir="auto" style="white-space:pre-wrap">' +
+            content + '</div></div><button>Show more</button></div></div></main>')
+        self.assertEqual(observation['users'], ['Deep research\n\n' + prompt])
+        self.assertTrue(browser.prompt_visible(dict(mode='research', prompt=prompt,
+            submitted_prompt='Deep research ' + prompt), observation))
+        plain = self.observe_html('<main><div data-user-message-bubble>'
+            '<div dir="auto" style="white-space:pre-wrap">' + content + '</div></div></main>')
+        self.assertEqual(plain['users'], [prompt])
+        self.assertTrue(browser.prompt_visible(dict(prompt=prompt), plain))
+        self.assertFalse(browser.prompt_visible(dict(prompt=prompt.replace('\n\n', '\n')), plain))
+
+    def test_decorated_prompt_does_not_hide_unrelated_content(self):
+        url = 'https://www.sec.gov/files/form4.pdf'
+        content = '<p>Read ' + self.decorated_link(url) + (
+            '<span aria-hidden="true" contenteditable="false">changed instruction</span></p>')
+        draft = self.observe_html(self.composer_html(content), browser.composer)
+        self.assertIn('changed instruction', draft['text'])
+        with self.assertRaises(browser.BrowserError):
+            browser.verify_draft(draft, 'Read ' + url, [])
 
     def image(self, label='Generated image 1'):
         return (f'<img alt="{label}" width="2" height="2" '
