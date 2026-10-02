@@ -2,6 +2,7 @@
 import importlib.util
 import html
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -26,10 +27,14 @@ class BrowserDOMTests(unittest.TestCase):
                       shutil.which('chromium-browser'))
         if not cls.chrome:
             raise unittest.SkipTest('Offline DOM regression checks require Chrome or Chromium')
+        cls.workspace = Path(__file__).resolve().parents[1] / '.browser-workspace'
+        cls.workspace.mkdir(exist_ok=True)
 
     def observe_html(self, markup, reader=None):
         def evaluate_fixture(page, body):
-            with tempfile.TemporaryDirectory() as directory:
+            # /tmp has a per-user quota; keep the profile and Chrome's own
+            # temporary files in our disposable disk workspace instead.
+            with tempfile.TemporaryDirectory(dir=self.workspace) as directory:
                 root = Path(directory)
                 fixture = root / 'conversation.html'
                 fixture.write_text('<!doctype html><meta charset="utf-8">' + markup +
@@ -41,7 +46,8 @@ class BrowserDOMTests(unittest.TestCase):
                 result = subprocess.run([self.chrome, '--headless', '--no-sandbox', '--disable-gpu',
                     '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
                     '--user-data-dir=' + str(root / 'profile'), '--dump-dom', fixture.as_uri()],
-                    capture_output=True, text=True, timeout=30)
+                    capture_output=True, text=True, timeout=30,
+                    env={**os.environ, 'TMPDIR': directory})
                 self.assertEqual(result.returncode, 0, result.stderr[-2000:])
                 output = re.search(r'<pre id="result">(.*?)</pre>', result.stdout, re.S)
                 self.assertIsNotNone(output, result.stdout)
@@ -423,7 +429,9 @@ class BrowserTests(unittest.TestCase):
     def test_network_evidence_removes_queries_and_rejects_codex(self, cli, request_model):
         cli.return_value = ('reqid=1 POST https://chatgpt.com/backend-api/f/conversation [200]\n'
                             'reqid=2 GET https://chatgpt.com/backend-api/estuary/content?token=SECRET [200]')
-        evidence = browser.network_evidence(7, 'images')
+        run = Path('/owned-run')
+        evidence = browser.network_evidence(7, 'images', run=run)
+        request_model.assert_called_once_with(7, '1', run=run)
         self.assertTrue(evidence['chatgpt_conversation_request'])
         self.assertNotIn('SECRET', json.dumps(evidence))
         cli.return_value += '\nreqid=3 POST https://chatgpt.com/backend-api/codex/responses [200]'
@@ -444,6 +452,53 @@ class BrowserTests(unittest.TestCase):
                             ('analysis', 'gpt-5-pro'), ('images', None)]:
             with self.subTest(mode=mode, model=model), self.assertRaises(browser.BrowserError):
                 browser.validate_request_model(mode, model)
+
+    def test_request_model_reads_full_body_instead_of_truncated_inline_preview(self):
+        body = json.dumps({'prompt': 'long prompt ' * 1200, 'model': 'gpt-6-pro'})
+        self.assertGreater(body.index('"model"'), 10000)
+        exports = []
+        with tempfile.TemporaryDirectory() as directory:
+            run = Path(directory)
+
+            def capture(*args):
+                self.assertEqual(args[:4], ('get_network_request', 76, '--reqid', '168'))
+                if '--requestFilePath' in args:
+                    path = Path(args[args.index('--requestFilePath') + 1])
+                    self.assertTrue(path.is_relative_to(run))
+                    path.write_text(body)
+                    exports.append(path)
+                return json.dumps({'networkRequest': {'requestBody': body[:10000] + '... <truncated>'}})
+
+            with patch.object(browser.Path, 'cwd', return_value=run), \
+                    patch.object(browser, 'cli', side_effect=capture):
+                model = browser.request_model(76, '168')
+            self.assertEqual(model, 'gpt-6-pro')
+            browser.validate_request_model('analysis', model)
+            self.assertEqual(len(exports), 1)
+            self.assertFalse(exports[0].exists())
+            self.assertEqual(list(run.iterdir()), [])
+
+    def test_request_body_cleanup_preserves_parse_and_capture_failures(self):
+        cases = (('{', json.JSONDecodeError, None),
+                 ('[]', browser.BrowserError, 'Captured submission body is not a JSON object'),
+                 ('{"model":"gpt-6-pro"}', browser.BrowserError, 'receipt export failed'))
+        for body, error_type, message in cases:
+            with self.subTest(body=body), tempfile.TemporaryDirectory() as directory:
+                run = Path(directory)
+
+                def capture(*args):
+                    path = Path(args[args.index('--requestFilePath') + 1])
+                    path.write_text(body)
+                    if message == 'receipt export failed':
+                        raise browser.BrowserError(message)
+                    return 'inline output is deliberately unusable'
+
+                with patch.object(browser, 'cli', side_effect=capture), \
+                        self.assertRaises(error_type) as raised:
+                    browser.request_model(76, '168', run=run)
+                if message:
+                    self.assertEqual(str(raised.exception), message)
+                self.assertEqual(list(run.iterdir()), [])
 
     def test_optimistic_url_can_settle_but_wrong_conversation_cannot(self):
         url = 'https://chatgpt.com/c/6ab83f53-4ee8-83ea-b640-29791f4c725a'

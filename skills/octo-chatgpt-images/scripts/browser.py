@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from urllib.parse import urlsplit
 
@@ -298,10 +299,15 @@ def verify_research_draft(draft, prompt, files):
     verify_draft(draft, draft['text'], files)
 
 
-def request_model(page, request_id):
-    data = json.loads(cli('get_network_request', page, '--reqid', request_id,
-                          '--output-format=json'))['networkRequest']['requestBody']
-    body = json.loads(data) if isinstance(data, str) else data
+def request_model(page, request_id, *, run=None):
+    # Inline network bodies are truncated by the CLI. Read its complete export
+    # inside our owned workspace, then remove the raw submission on every exit.
+    with tempfile.TemporaryDirectory(prefix='.browser-request-', dir=run or Path.cwd()) as scratch:
+        path = Path(scratch) / 'submission.network-request'
+        cli('get_network_request', page, '--reqid', request_id, '--requestFilePath', path)
+        body = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(body, dict):
+        raise BrowserError('Captured submission body is not a JSON object')
     return body.get('model')
 
 
@@ -314,7 +320,7 @@ def validate_request_model(mode, model):
         raise BrowserError(f'Unexpected submitted model for {mode}: {model}')
 
 
-def network_evidence(page, mode):
+def network_evidence(page, mode, *, run=None):
     message = cli('list_network_requests', page, '--includePreservedRequests')
     entries = []
     models = []
@@ -326,7 +332,7 @@ def network_evidence(page, mode):
         if url.hostname == 'chatgpt.com' and url.path.startswith('/backend-api/'):
             entries.append({'method': match[2], 'path': url.path, 'status': match[4]})
             if match[2] == 'POST' and url.path in ('/backend-api/f/conversation', '/backend-api/conversation') and match[4] == '200':
-                model = request_model(page, match[1])
+                model = request_model(page, match[1], run=run)
                 validate_request_model(mode, model)
                 models.append(model)
     if any(e['path'].startswith('/backend-api/codex') for e in entries):
@@ -566,7 +572,7 @@ def collect(args):
                 result['progress'] = research.get('status') or research['text'] or observation['text']
             print(json.dumps(result))
             return
-        evidence = network_evidence(page, state['mode'])
+        evidence = network_evidence(page, state['mode'], run=run)
         if not evidence['chatgpt_conversation_request']:
             raise BrowserError('Missing browser submission evidence; do not claim a verified run')
         (run / 'network.json').write_text(json.dumps(evidence, indent=2) + '\n')
