@@ -129,7 +129,8 @@ def snapshot_uid(page, role, label, *, allow_description=False):
 
 PROMPT_TEXT_SCRIPT = r'''const promptText=e=>{
       if(!e) return undefined;
-      const icon='[data-rich-text-generated-autolink] [data-inline-url-icon][aria-hidden="true"][contenteditable="false"]';
+      const icon='[data-rich-text-generated-autolink] [data-inline-url-icon][aria-hidden="true"][contenteditable="false"], '
+        + 'a[data-inline-mention-interactive][href] > [data-layout="inline-flow"] > [data-markdown-copy="exclude"]:has(img[alt=""])';
       if(!e.querySelector(icon)) return e.innerText.trim();
       // innerText adds layout breaks around URL icons; retain actual DOM text and breaks.
       let text='', boundary=0;

@@ -64,6 +64,43 @@ class BrowserDOMTests(unittest.TestCase):
         return ('<form><div role="textbox" contenteditable="true" style="white-space:pre-wrap">'
                 + content + '</div><button aria-label="Send"></button></form>')
 
+    def rendered_link(self, url):
+        return (f'<a data-inline-mention-interactive="" href="{url}" data-search-result-target="">'
+                '<span data-layout="inline-flow"><span data-markdown-copy="exclude" '
+                'class="IconContainer-K62H88" style="display:block">'
+                '<span class="Favicon-xZwQNw"><img alt="" '
+                'src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">'
+                f'</span></span><span class="Label-arpLwJ"><span>{url}</span></span></span></a>')
+
+    def test_rendered_favicon_urls_match_exact_sent_prompt(self):
+        first = 'https://www.sec.gov/files/form13f.pdf'
+        second = 'https://www.sec.gov/rules-regulations/staff-guidance/frequently-asked-questions-about-form-13f'
+        prompt = f'Primary sources:\n\nRead {first} and {second}.\nKeep  two spaces\tand a tab.'
+        content = ('<p class="Paragraph-kKnbIo" dir="auto"><span>Primary sources:</span><br><br>'
+                   '<span>Read </span>' + self.rendered_link(first) + '<span> and </span>' +
+                   self.rendered_link(second) + '<span>.</span><br>'
+                   '<span>Keep  two spaces\tand a tab.</span></p>')
+        observation = self.observe_html('<main><div><h4>You said:</h4>'
+            '<div data-user-message-bubble><div data-search-result-target '
+            'style="white-space:pre-wrap">' + content + '</div></div></div></main>')
+        self.assertEqual(observation['users'], [prompt])
+        browser.verify_conversation(dict(mode='analysis', prompt=prompt), observation)
+        for changed in (prompt.replace('form13f.pdf', 'form4.pdf'),
+                        prompt.replace(first, '\n' + first),
+                        prompt.replace('\n\n', '\n', 1),
+                        prompt.replace('Keep  two', 'Keep two')):
+            with self.subTest(changed=changed), self.assertRaises(browser.BrowserError):
+                browser.verify_conversation(dict(mode='analysis', prompt=changed), observation)
+
+    def test_rendered_link_does_not_hide_other_copy_exclusions(self):
+        url = 'https://www.sec.gov/files/form13f.pdf'
+        content = '<p>Read ' + self.rendered_link(url) + (
+            '<span data-markdown-copy="exclude">changed instruction</span></p>')
+        observation = self.observe_html('<main><div data-user-message-bubble>'
+            '<div data-search-result-target>' + content + '</div></div></main>')
+        self.assertIn('changed instruction', observation['users'][0])
+        self.assertFalse(browser.prompt_visible(dict(prompt='Read ' + url), observation))
+
     def test_decorated_composer_urls_keep_literal_text_and_real_breaks(self):
         first = 'https://www.sec.gov/files/form4.pdf'
         second = 'https://www.sec.gov/data-research/sec-markets-data/insider-transactions-data-sets'
