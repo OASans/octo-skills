@@ -6,6 +6,7 @@ Requires chrome-devtools (chrome-devtools-mcp package) and signed-in Chrome on L
 """
 import argparse
 import base64
+from datetime import datetime, timezone
 import fcntl
 import hashlib
 import json
@@ -20,6 +21,10 @@ from urllib.parse import urlsplit
 
 class BrowserError(RuntimeError):
     pass
+
+
+MAX_CITATIONS = 256
+MAX_CITATION_BYTES = 512 * 1024
 
 
 def cli(*args):
@@ -344,8 +349,10 @@ def network_evidence(page, mode, *, run=None):
             'submitted_models': models, 'requests': entries}
 
 
-def observe(page):
-    return evaluate(page, PROMPT_TEXT_SCRIPT + RESPONSE_TEXT_SCRIPT + r'''const visible=e=>!!e && e.getClientRects().length>0 &&
+def observe(page, *, legacy=False):
+    reader = 'e?.innerText || ""' if legacy else 'responseText(e)'
+    return evaluate(page, PROMPT_TEXT_SCRIPT + RESPONSE_TEXT_SCRIPT +
+      'const assistantText=e=>' + reader + ';' + r'''const visible=e=>!!e && e.getClientRects().length>0 &&
       getComputedStyle(e).visibility!=='hidden' && getComputedStyle(e).display!=='none';
       const main=[...document.querySelectorAll('main')].find(visible);
       if(!main) throw new Error('Visible conversation missing');
@@ -358,12 +365,21 @@ def observe(page):
       const role=marker?.getAttribute('data-message-author-role') || marker?.getAttribute('data-conversation-role');
       const assistant=role==='assistant' || marker?.textContent.trim()==='ChatGPT said:';
       const last=assistant ? (marker.tagName==='H4' ? marker.parentElement : marker) : null;
+      const citations=[];
+      for(const anchor of last?.querySelectorAll('a[href]') || []) {
+        if(!visible(anchor) || !/^https?:/.test(anchor.href)) continue;
+        const context=anchor.closest('p,li,td,th,blockquote') || anchor.parentElement;
+        const quote=(assistantText(anchor).trim() || assistantText(context).trim()).slice(0,2048);
+        if(citations.some(c=>c.url===anchor.href && c.context_quote===quote)) continue;
+        citations.push({url:anchor.href,context_quote:quote});
+        if(citations.length>256) throw new Error('Assistant has more than 256 citation links');
+      }
       return {url:location.href, users:[...main.querySelectorAll('[data-user-message-bubble]')]
         .filter(visible).map(e=>{
           const content=e.querySelector('[data-search-result-target]') || e.querySelector('[dir="auto"]') || e;
           return promptText(content);
         }),
-        text:responseText(last).replace(/^ChatGPT said:\s*/, '').trim(),
+        text:assistantText(last).replace(/^ChatGPT said:\s*/, '').trim(), citations,
         streaming:[...document.querySelectorAll('button[data-testid="stop-button"],button[aria-label="Stop streaming"],button[aria-label="Stop"]')].some(visible),
         complete:!!last && ([...document.querySelectorAll('[role="status"]')]
           .some(e=>visible(e)&&e.innerText==='Response complete') ||
@@ -539,9 +555,10 @@ def download(page, src):
     return data, extensions[value['type']]
 
 
-def close_completed_tab(state, observation):
+def close_completed_tab(state, observation, *, legacy=False):
     try:
-        current = observe_run(state['page'], state['mode'])
+        current = (observe(state['page'], legacy=True) if legacy else
+                   observe_run(state['page'], state['mode']))
         draft = composer(state['page'])
         if (current != observation or draft['text'] or draft['files'] or draft['busy']):
             return 'kept: tab changed after collection'
@@ -549,6 +566,145 @@ def close_completed_tab(state, observation):
         return 'closed'
     except (BrowserError, OSError, ValueError, subprocess.SubprocessError) as error:
         return 'close failed: ' + str(error)
+
+
+def citation_archive(run):
+    for name in ('run.json', 'response.md'):
+        path = run / name
+        if path.is_symlink() or not path.is_file():
+            raise BrowserError('Citation capture requires regular owned ' + name)
+    metadata = (run / 'run.json').read_bytes()
+    state = json.loads(metadata)
+    if (state.get('phase') != 'complete' or state.get('mode') != 'analysis' or
+            not conversation_url(state.get('url') or '')):
+        raise BrowserError('Citation capture requires a completed analysis conversation')
+    response = (run / 'response.md').read_bytes()
+    return state, response, hashlib.sha256(metadata).hexdigest()
+
+
+def validate_citations(payload, state, response, run_hash):
+    fields = {'version', 'conversation_url', 'run_sha256', 'response_sha256',
+              'observed_response_sha256', 'observed_at_utc', 'citations'}
+    response_hash = hashlib.sha256(response).hexdigest()
+    if (not isinstance(payload, dict) or set(payload) != fields or
+            type(payload['version']) is not int or payload['version'] != 1 or
+            payload['conversation_url'] != state['url'] or payload['run_sha256'] != run_hash or
+            payload['response_sha256'] != response_hash or
+            payload['observed_response_sha256'] != response_hash):
+        raise BrowserError('Citation sidecar does not match the immutable run and response')
+    timestamp = payload['observed_at_utc']
+    if not isinstance(timestamp, str) or not timestamp.endswith('Z'):
+        raise BrowserError('Citation observation timestamp must be UTC')
+    datetime.fromisoformat(timestamp[:-1] + '+00:00')
+    rows = payload['citations']
+    if not isinstance(rows, list) or not 0 < len(rows) <= MAX_CITATIONS:
+        raise BrowserError('Citation sidecar requires 1 to 256 observed links')
+    text = response.decode('utf-8')
+    for row in rows:
+        if not isinstance(row, dict) or set(row) != {'url', 'context_quote'}:
+            raise BrowserError('Invalid observed citation row')
+        url, quote = row['url'], row['context_quote']
+        if (not isinstance(url, str) or urlsplit(url).scheme not in ('http', 'https') or
+                not urlsplit(url).netloc or not isinstance(quote, str) or
+                not quote.strip() or len(quote) > 2048 or quote not in text):
+            raise BrowserError('Citation href or exact response context is invalid')
+
+
+def existing_citations(run, state, response, run_hash):
+    path = run / 'source_citations.json'
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_CITATION_BYTES:
+        raise BrowserError('Citation sidecar must be a regular file of at most 512 KiB')
+    data = path.read_bytes()
+    validate_citations(json.loads(data), state, response, run_hash)
+    return {'file': path.name, 'sha256': hashlib.sha256(data).hexdigest()}
+
+
+def save_citations(run, observation, observed_at):
+    state, response, run_hash = citation_archive(run)
+    observed = (observation['text'] + '\n').encode('utf-8')
+    if observation['url'] != state['url'] or observed != response:
+        raise BrowserError('Observed assistant bytes do not match the banked response')
+    payload = dict(version=1, conversation_url=state['url'], run_sha256=run_hash,
+                   response_sha256=hashlib.sha256(response).hexdigest(),
+                   observed_response_sha256=hashlib.sha256(observed).hexdigest(),
+                   observed_at_utc=observed_at, citations=observation.get('citations', []))
+    validate_citations(payload, state, response, run_hash)
+    data = (json.dumps(payload, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    if len(data) > MAX_CITATION_BYTES:
+        raise BrowserError('Observed citation evidence exceeds 512 KiB')
+    path = run / 'source_citations.json'
+    if path.exists() or path.is_symlink():
+        receipt = existing_citations(run, state, response, run_hash)
+        if json.loads(path.read_bytes())['citations'] != payload['citations']:
+            raise BrowserError('Immutable citation sidecar contains different observed links')
+        return receipt
+    with tempfile.TemporaryDirectory(prefix='.browser-citations-', dir=run) as scratch:
+        temporary = Path(scratch) / path.name
+        temporary.write_bytes(data)
+        path.hardlink_to(temporary)  # Publish atomically without replacing existing evidence.
+    return {'file': path.name, 'sha256': hashlib.sha256(data).hexdigest()}
+
+
+def capture_citations(args):
+    run = args.run.resolve(strict=True)
+    with (run / 'collect.lock').open('r') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        state, response, run_hash = citation_archive(run)
+        sidecar = run / 'source_citations.json'
+        if sidecar.exists() or sidecar.is_symlink():
+            receipt = existing_citations(run, state, response, run_hash)
+            print(json.dumps({'phase': 'complete', 'run': str(run), 'url': state['url'],
+                              'artifact': receipt, 'tab': 'not opened: immutable replay'}))
+            return
+        evidence = json.loads((run / 'network.json').read_bytes())
+        if (evidence.get('chatgpt_conversation_request') is not True or
+                evidence.get('codex_requests') != 0 or evidence.get('submitted_models') != ['gpt-6-pro']):
+            raise BrowserError('Completed analysis lacks its verified GPT-6 Pro submission receipt')
+        metadata = (run / 'run.json').read_bytes()
+        pages = cli('new_page', state['url'])
+        match = re.search(r'^(\d+): .*' + re.escape(state['url']) + r'.*\[selected\]', pages, re.M)
+        if not match:
+            raise BrowserError('Cannot identify the owned citation-capture tab')
+        page = int(match[1])
+        verified = None
+        legacy = False
+        try:
+            wait_until(lambda: evaluate(page, '''return !!document.querySelector('main [data-user-message-bubble]') &&
+                [...document.querySelectorAll('main h4,main [data-message-author-role],main [data-conversation-role]')]
+                  .some(e=>e.textContent.trim()==='ChatGPT said:' ||
+                    e.getAttribute('data-message-author-role')==='assistant' ||
+                    e.getAttribute('data-conversation-role')==='assistant');'''),
+                description='Completed citation conversation readiness')
+            observation = observe(page)
+            verify_conversation(state, observation)
+            if not is_finished('analysis', observation):
+                raise BrowserError('Original assistant response is not complete')
+            if (observation['text'] + '\n').encode('utf-8') != response:
+                legacy = True
+                observation = observe(page, legacy=True)
+                verify_conversation(state, observation)
+                if not is_finished('analysis', observation):
+                    raise BrowserError('Original assistant response is not complete')
+            if (observation['text'] + '\n').encode('utf-8') != response:
+                raise BrowserError('Current and legacy assistant bytes differ from the banked response')
+            verified = observation
+            observed_at = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+            if not observation.get('citations'):
+                raise BrowserError('No actual source hrefs found in the completed assistant')
+        except Exception as error:
+            if verified is None:
+                raise BrowserError(str(error) + '; owned citation-capture tab preserved for inspection') from error
+            raise
+        finally:
+            if verified is not None:
+                cleanup = close_completed_tab(dict(state, page=page), verified, legacy=legacy)
+                if cleanup != 'closed':
+                    raise BrowserError('Citation capture ' + cleanup + '; no sidecar written')
+        if (run / 'run.json').read_bytes() != metadata or (run / 'response.md').read_bytes() != response:
+            raise BrowserError('Completed archive changed during citation capture')
+        receipt = save_citations(run, observation, observed_at)
+        print(json.dumps({'phase': 'complete', 'run': str(run), 'url': state['url'],
+                          'artifact': receipt, 'tab': 'closed'}))
 
 
 def collect(args):
@@ -563,6 +719,7 @@ def collect(args):
             raise BrowserError('Run was not submitted; inspect the preserved browser tab')
         page = state['page']
         observation = observe_run(page, state['mode'])
+        observed_at = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         verify_conversation(state, observation)
         if not conversation_url(observation['url']) or not is_finished(state['mode'], observation):
             result = {'phase': 'pending', 'run': str(run), 'url': observation['url']}
@@ -596,13 +753,19 @@ def collect(args):
                 response += '\n\nConversation: ' + observation['url']
             (run / 'response.md').write_text(response + '\n')
             artifacts.append({'file': 'response.md'})
+        capture = state['mode'] == 'analysis' and bool(observation.get('citations'))
+        if capture:
+            artifacts.append({'file': 'source_citations.json'})
         state.update(phase='complete', url=observation['url'], artifacts=artifacts)
         state.pop('error', None)
         save(run, state)
         state['tab'] = close_completed_tab(state, observation)
         save(run, state)
+        receipts = [dict(artifact) for artifact in artifacts]
+        if capture:
+            receipts[-1] = save_citations(run, observation, observed_at)
         print(json.dumps({'phase': 'complete', 'run': str(run), 'url': state['url'],
-                          'artifacts': artifacts, 'tab': state['tab']}))
+                          'artifacts': receipts, 'tab': state['tab']}))
 
 
 def main():
@@ -615,10 +778,12 @@ def main():
     send.add_argument('--run', type=Path, required=True)
     get = sub.add_parser('collect')
     get.add_argument('--run', type=Path, required=True)
+    citations = sub.add_parser('capture-citations', help='Capture exact assistant hrefs for an unchanged completed analysis')
+    citations.add_argument('--run', type=Path, required=True)
     args = parser.parse_args()
     try:
         require_browser_daemon()
-        (start if args.command == 'start' else collect)(args)
+        {'start': start, 'collect': collect, 'capture-citations': capture_citations}[args.command](args)
     except (BrowserError, OSError, ValueError, subprocess.SubprocessError) as error:
         print(str(error), file=sys.stderr)
         return 1

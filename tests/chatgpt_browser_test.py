@@ -1,6 +1,7 @@
 """Browser helper safety contracts; real UI behavior is exercised separately."""
 import importlib.util
 import html
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -249,6 +250,31 @@ class BrowserDOMTests(unittest.TestCase):
                     browser.BrowserError, 'Math expression has no TeX annotation'):
                 self.observe_html('<main><div><h4>ChatGPT said:</h4><p>' + formula +
                     '</p><button aria-label="Copy"></button></div></main>')
+
+    def test_citation_hrefs_are_scoped_to_the_current_assistant_and_exact_context(self):
+        url = 'https://www.federalreserve.gov/paper.pdf?edition=1&format=pdf#page=2'
+        formula = self.math_html(r'\sqrt{Q_s}')
+        markup = ('<main><div><h4>You said:</h4><div data-user-message-bubble>'
+                  '<a href="https://example.org/user">Analyze</a></div></div>'
+                  '<div><h4>ChatGPT said:</h4><a href="https://example.org/old">Old answer</a></div>'
+                  '<div><h4>ChatGPT said:</h4><p>Before <a href="' + html.escape(url) +
+                  '">Ross paper ' + formula + '</a> after.</p>'
+                  '<a style="display:none" href="https://example.org/hidden">Hidden</a>'
+                  '<p>Unlinked https://example.org/unlinked</p><button aria-label="Copy"></button>'
+                  '</div></main><a href="https://example.org/sidebar">Sidebar</a>')
+        current = self.observe_html(markup)
+        self.assertEqual(current['citations'],
+                         [{'url': url, 'context_quote': r'Ross paper $\sqrt{Q_s}$'}])
+        self.assertIn(current['citations'][0]['context_quote'], current['text'])
+        legacy = self.observe_html(markup, lambda page: browser.observe(page, legacy=True))
+        self.assertEqual([row['url'] for row in legacy['citations']], [url])
+        self.assertIn(legacy['citations'][0]['context_quote'], legacy['text'])
+        self.assertNotEqual(current['text'], legacy['text'])
+
+    def test_citation_observation_is_bounded(self):
+        links = ''.join(f'<a href="https://example.org/{i}">Source {i}</a>' for i in range(257))
+        with self.assertRaisesRegex(browser.BrowserError, 'more than 256 citation links'):
+            self.observe_html('<main><div><h4>ChatGPT said:</h4>' + links + '</div></main>')
 
     def test_completion_toolbar_can_follow_the_reply_outside_its_block(self):
         observation = self.observe_html('<main><div><div><h4>ChatGPT said:</h4>' +
@@ -717,6 +743,221 @@ class BrowserTests(unittest.TestCase):
         with patch.object(browser.fcntl, 'flock'), patch.object(browser, 'cli') as cli, patch('builtins.print'):
             browser.collect(args)
         cli.assert_not_called()
+
+
+class CitationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.workspace = Path(__file__).resolve().parents[1] / '.browser-workspace'
+        cls.workspace.mkdir(exist_ok=True)
+
+    def archive(self, directory, text='Ross paper and its proposal.'):
+        run = Path(directory)
+        state = dict(mode='analysis', phase='complete', prompt='Analyze', page=7,
+                     url='https://chatgpt.com/c/6ab83f53-4ee8-83ea-b640-29791f4c725a', tab='closed')
+        (run / 'run.json').write_text(json.dumps(state) + '\n')
+        (run / 'response.md').write_text(text + '\n')
+        (run / 'network.json').write_text(json.dumps(dict(chatgpt_conversation_request=True,
+            codex_requests=0, submitted_models=['gpt-6-pro'])) + '\n')
+        (run / 'collect.lock').touch()
+        observation = dict(url=state['url'], users=['Analyze'], text=text, streaming=False,
+                           complete=True, citations=[dict(url='https://www.federalreserve.gov/paper.pdf',
+                           context_quote='Ross paper')])
+        return run, state, observation
+
+    def banked_bytes(self, run):
+        return {name: (run / name).read_bytes() for name in ('run.json', 'response.md', 'network.json')}
+
+    def test_sidecar_hashes_final_metadata_and_exact_response_without_rewriting(self):
+        with tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+            run, state, observation = self.archive(directory)
+            banked = self.banked_bytes(run)
+            receipt = browser.save_citations(run, observation, '2026-10-02T01:00:00Z')
+            data = (run / receipt['file']).read_bytes()
+            payload = json.loads(data)
+            self.assertEqual(payload['run_sha256'], hashlib.sha256(banked['run.json']).hexdigest())
+            self.assertEqual(payload['response_sha256'], hashlib.sha256(banked['response.md']).hexdigest())
+            self.assertEqual(payload['observed_response_sha256'], payload['response_sha256'])
+            self.assertEqual(payload['conversation_url'], state['url'])
+            self.assertEqual(payload['citations'], observation['citations'])
+            self.assertEqual(receipt['sha256'], hashlib.sha256(data).hexdigest())
+            self.assertEqual(browser.save_citations(run, observation, '2026-10-03T01:00:00Z'), receipt)
+            self.assertEqual((run / receipt['file']).read_bytes(), data)
+            self.assertEqual(self.banked_bytes(run), banked)
+            self.assertFalse(list(run.glob('.browser-citations-*')))
+            changed = {**observation, 'citations': [dict(url='https://example.org/different',
+                                                       context_quote='Ross paper')]}
+            with self.assertRaisesRegex(browser.BrowserError, 'different observed links'):
+                browser.save_citations(run, changed, '2026-10-03T01:00:00Z')
+            self.assertEqual((run / receipt['file']).read_bytes(), data)
+
+    def test_bad_observations_never_publish_or_modify_the_archive(self):
+        with tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+            run, _, observation = self.archive(directory)
+            banked = self.banked_bytes(run)
+            cases = [dict(text='Different reply'), dict(url='https://example.org/foreign'),
+                     dict(citations=[]), dict(citations=[observation['citations'][0]] * 257),
+                     dict(citations=[dict(url='https://example.org/paper', context_quote='Invented quote')]),
+                     dict(citations=[dict(url='file:///local', context_quote='Ross paper')]),
+                     dict(citations=[dict(url='https://example.org/paper', context_quote=' ')])]
+            for changed in cases:
+                with self.subTest(changed=changed), self.assertRaises(browser.BrowserError):
+                    browser.save_citations(run, {**observation, **changed}, '2026-10-02T01:00:00Z')
+                self.assertFalse((run / 'source_citations.json').exists())
+                self.assertEqual(self.banked_bytes(run), banked)
+
+    def test_sidecar_limits_and_unsafe_existing_evidence_fail(self):
+        with tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+            run, _, observation = self.archive(directory)
+            oversized = [dict(url='https://example.org/' + ('x' * 3000) + str(i),
+                              context_quote='Ross paper') for i in range(256)]
+            with self.assertRaisesRegex(browser.BrowserError, 'exceeds 512 KiB'):
+                browser.save_citations(run, {**observation, 'citations': oversized}, '2026-10-02T01:00:00Z')
+            path = run / 'source_citations.json'
+            path.symlink_to(run / 'response.md')
+            with self.assertRaisesRegex(browser.BrowserError, 'regular file'):
+                browser.save_citations(run, observation, '2026-10-02T01:00:00Z')
+            path.unlink()
+            browser.save_citations(run, observation, '2026-10-02T01:00:00Z')
+            state = json.loads((run / 'run.json').read_bytes())
+            state['tab'] = 'changed metadata'
+            (run / 'run.json').write_text(json.dumps(state) + '\n')
+            with self.assertRaisesRegex(browser.BrowserError, 'immutable run and response'):
+                browser.capture_citations(SimpleNamespace(run=run))
+
+    def capture_mocks(self, state):
+        def command(*args):
+            if args == ('new_page', state['url']):
+                return '100: Saved conversation (' + state['url'] + ') [selected]'
+            if args == ('close_page', 100):
+                return 'Owned page closed'
+            raise AssertionError('Unexpected browser operation: ' + repr(args))
+        return command
+
+    def test_completed_capture_and_replay_preserve_original_files_and_only_close_owned_tab(self):
+        with tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+            run, state, observation = self.archive(directory)
+            banked = self.banked_bytes(run)
+            with patch.object(browser, 'cli', side_effect=self.capture_mocks(state)) as cli, \
+                    patch.object(browser, 'evaluate', return_value=state['url']), \
+                    patch.object(browser, 'observe', return_value=observation), \
+                    patch.object(browser, 'composer', return_value=dict(text='', files=[], busy=False)), \
+                    patch('builtins.print'):
+                browser.capture_citations(SimpleNamespace(run=run))
+            self.assertEqual([call.args[0] for call in cli.call_args_list], ['new_page', 'close_page'])
+            self.assertEqual(cli.call_args_list[-1].args, ('close_page', 100))
+            self.assertEqual(self.banked_bytes(run), banked)
+            data = (run / 'source_citations.json').read_bytes()
+            with patch.object(browser, 'cli') as cli, patch('builtins.print'):
+                browser.capture_citations(SimpleNamespace(run=run))
+            cli.assert_not_called()
+            self.assertEqual((run / 'source_citations.json').read_bytes(), data)
+            self.assertEqual(self.banked_bytes(run), banked)
+
+    def test_legacy_capture_requires_exact_original_bytes(self):
+        with tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+            run, state, legacy = self.archive(directory, 'Ross paper: R\nQ.')
+            current = {**legacy, 'text': r'Ross paper: $R/\sqrt Q$.'}
+            with patch.object(browser, 'cli', side_effect=self.capture_mocks(state)), \
+                    patch.object(browser, 'evaluate', return_value=state['url']), \
+                    patch.object(browser, 'observe', side_effect=[current, legacy, legacy]) as observe, \
+                    patch.object(browser, 'composer', return_value=dict(text='', files=[], busy=False)), \
+                    patch('builtins.print'):
+                browser.capture_citations(SimpleNamespace(run=run))
+            observe.assert_any_call(100, legacy=True)
+            self.assertEqual(observe.call_args_list[-1].kwargs, {'legacy': True})
+            payload = json.loads((run / 'source_citations.json').read_bytes())
+            self.assertEqual(payload['observed_response_sha256'], hashlib.sha256(
+                (legacy['text'] + '\n').encode()).hexdigest())
+            self.assertEqual((run / 'response.md').read_bytes(), (legacy['text'] + '\n').encode())
+
+    def test_capture_refuses_mismatch_wrong_prompt_incomplete_or_absent_actual_links(self):
+        changes = [dict(text='Changed reply'), dict(users=['Wrong prompt']),
+                   dict(complete=False), dict(citations=[])]
+        for changed in changes:
+            with self.subTest(changed=changed), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                run, state, observation = self.archive(directory)
+                banked = self.banked_bytes(run)
+                with patch.object(browser, 'cli', side_effect=self.capture_mocks(state)) as cli, \
+                        patch.object(browser, 'evaluate', return_value=state['url']), \
+                        patch.object(browser, 'observe', return_value={**observation, **changed}), \
+                        patch.object(browser, 'composer', return_value=dict(text='', files=[], busy=False)), \
+                        self.assertRaises(browser.BrowserError):
+                    browser.capture_citations(SimpleNamespace(run=run))
+                expected = ['new_page', 'close_page'] if changed == dict(citations=[]) else ['new_page']
+                self.assertEqual([call.args[0] for call in cli.call_args_list], expected)
+                self.assertFalse((run / 'source_citations.json').exists())
+                self.assertEqual(self.banked_bytes(run), banked)
+
+    def test_capture_preserves_a_changed_tab_and_rejects_unverified_original_receipt(self):
+        with tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+            run, state, observation = self.archive(directory)
+            with patch.object(browser, 'cli', side_effect=self.capture_mocks(state)) as cli, \
+                    patch.object(browser, 'evaluate', return_value=True), \
+                    patch.object(browser, 'observe', side_effect=[observation,
+                        {**observation, 'url': 'https://example.org/changed'}]), \
+                    patch.object(browser, 'composer', return_value=dict(text='', files=[], busy=False)), \
+                    self.assertRaisesRegex(browser.BrowserError, 'tab changed'):
+                browser.capture_citations(SimpleNamespace(run=run))
+            self.assertEqual([call.args[0] for call in cli.call_args_list], ['new_page'])
+            self.assertFalse((run / 'source_citations.json').exists())
+            (run / 'network.json').write_text(json.dumps(dict(chatgpt_conversation_request=True,
+                codex_requests=0, submitted_models=['gpt-5-6'])))
+            with patch.object(browser, 'cli') as cli, self.assertRaisesRegex(
+                    browser.BrowserError, 'verified GPT-6 Pro'):
+                browser.capture_citations(SimpleNamespace(run=run))
+            cli.assert_not_called()
+
+    def test_capture_preserves_same_url_drafts_attachments_busy_and_followup(self):
+        clean = dict(text='', files=[], busy=False)
+        cases = [(dict(text='User draft', files=[], busy=False), None),
+                 (dict(text='', files=['user-file.pdf'], busy=False), None),
+                 (dict(text='', files=[], busy=True), None),
+                 (clean, dict(users=['Analyze', 'User follow-up'])),
+                 (clean, dict(users=['Analyze', 'User follow-up'], text='', complete=False))]
+        for draft, changed in cases:
+            with self.subTest(draft=draft, changed=changed), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                run, state, observation = self.archive(directory)
+                banked = self.banked_bytes(run)
+                later = {**observation, **(changed or {})}
+                self.assertEqual(later['url'], observation['url'])
+                with patch.object(browser, 'cli', side_effect=self.capture_mocks(state)) as cli, \
+                        patch.object(browser, 'evaluate', return_value=state['url']), \
+                        patch.object(browser, 'observe', side_effect=[observation, later]), \
+                        patch.object(browser, 'composer', return_value=draft), \
+                        patch('builtins.print') as printed, \
+                        self.assertRaisesRegex(browser.BrowserError, 'tab changed'):
+                    browser.capture_citations(SimpleNamespace(run=run))
+                self.assertEqual([call.args[0] for call in cli.call_args_list], ['new_page'])
+                printed.assert_not_called()
+                self.assertFalse((run / 'source_citations.json').exists())
+                self.assertEqual(self.banked_bytes(run), banked)
+
+    def test_future_collect_binds_sidecar_after_final_run_save_without_hash_cycle(self):
+        for linked in (True, False):
+            with self.subTest(linked=linked), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                run, state, observation = self.archive(directory)
+                state['phase'] = 'submitted'
+                (run / 'run.json').write_text(json.dumps(state))
+                if not linked:
+                    observation['citations'] = []
+                with patch.object(browser, 'observe', return_value=observation), \
+                        patch.object(browser, 'network_evidence', return_value=dict(chatgpt_conversation_request=True,
+                            codex_requests=0, submitted_models=['gpt-6-pro'])), \
+                        patch.object(browser, 'close_completed_tab', return_value='closed'), \
+                        patch('builtins.print') as printed:
+                    browser.collect(SimpleNamespace(run=run))
+                self.assertEqual((run / 'response.md').read_bytes(), (observation['text'] + '\n').encode())
+                final = json.loads((run / 'run.json').read_bytes())
+                self.assertEqual(final['tab'], 'closed')
+                result = json.loads(printed.call_args.args[0])
+                path = run / 'source_citations.json'
+                self.assertEqual(path.exists(), linked)
+                if linked:
+                    payload = json.loads(path.read_bytes())
+                    self.assertEqual(payload['run_sha256'], hashlib.sha256((run / 'run.json').read_bytes()).hexdigest())
+                    self.assertEqual(final['artifacts'][-1], {'file': 'source_citations.json'})
+                    self.assertEqual(result['artifacts'][-1]['sha256'], hashlib.sha256(path.read_bytes()).hexdigest())
 
 
 if __name__ == '__main__':
