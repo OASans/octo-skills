@@ -46,7 +46,8 @@ class BrowserDOMTests(unittest.TestCase):
                 output = re.search(r'<pre id="result">(.*?)</pre>', result.stdout, re.S)
                 self.assertIsNotNone(output, result.stdout)
                 value = json.loads(html.unescape(output[1]))
-                self.assertNotIn('error', value)
+                if 'error' in value:
+                    raise browser.BrowserError(value['error'])
                 return value
         with patch.object(browser, 'evaluate', side_effect=evaluate_fixture):
             return (reader or browser.observe)(1)
@@ -177,6 +178,71 @@ class BrowserDOMTests(unittest.TestCase):
             '<button aria-label="Copy"></button></div></main>')
         self.assertEqual(observation['text'], 'The completed answer.')
         self.assertTrue(browser.is_finished('analysis', observation))
+
+    def math_html(self, tex, mathml='<mi>x</mi>', display=False):
+        # B19's clipped MathML duplicates visual tokens in innerText; its radical
+        # is an SVG path, so innerText cannot represent the operation.
+        markup = ('<span class="katex"><span class="katex-mathml" '
+                  'style="position:absolute;clip:rect(1px,1px,1px,1px)">'
+                  '<math><semantics>' + mathml +
+                  '<annotation encoding="application/x-tex">' + html.escape(tex) +
+                  '</annotation></semantics></math></span>'
+                  '<span class="katex-html" aria-hidden="true">'
+                  '<span>R</span><span class="sqrt"><svg width="10" height="10">'
+                  '<path d="M0 5 L3 8 L6 0 L10 0"></path></svg><span>Q</span>'
+                  '</span><sup>2</sup></span></span>')
+        return '<span class="katex-display" style="display:block">' + markup + '</span>' if display else markup
+
+    def test_assistant_math_keeps_source_radicals_and_repeated_expressions(self):
+        tex = r'a_s=(R_s/\sqrt{Q_s})z_s'
+        # Exact MathML body captured from TCSS-02, rather than a text radical.
+        mathml = ('<mrow><msub><mi>a</mi><mi>s</mi></msub><mo>=</mo>'
+                  '<mo stretchy="false">(</mo><msub><mi>R</mi><mi>s</mi></msub>'
+                  '<mi mathvariant="normal">/</mi><msqrt><msub><mi>Q</mi><mi>s</mi>'
+                  '</msub></msqrt><mo stretchy="false">)</mo>'
+                  '<msub><mi>z</mi><mi>s</mi></msub></mrow>')
+        formula = self.math_html(tex, mathml)
+        observation = self.observe_html('<main><div><h4>ChatGPT said:</h4>'
+            '<p>Before RQ2: ' + formula + '; repeat ' + formula + ' after.</p>'
+            '<p>Second paragraph.</p><button aria-label="Copy"></button></div></main>')
+        self.assertEqual(observation['text'],
+            f'Before RQ2: ${tex}$; repeat ${tex}$ after.\n\nSecond paragraph.')
+        self.assertTrue(browser.is_finished('analysis', observation))
+
+    def test_assistant_display_math_preserves_fractions_powers_and_layout(self):
+        tex = r'\frac{R_s}{\sqrt{Q_s}}+q^2'
+        formula = self.math_html(tex, '<mrow><mfrac><mi>R</mi><msqrt><mi>Q</mi>'
+            '</msqrt></mfrac><mo>+</mo><msup><mi>q</mi><mn>2</mn></msup></mrow>', display=True)
+        inline = self.math_html(r'x^2')
+        observation = self.observe_html('<main><div><h4>ChatGPT said:</h4>'
+            '<p>Before.</p>' + formula + '<p>After.<br>New line.</p>'
+            '<ul><li>First ' + inline + '</li><li>Second.</li></ul>'
+            '<table><tr><th>Name</th><th>Score</th></tr><tr><td>A</td><td>' + inline +
+            '</td></tr><tr><td>B</td><td>2</td></tr></table>'
+            '<pre>keep  two spaces\n next line</pre>'
+            '<p style="white-space:pre-line">Start  here\n  ' + inline +
+            '\n End.</p></div></main>')
+        self.assertEqual(observation['text'], 'Before.\n\n$$' + tex +
+            '$$\n\nAfter.\nNew line.\n\nFirst $x^2$\nSecond.\n'
+            'Name\tScore\nA\t$x^2$\nB\t2\nkeep  two spaces\n next line\n\n'
+            'Start here\n$x^2$\nEnd.')
+
+    def test_assistant_math_skips_hidden_content(self):
+        formula = self.math_html(r'x^2')
+        observation = self.observe_html('<main><div><h4>ChatGPT said:</h4>'
+            '<p>Visible ' + formula + '<span style="display:none">hidden text</span>'
+            '<span style="visibility:hidden">secret ' + self.math_html('', '<mi>bad</mi>') +
+            '</span> after.</p><div style="display:none">' + self.math_html('') +
+            '</div><p style="display:contents">More ' + formula + '.</p></div></main>')
+        self.assertEqual(observation['text'], 'Visible $x^2$ after.\n\nMore $x^2$.')
+
+    def test_assistant_math_without_source_annotation_fails_visibly(self):
+        for formula in (self.math_html(''), self.math_html('x').replace(
+                '<annotation encoding="application/x-tex">x</annotation>', '')):
+            with self.subTest(formula=formula), self.assertRaisesRegex(
+                    browser.BrowserError, 'Math expression has no TeX annotation'):
+                self.observe_html('<main><div><h4>ChatGPT said:</h4><p>' + formula +
+                    '</p><button aria-label="Copy"></button></div></main>')
 
     def test_completion_toolbar_can_follow_the_reply_outside_its_block(self):
         observation = self.observe_html('<main><div><div><h4>ChatGPT said:</h4>' +

@@ -158,6 +158,73 @@ PROMPT_TEXT_SCRIPT = r'''const promptText=e=>{
     };'''
 
 
+RESPONSE_TEXT_SCRIPT = r'''const responseText=root=>{
+      if(!root) return '';
+      if(!root.matches('.katex') && !root.querySelector('.katex')) return root.innerText || '';
+      // Read original rendered nodes: detached clones lose innerText layout and
+      // SVG radicals have no text. Serialize each complete math expression once.
+      let text='', boundary=0;
+      const append=(value,collapse=false)=>{
+        if(!value) return;
+        if(collapse) {
+          value=value.replace(collapse==='pre-line' ? /[\t\r\f ]+/g : /[\t\n\r\f ]+/g,' ');
+          if(collapse==='pre-line') value=value.replace(/ *\n */g,'\n');
+          if(boundary || !text || text.endsWith(' ')) value=value.replace(/^ +/,'');
+          if(!value) return;
+        }
+        if(boundary && text) {
+          text=text.replace(/[\t ]+$/,'');
+          const trailing=text.match(/\n*$/)[0].length;
+          text+='\n'.repeat(Math.max(0,boundary-trailing));
+        }
+        boundary=0;
+        text+=value;
+      };
+      const read=node=>{
+        if(node.nodeType===Node.TEXT_NODE) {
+          const style=getComputedStyle(node.parentElement);
+          if(/^(hidden|collapse)$/.test(style.visibility)) return;
+          append(node.data,style.whiteSpace==='pre-line' ? 'pre-line' :
+            !/^(pre|pre-wrap|break-spaces)$/.test(style.whiteSpace));
+          return;
+        }
+        if(node.nodeType!==Node.ELEMENT_NODE) return;
+        const style=getComputedStyle(node);
+        if(style.display==='none' || /^(SCRIPT|STYLE|NOSCRIPT)$/.test(node.tagName)) return;
+        if(node.matches('.katex')) {
+          if(/^(hidden|collapse)$/.test(style.visibility)) return;
+          const tex=node.querySelector('annotation[encoding="application/x-tex"]')?.textContent;
+          if(!tex?.trim()) throw new Error('Math expression has no TeX annotation');
+          const delimiter=node.closest('.katex-display') ? '$$' : '$';
+          append(delimiter+tex+delimiter);
+          return;
+        }
+        if(node.tagName==='BR') {
+          if(!/^(hidden|collapse)$/.test(style.visibility)) append('\n');
+          return;
+        }
+        const separator=node.tagName==='P' || node.matches('.katex-display') ? 2 :
+          /^(block|flow-root|flex|grid|list-item|table|table-row|table-caption)$/.test(style.display) ? 1 : 0;
+        boundary=Math.max(boundary,separator);
+        if(style.display==='table-row' && node.querySelector('.katex')) {
+          const cells=[...node.children].filter(c=>getComputedStyle(c).display==='table-cell');
+          cells.forEach((cell,index)=>{
+            if(index) append('\t');
+            append(responseText(cell));
+          });
+        } else if(style.display!=='contents' && !node.querySelector('.katex') &&
+                  typeof node.innerText==='string') {
+          append(node.innerText);
+        } else {
+          node.childNodes.forEach(read);
+        }
+        boundary=Math.max(boundary,separator);
+      };
+      read(root);
+      return text.trim();
+    };'''
+
+
 def composer(page):
     return evaluate(page, PROMPT_TEXT_SCRIPT + '''const e=document.querySelector('[role=textbox][contenteditable=true]');
       const f=e?.closest('form');
@@ -272,7 +339,7 @@ def network_evidence(page, mode):
 
 
 def observe(page):
-    return evaluate(page, PROMPT_TEXT_SCRIPT + r'''const visible=e=>!!e && e.getClientRects().length>0 &&
+    return evaluate(page, PROMPT_TEXT_SCRIPT + RESPONSE_TEXT_SCRIPT + r'''const visible=e=>!!e && e.getClientRects().length>0 &&
       getComputedStyle(e).visibility!=='hidden' && getComputedStyle(e).display!=='none';
       const main=[...document.querySelectorAll('main')].find(visible);
       if(!main) throw new Error('Visible conversation missing');
@@ -290,7 +357,7 @@ def observe(page):
           const content=e.querySelector('[data-search-result-target]') || e.querySelector('[dir="auto"]') || e;
           return promptText(content);
         }),
-        text:last?.innerText.replace(/^ChatGPT said:\s*/, '').trim() || '',
+        text:responseText(last).replace(/^ChatGPT said:\s*/, '').trim(),
         streaming:[...document.querySelectorAll('button[data-testid="stop-button"],button[aria-label="Stop streaming"],button[aria-label="Stop"]')].some(visible),
         complete:!!last && ([...document.querySelectorAll('[role="status"]')]
           .some(e=>visible(e)&&e.innerText==='Response complete') ||
