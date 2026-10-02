@@ -25,6 +25,7 @@ class BrowserError(RuntimeError):
 
 MAX_CITATIONS = 256
 MAX_CITATION_BYTES = 512 * 1024
+MAX_CLEANUP_BYTES = 4096
 
 
 def cli(*args):
@@ -568,6 +569,136 @@ def close_completed_tab(state, observation, *, legacy=False):
         return 'close failed: ' + str(error)
 
 
+def hydration_equivalent(original, current):
+    # Preserve words, numbers, punctuation, currency and math boundaries. Only
+    # paired TeX delimiters and whitespace between unchanged tokens may differ.
+    math = re.compile(r'\\\[(.*?)\\\]|\\\((.*?)\\\)|'
+                      r'(?<![\\$])\$\$(.*?)(?<!\\)\$\$(?!\$)|'
+                      r'(?<![\\$])\$(?!\$)(.*?)(?<!\\)\$(?!\$)', re.S)
+
+    def tokens(text):
+        return re.findall(r'\w+|[^\w\s]', text)
+
+    def parts(text):
+        result = []
+        end = 0
+        for match in math.finditer(text):
+            index = next(i for i, value in enumerate(match.groups()) if value is not None)
+            # A pair of prices such as "$10 and $20" is not inline math. Refuse
+            # ambiguous numeric dollar spans even if the other rendering uses TeX.
+            if index == 3 and re.match(r'\s*[-+]?(?:\d|[.,]\d|[A-Z]{3}\s+\d)', match[4]):
+                continue
+            result.append(('text', tokens(text[end:match.start()])))
+            result.append(('display' if index in (0, 2) else 'inline', tokens(match[index + 1])))
+            end = match.end()
+        result.append(('text', tokens(text[end:])))
+        return result
+
+    return parts(original) == parts(current)
+
+
+def validate_cleanup_network(evidence):
+    if (not isinstance(evidence, dict) or
+            evidence.get('chatgpt_conversation_request') is not True or
+            type(evidence.get('codex_requests')) is not int or evidence['codex_requests'] != 0 or
+            evidence.get('submitted_models') != ['gpt-6-pro']):
+        raise BrowserError('Cleanup requires exactly one verified GPT-6 Pro submission and zero Codex requests')
+    requests = evidence.get('requests')
+    if not isinstance(requests, list) or not all(isinstance(row, dict) and
+            all(isinstance(row.get(key), str) for key in ('method', 'path', 'status')) for row in requests):
+        raise BrowserError('Cleanup requires the original browser request evidence')
+    if any(row['path'].startswith('/backend-api/codex') for row in requests):
+        raise BrowserError('Cleanup refuses Codex request evidence')
+    submissions = [row for row in requests if row['method'] == 'POST' and row['path'] in
+                   ('/backend-api/f/conversation', '/backend-api/conversation')]
+    if len(submissions) != 1 or submissions[0]['status'] != '200':
+        raise BrowserError('Cleanup requires exactly one successful original conversation POST')
+    return submissions[0]
+
+
+def cleanup_receipt(run, expected):
+    path = run / 'tab_cleanup.json'
+    if not path.exists() and not path.is_symlink():
+        return None
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_CLEANUP_BYTES:
+        raise BrowserError('Tab cleanup receipt must be a regular file of at most 4 KiB')
+    data = path.read_bytes()
+    payload = json.loads(data)
+    if (not isinstance(payload, dict) or payload != expected or
+            type(payload.get('version')) is not int or type(payload.get('page')) is not int):
+        raise BrowserError('Tab cleanup receipt conflicts with the immutable completed run')
+    return {'file': path.name, 'sha256': hashlib.sha256(data).hexdigest()}
+
+
+def cleanup_completed(args):
+    run = args.run.resolve(strict=True)
+    lock_path = run / 'collect.lock'
+    if lock_path.is_symlink() or not lock_path.is_file():
+        raise BrowserError('Cleanup requires the regular owned collection lock')
+    with lock_path.open('r') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        archive = {}
+        for name in ('run.json', 'response.md', 'network.json', 'source_citations.json'):
+            path = run / name
+            if name == 'source_citations.json' and not path.exists() and not path.is_symlink():
+                continue
+            if path.is_symlink() or not path.is_file():
+                raise BrowserError('Cleanup requires regular owned ' + name)
+            archive[name] = path.read_bytes()
+        state = json.loads(archive['run.json'])
+        if (not isinstance(state, dict) or state.get('phase') != 'complete' or
+                state.get('mode') != 'analysis' or state.get('chat_mode') != 'Chat' or
+                not isinstance(state.get('prompt'), str) or not state['prompt'].strip() or
+                state.get('submitted_prompt', state['prompt']) != state['prompt'] or
+                type(state.get('page')) is not int or state['page'] < 0 or
+                not isinstance(state.get('url'), str) or not isinstance(state.get('model'), dict) or
+                not conversation_url(state.get('url') or '')):
+            raise BrowserError('Cleanup requires the original completed analysis, prompt and owned page')
+        validate_model('analysis', state.get('model') or {})
+        original_submission = validate_cleanup_network(json.loads(archive['network.json']))
+        expected = dict(version=1, run_sha256=hashlib.sha256(archive['run.json']).hexdigest(),
+                        response_sha256=hashlib.sha256(archive['response.md']).hexdigest(),
+                        conversation_url=state['url'], page=state['page'], tab='closed')
+        receipt = cleanup_receipt(run, expected)
+        if receipt is None:
+            if state.get('tab') == 'closed':
+                raise BrowserError('Original completed tab is already closed; no cleanup receipt can be inferred')
+            require_browser_daemon()
+            pages = cli('list_pages')
+            if not re.search(r'^' + str(state['page']) + r': .*' + re.escape(state['url']) +
+                             r'(?:\)|\s|$)', pages, re.M):
+                raise BrowserError('Cannot verify the original owned page and conversation')
+            current_submission = validate_cleanup_network(network_evidence(state['page'], 'analysis', run=run))
+            if current_submission != original_submission:
+                raise BrowserError('Current browser submission differs from the original request evidence')
+            observation = observe_run(state['page'], 'analysis')
+            verify_conversation(state, observation)
+            if observation['users'] != [state['prompt']] or not is_finished('analysis', observation):
+                raise BrowserError('Cleanup requires only the original prompt and finished assistant reply')
+            if not hydration_equivalent(archive['response.md'].decode('utf-8'), observation['text']):
+                raise BrowserError('Current assistant reply differs substantively from the banked response')
+            draft = composer(state['page'])
+            if draft['text'] or draft['files'] or draft['busy']:
+                raise BrowserError('Cleanup preserves the current composer draft or upload')
+            if any((run / name).is_symlink() or (run / name).read_bytes() != data
+                   for name, data in archive.items()):
+                raise BrowserError('Completed archive changed during cleanup verification')
+            status = close_completed_tab(state, observation)
+            if status != 'closed':
+                raise BrowserError('Completed cleanup ' + status + '; no receipt written')
+            if any((run / name).is_symlink() or (run / name).read_bytes() != data
+                   for name, data in archive.items()):
+                raise BrowserError('Completed archive changed during tab closure; no receipt written')
+            data = (json.dumps(expected, indent=2) + '\n').encode('utf-8')
+            with tempfile.TemporaryDirectory(prefix='.browser-cleanup-', dir=run) as scratch:
+                temporary = Path(scratch) / 'tab_cleanup.json'
+                temporary.write_bytes(data)
+                (run / temporary.name).hardlink_to(temporary)
+            receipt = cleanup_receipt(run, expected)
+        print(json.dumps({'phase': 'complete', 'run': str(run), 'url': state['url'],
+                          'artifact': receipt, 'tab': 'closed'}))
+
+
 def citation_archive(run):
     for name in ('run.json', 'response.md'):
         path = run / name
@@ -780,10 +911,14 @@ def main():
     get.add_argument('--run', type=Path, required=True)
     citations = sub.add_parser('capture-citations', help='Capture exact assistant hrefs for an unchanged completed analysis')
     citations.add_argument('--run', type=Path, required=True)
+    cleanup = sub.add_parser('cleanup-completed', help='Close the unchanged owned tab of a completed analysis')
+    cleanup.add_argument('--run', type=Path, required=True)
     args = parser.parse_args()
     try:
-        require_browser_daemon()
-        {'start': start, 'collect': collect, 'capture-citations': capture_citations}[args.command](args)
+        if args.command != 'cleanup-completed':
+            require_browser_daemon()
+        {'start': start, 'collect': collect, 'capture-citations': capture_citations,
+         'cleanup-completed': cleanup_completed}[args.command](args)
     except (BrowserError, OSError, ValueError, subprocess.SubprocessError) as error:
         print(str(error), file=sys.stderr)
         return 1

@@ -1,4 +1,5 @@
 """Browser helper safety contracts; real UI behavior is exercised separately."""
+from contextlib import contextmanager
 import importlib.util
 import html
 import hashlib
@@ -958,6 +959,268 @@ class CitationTests(unittest.TestCase):
                     self.assertEqual(payload['run_sha256'], hashlib.sha256((run / 'run.json').read_bytes()).hexdigest())
                     self.assertEqual(final['artifacts'][-1], {'file': 'source_citations.json'})
                     self.assertEqual(result['artifacts'][-1]['sha256'], hashlib.sha256(path.read_bytes()).hexdigest())
+
+
+class CleanupTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.workspace = Path(__file__).resolve().parents[1] / '.browser-workspace'
+        cls.workspace.mkdir(exist_ok=True)
+
+    def archive(self, directory):
+        run = Path(directory)
+        text = (r'Use \(R=D-L\) for cash. \[ D=\text{cash deposited},\qquad L=2. \]'
+                '\nHistorical XML\n.')
+        state = dict(mode='analysis', phase='complete', prompt='Analyze', page=108,
+                     url='https://chatgpt.com/c/6ab83f53-4ee8-83ea-b640-29791f4c725a',
+                     chat_mode='Chat', model=dict(value='4', text='6\nPro'),
+                     tab='kept: tab changed after collection')
+        evidence = dict(chatgpt_conversation_request=True, codex_requests=0,
+                        submitted_models=['gpt-6-pro'], requests=[dict(method='POST',
+                        path='/backend-api/f/conversation', status='200')])
+        (run / 'run.json').write_text(json.dumps(state) + '\n')
+        (run / 'response.md').write_text(text + '\n')
+        (run / 'network.json').write_text(json.dumps(evidence) + '\n')
+        (run / 'collect.lock').touch()
+        observation = dict(url=state['url'], users=['Analyze'],
+            text=r'Use $R=D-L$ for cash. $$D=\text{cash deposited},\qquad' +
+                 '\nL=2.$$\nHistorical XML.', streaming=False, complete=True, citations=[])
+        # Bank an actual citation sidecar to detect accidental metadata changes.
+        linked = dict(url='https://example.org/source', context_quote='Historical XML')
+        browser.save_citations(run, dict(observation, text=text, citations=[linked]),
+                               '2026-10-02T01:00:00Z')
+        return run, state, evidence, observation
+
+    def banked_bytes(self, run):
+        return {name: (run / name).read_bytes() for name in
+                ('run.json', 'response.md', 'network.json', 'source_citations.json')}
+
+    @contextmanager
+    def browser_mocks(self, state, evidence, observation):
+        with patch.multiple(browser, require_browser_daemon=DEFAULT, cli=DEFAULT,
+                            observe=DEFAULT, composer=DEFAULT, network_evidence=DEFAULT) as mocks, \
+                patch('builtins.print'):
+            def command(*args):
+                if args == ('list_pages',):
+                    return str(state['page']) + ': ChatGPT (' + state['url'] + ')'
+                if args == ('close_page', state['page']):
+                    return 'Owned page closed'
+                raise AssertionError('Unexpected browser operation: ' + repr(args))
+            mocks['cli'].side_effect = command
+            mocks['observe'].return_value = observation
+            mocks['composer'].return_value = dict(text='', files=[], busy=False)
+            mocks['network_evidence'].return_value = evidence
+            yield mocks
+
+    def test_hydration_keeps_words_numbers_currency_and_math_boundaries(self):
+        equal = [(r'\(R=D-L\)', '$R=D-L$'),
+                 (r'\[ 1 + 2 \]\[\text{cash deposited}\]', '$$1+2$$\n\n$$\\text{cash deposited}$$'),
+                 ('Historical XML\n.', 'Historical XML.'),
+                 ('Keep\nthese  words.', 'Keep these words.')]
+        different = [('not able', 'notable'), ('1 0', '10'),
+                     ('Keep these words.', 'Keep those words.'),
+                     (r'\(R=2\)', '$R=3$'), (r'\[x\]', '$x$'),
+                     ('$10', '10'), ('$10 and $20', '10 and 20'),
+                     ('$10 and $20', r'\(10 and \)20'), ('$10$', r'\(10\)'),
+                     ('$-10 and $20', r'\(-10 and \)20'),
+                     ('$USD 10 and $EUR 20', r'\(USD 10 and \)EUR 20'),
+                     (r'\(price=\$10\)', '$price=10$'),
+                     (r'\(\text{not able}\)', r'$\text{notable}$'),
+                     (r'\[x\]\[y\]', '$$xy$$')]
+        for original, current in equal:
+            with self.subTest(original=original, current=current):
+                self.assertTrue(browser.hydration_equivalent(original, current))
+        for original, current in different:
+            with self.subTest(original=original, current=current):
+                self.assertFalse(browser.hydration_equivalent(original, current))
+
+    def test_cleanup_closes_only_original_page_preserves_archive_and_replays_offline(self):
+        with tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+            run, state, evidence, observation = self.archive(directory)
+            banked = self.banked_bytes(run)
+            with self.browser_mocks(state, evidence, observation) as mocks:
+                browser.cleanup_completed(SimpleNamespace(run=run))
+            self.assertEqual([call.args for call in mocks['cli'].call_args_list],
+                             [('list_pages',), ('close_page', 108)])
+            self.assertEqual(mocks['observe'].call_count, 2)
+            mocks['network_evidence'].assert_called_once_with(108, 'analysis', run=run)
+            path = run / 'tab_cleanup.json'
+            receipt_bytes = path.read_bytes()
+            self.assertEqual(json.loads(receipt_bytes), dict(version=1,
+                run_sha256=hashlib.sha256(banked['run.json']).hexdigest(),
+                response_sha256=hashlib.sha256(banked['response.md']).hexdigest(),
+                conversation_url=state['url'], page=108, tab='closed'))
+            with patch.object(browser, 'cli') as cli, \
+                    patch.object(browser, 'require_browser_daemon') as daemon, \
+                    patch.object(browser.sys, 'argv', ['browser.py', 'cleanup-completed', '--run', str(run)]), \
+                    patch('builtins.print'):
+                self.assertEqual(browser.main(), 0)
+            cli.assert_not_called()
+            daemon.assert_not_called()
+            self.assertEqual(path.read_bytes(), receipt_bytes)
+            self.assertEqual(self.banked_bytes(run), banked)
+            self.assertFalse(list(run.glob('.browser-cleanup-*')))
+            # Existing citation authentication still succeeds against original bytes.
+            browser.existing_citations(run, state, banked['response.md'],
+                                       hashlib.sha256(banked['run.json']).hexdigest())
+
+    def test_cleanup_refuses_changed_reply_prompt_followup_completion_or_ownership(self):
+        changes = [dict(text='Changed words'), dict(text=r'Use $R=D-L$ for cash. $$D=\text{cash deposited},\qquad L=3.$$\nHistorical XML.'),
+                   dict(users=['Wrong prompt']), dict(users=['Analyze', 'Follow up']),
+                   dict(complete=False), dict(streaming=True), dict(text=''),
+                   dict(url='https://chatgpt.com/c/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')]
+        for changed in changes:
+            with self.subTest(changed=changed), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                run, state, evidence, observation = self.archive(directory)
+                banked = self.banked_bytes(run)
+                with self.browser_mocks(state, evidence, {**observation, **changed}) as mocks, \
+                        self.assertRaises(browser.BrowserError):
+                    browser.cleanup_completed(SimpleNamespace(run=run))
+                self.assertNotIn(('close_page', 108), [call.args for call in mocks['cli'].call_args_list])
+                self.assertFalse((run / 'tab_cleanup.json').exists())
+                self.assertEqual(self.banked_bytes(run), banked)
+        with tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+            run, state, evidence, observation = self.archive(directory)
+            with self.browser_mocks(state, evidence, observation) as mocks:
+                mocks['cli'].side_effect = None
+                mocks['cli'].return_value = '109: Other page (' + state['url'] + ')'
+                with self.assertRaisesRegex(browser.BrowserError, 'original owned page'):
+                    browser.cleanup_completed(SimpleNamespace(run=run))
+            mocks['observe'].assert_not_called()
+            self.assertFalse((run / 'tab_cleanup.json').exists())
+
+    def test_cleanup_preserves_drafts_uploads_and_concurrently_changed_tabs(self):
+        cases = [(dict(text='Draft', files=[], busy=False), None),
+                 (dict(text='', files=['user.pdf'], busy=False), None),
+                 (dict(text='', files=[], busy=True), None),
+                 (None, dict(text='Changed after verification')),
+                 (None, dict(users=['Analyze', 'Follow up']))]
+        for draft, later in cases:
+            with self.subTest(draft=draft, later=later), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                run, state, evidence, observation = self.archive(directory)
+                banked = self.banked_bytes(run)
+                with self.browser_mocks(state, evidence, observation) as mocks:
+                    if draft:
+                        mocks['composer'].return_value = draft
+                    if later:
+                        mocks['observe'].side_effect = [observation, {**observation, **later}]
+                    with self.assertRaises(browser.BrowserError):
+                        browser.cleanup_completed(SimpleNamespace(run=run))
+                self.assertNotIn(('close_page', 108), [call.args for call in mocks['cli'].call_args_list])
+                self.assertFalse((run / 'tab_cleanup.json').exists())
+                self.assertEqual(self.banked_bytes(run), banked)
+
+    def test_cleanup_refuses_unproven_or_extra_original_and_current_submissions(self):
+        for origin in ('original', 'current'):
+            for change in ('extra', 'failed_extra', 'codex', 'model', 'absent', 'different_path'):
+                with self.subTest(origin=origin, change=change), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                    run, state, evidence, observation = self.archive(directory)
+                    changed = json.loads(json.dumps(evidence))
+                    if change in ('extra', 'failed_extra'):
+                        changed['requests'].append(dict(method='POST', path='/backend-api/f/conversation',
+                                                        status='200' if change == 'extra' else 'pending'))
+                    elif change == 'codex':
+                        changed['requests'].append(dict(method='GET', path='/backend-api/codex/tasks', status='200'))
+                    elif change == 'model':
+                        changed['submitted_models'] = ['gpt-6']
+                    elif change == 'absent':
+                        changed.pop('requests')
+                    else:
+                        changed['requests'][0]['path'] = '/backend-api/conversation'
+                    if origin == 'original':
+                        (run / 'network.json').write_text(json.dumps(changed))
+                        # Different valid original endpoint is allowed if current matches.
+                        if change == 'different_path':
+                            evidence = changed
+                    banked = self.banked_bytes(run)
+                    with self.browser_mocks(state, evidence, observation) as mocks:
+                        if origin == 'current':
+                            mocks['network_evidence'].return_value = changed
+                        if origin == 'original' and change == 'different_path':
+                            browser.cleanup_completed(SimpleNamespace(run=run))
+                        else:
+                            with self.assertRaises(browser.BrowserError):
+                                browser.cleanup_completed(SimpleNamespace(run=run))
+                            self.assertFalse((run / 'tab_cleanup.json').exists())
+                            self.assertNotIn(('close_page', 108), [call.args for call in mocks['cli'].call_args_list])
+                    self.assertEqual(self.banked_bytes(run), banked)
+
+    def test_cleanup_rejects_invalid_archive_and_symlink_files_before_browser_access(self):
+        for changed in (dict(phase='submitted'), dict(mode='images'), dict(page=True),
+                        dict(page='108'), dict(url='https://example.org'), dict(prompt=''),
+                        dict(model=dict(value='0', text='Instant')), dict(chat_mode='Work'),
+                        dict(submitted_prompt='Different'), dict(tab='closed')):
+            with self.subTest(changed=changed), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                run, state, _, _ = self.archive(directory)
+                (run / 'run.json').write_text(json.dumps({**state, **changed}))
+                with patch.object(browser, 'cli') as cli, self.assertRaises(browser.BrowserError):
+                    browser.cleanup_completed(SimpleNamespace(run=run))
+                cli.assert_not_called()
+                self.assertFalse((run / 'tab_cleanup.json').exists())
+        for name in ('run.json', 'response.md', 'network.json', 'source_citations.json', 'collect.lock'):
+            with self.subTest(name=name), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                run, _, _, _ = self.archive(directory)
+                path = run / name
+                target = run / 'owned-original'
+                path.rename(target)
+                path.symlink_to(target)
+                with patch.object(browser, 'cli') as cli, self.assertRaisesRegex(browser.BrowserError, 'regular'):
+                    browser.cleanup_completed(SimpleNamespace(run=run))
+                cli.assert_not_called()
+                self.assertFalse((run / 'tab_cleanup.json').exists())
+
+    def test_cleanup_receipts_refuse_conflict_malformed_oversized_or_symlink(self):
+        for change in ('run_hash', 'response_hash', 'page', 'url', 'tab', 'extra', 'bool', 'malformed', 'oversized', 'symlink'):
+            with self.subTest(change=change), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                run, state, evidence, observation = self.archive(directory)
+                with self.browser_mocks(state, evidence, observation):
+                    browser.cleanup_completed(SimpleNamespace(run=run))
+                path = run / 'tab_cleanup.json'
+                payload = json.loads(path.read_bytes())
+                key = dict(run_hash='run_sha256', response_hash='response_sha256', page='page',
+                           url='conversation_url', tab='tab', extra='extra', bool='version').get(change)
+                if key:
+                    payload[key] = True if change == 'bool' else 'conflict'
+                    path.write_text(json.dumps(payload))
+                elif change == 'malformed':
+                    path.write_text('{')
+                elif change == 'oversized':
+                    path.write_text(' ' * (browser.MAX_CLEANUP_BYTES + 1))
+                else:
+                    target = run / 'receipt-original'
+                    path.rename(target)
+                    path.symlink_to(target)
+                existing = path.read_bytes()
+                banked = self.banked_bytes(run)
+                with patch.object(browser, 'cli') as cli, \
+                        patch.object(browser, 'require_browser_daemon') as daemon, \
+                        self.assertRaises((browser.BrowserError, ValueError)):
+                    browser.cleanup_completed(SimpleNamespace(run=run))
+                cli.assert_not_called()
+                daemon.assert_not_called()
+                self.assertEqual(path.read_bytes(), existing)
+                self.assertEqual(self.banked_bytes(run), banked)
+
+    def test_cleanup_failure_or_archive_change_never_writes_closed_receipt(self):
+        for change in ('close_failure', 'archive_change'):
+            with self.subTest(change=change), tempfile.TemporaryDirectory(dir=self.workspace) as directory:
+                run, state, evidence, observation = self.archive(directory)
+                banked = self.banked_bytes(run)
+                with self.browser_mocks(state, evidence, observation) as mocks:
+                    command = mocks['cli'].side_effect
+                    def changed_command(*args):
+                        if args[0] == 'close_page':
+                            if change == 'close_failure':
+                                raise browser.BrowserError('Disconnected')
+                            (run / 'network.json').write_bytes(banked['network.json'] + b' ')
+                        return command(*args)
+                    mocks['cli'].side_effect = changed_command
+                    with self.assertRaisesRegex(browser.BrowserError, 'no receipt written'):
+                        browser.cleanup_completed(SimpleNamespace(run=run))
+                self.assertFalse((run / 'tab_cleanup.json').exists())
+                for name, data in banked.items():
+                    if name != 'network.json' or change == 'close_failure':
+                        self.assertEqual((run / name).read_bytes(), data)
 
 
 if __name__ == '__main__':
