@@ -89,7 +89,7 @@
   },
   {
     "id": "simplify_audit_browser_default",
-    "task": "The user invokes $octo-simplify without paths or a mode. Browser ChatGPT GPT-6 Pro and its workflow are available. The checkout has a tiny diff but many unchanged source files. What should you do?",
+    "task": "The user invokes $octo-simplify without paths. Browser ChatGPT GPT-6 Pro and its workflow are available. The checkout has a tiny diff but many unchanged source files. What should you do?",
     "choices": [
       "inventory_whole_project",
       "use_browser_gpt6_pro_scope_analysis",
@@ -106,24 +106,19 @@
   },
   {
     "id": "simplify_audit_local_choice",
-    "task": "The user invokes $octo-simplify for the full src tree using local agents, without specifying models. Independent scopes and candidate findings are available. What should you do?",
+    "task": "The user invokes $octo-simplify but explicitly requests a local-agent mode. What does this skill support?",
     "choices": [
-      "use_fresh_sol_6_1_medium_finders",
-      "use_separate_sol_6_1_high_candidate_reviewers",
-      "main_agent_checks_final_candidates_and_cross_scope_contracts",
-      "use_browser_pro_anyway",
-      "default_all_roles_to_luna",
-      "edit_source_during_audit"
+      "explain_skill_is_browser_pro_only",
+      "run_local_agent_audit",
+      "start_browser_despite_requested_local_mode"
     ],
     "expected": [
-      "use_fresh_sol_6_1_medium_finders",
-      "use_separate_sol_6_1_high_candidate_reviewers",
-      "main_agent_checks_final_candidates_and_cross_scope_contracts"
+      "explain_skill_is_browser_pro_only"
     ]
   },
   {
     "id": "simplify_audit_browser_unavailable",
-    "task": "The user invokes $octo-simplify with the default mode, but the browser reports GPT-6 Pro unavailable before submission. No local mode was requested. What should you do?",
+    "task": "The user invokes $octo-simplify, but the browser reports GPT-6 Pro unavailable before submission. What should you do?",
     "choices": [
       "report_browser_model_blocker",
       "keep_unread_scopes_pending",
@@ -154,17 +149,15 @@
   },
   {
     "id": "simplify_audit_zero_findings",
-    "task": "A full local $octo-simplify audit read all included files, traced callers, and found no supported cleanup candidates. Existing tests cover meaningful distinct behaviors. What should you do?",
+    "task": "A full browser $octo-simplify audit read all included files, traced callers, and found no supported cleanup candidates. The main agent checked the response and coverage. Existing tests cover meaningful distinct behaviors. What should you do?",
     "choices": [
       "report_complete_coverage_and_zero_findings",
-      "skip_candidate_reviewer_without_candidates",
       "invent_cleanup_to_reduce_lines",
       "recommend_deleting_tests_for_a_quota",
       "require_another_finder_until_something_is_found"
     ],
     "expected": [
-      "report_complete_coverage_and_zero_findings",
-      "skip_candidate_reviewer_without_candidates"
+      "report_complete_coverage_and_zero_findings"
     ]
   },
   {

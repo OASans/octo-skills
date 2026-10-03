@@ -22,7 +22,7 @@ Codex skills and config, available in ALL projects once installed.
 | `/octo-coding-guide-rust` | Reference (guide) | Rust-specific conventions. `guide-scope: **/*.rs` |
 | `/octo-review` | Workflow | One holistic reviewer when independent review is needed; one verifier for concrete failure claims |
 | `/octo-commit` | Workflow | Primary commit path: verify the AGENTS.md workflow was followed, then write a meaningful + compact commit. Never pushes |
-| `/octo-simplify` | Audit (on request) | Full simplification audit and ranked cleanup plan; browser GPT-6 Pro by default, local agents on explicit request |
+| `/octo-simplify` | Audit (on request) | Full simplification audit through browser GPT-6 Pro; coverage and ranked cleanup plan, no implementation |
 | `/octo-memory` | Memory (manual) | Audit transcripts through browser Pro and publish verified topics |
 
 ## Skill Relationships
@@ -31,7 +31,7 @@ Codex skills and config, available in ALL projects once installed.
 - `/octo-review` defaults to one reviewer across the change and relevant guidance, with at most one independent verifier for failure claims. Global instructions own review triggers and freshness.
 - `/octo-commit` enforces the merged AGENTS.md workflow, completes missing authorized steps, and checks that required review/checks cover the current change. It never pushes without user authorization.
 - `/octo-memory` owns explicitly requested transcript audits, global progress tracking, and verified topic publication. Existing knowledge remains available during ordinary tasks.
-- `/octo-simplify` audits the whole requested scope using the common quality guidance; it records coverage and proposes cleanup without implementing it. Browser mode uses `/octo-chatgpt-analysis`; local agents require an explicit choice.
+- `/octo-simplify` audits the whole requested scope through `/octo-chatgpt-analysis`; it records coverage and proposes cleanup without implementing it. Browser GPT-6 Pro is its only execution route.
 
 ## Editing Skills
 
