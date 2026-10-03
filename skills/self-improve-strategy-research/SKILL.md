@@ -51,10 +51,14 @@ read-only preflight and shared capacity setup while their identities remain vali
 3. **Choose a demonstrated improvement.** Main agent owns decisions. Rank concrete failures
    and supported recurring costs by scientific quality, token/latency benefit and change
    risk. Prefer a small correction to an existing operation over repeated model work.
-   Fix observed operational errors at their cause, with bounded local repair and visible
-   escalation for shared bugs, unresolved conflicts or decisions outside authorized scope.
-   Operational failure is HELP, never a silent scientific rejection. If no worthwhile
-   change is supported, record that and continue without manufacturing a fix.
+   For every observed operational error, identify its cause and implement verified durable
+   prevention in existing tools or instructions; a one-off workaround is not a completed
+   prevention fix. Preserve bounded local repairs and escalate shared bugs, unresolved
+   conflicts or decisions outside authorized scope with exact retained evidence. External
+   failures need bounded recovery and explicit limits, not a promise of zero recurrence.
+   Scientific rejections are not operational errors. Operational failure is HELP, never a
+   silent scientific rejection. If no worthwhile change is supported, record that and
+   continue without manufacturing a fix.
 4. **Fix and verify.** Preserve active/retained workspace and frozen runtime identities.
    Use an isolated detached worktree when needed, following project branch policy; merge
    every completed fix into the default branch. Apply focused behavior regression coverage,
