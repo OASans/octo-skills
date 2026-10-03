@@ -1,0 +1,3 @@
+interface:
+  display_name: "Octo Capacity Retry"
+  short_description: "Retry capacity failures across local Codex projects"

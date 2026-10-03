@@ -1,0 +1,50 @@
+[
+  {
+    "id": "start_across_projects",
+    "request": "Start the listener in /skills for other local projects. My current thread ID is known. Use three retries.",
+    "choices": ["start_packaged_listener_with_current_thread_id", "filter_to_skills_directory", "spawn_second_codex_daemon", "use_default_five_minute_delay"],
+    "expected": ["start_packaged_listener_with_current_thread_id", "use_default_five_minute_delay"]
+  },
+  {
+    "id": "capacity_text_with_other_code",
+    "request": "The latest failed turn contains the words model at capacity, but codexErrorInfo is other. The user authorized only exact capacity failures.",
+    "choices": ["do_not_retry", "retry_based_on_text", "retry_all_503_errors", "change_to_another_model"],
+    "expected": ["do_not_retry"]
+  },
+  {
+    "id": "interrupted_capacity_turn",
+    "request": "The turn has status interrupted and error code serverOverloaded. Should the listener resume it?",
+    "choices": ["do_not_retry", "retry_because_code_matches", "clear_the_interruption"],
+    "expected": ["do_not_retry"]
+  },
+  {
+    "id": "persisted_exhaustion",
+    "request": "A task already received three retry messages with a configured limit of three. The listener restarts and sees another serverOverloaded failure.",
+    "choices": ["keep_the_task_stopped", "reset_count_on_restart", "send_retry_four", "start_a_new_thread_for_the_task"],
+    "expected": ["keep_the_task_stopped"]
+  },
+  {
+    "id": "lost_send_reply",
+    "request": "The listener saved a retry reservation and sent turn/start, but the connection broke before the reply arrived.",
+    "choices": ["leave_the_task_blocked_and_stop_listener", "repeat_turn_start", "decrement_attempt_count", "restart_listener_automatically"],
+    "expected": ["leave_the_task_blocked_and_stop_listener"]
+  },
+  {
+    "id": "notification_failure",
+    "request": "A retry was accepted, but notifying the initiating conversation failed. What happens?",
+    "choices": ["log_notification_failure_without_retrying_it", "send_target_retry_again", "retry_the_notification_until_success", "change_notification_thread"],
+    "expected": ["log_notification_failure_without_retrying_it"]
+  },
+  {
+    "id": "status_only",
+    "request": "Check whether the listener is running. Do not start it.",
+    "choices": ["run_packaged_status_command", "run_start_if_missing", "resume_failed_tasks", "reset_persistent_counts"],
+    "expected": ["run_packaged_status_command"]
+  },
+  {
+    "id": "paused_goal",
+    "request": "The task is idle after an exact serverOverloaded failure, but its goal is paused. A retry is due.",
+    "choices": ["stop_recovery_for_the_task", "resume_the_goal", "send_retry_without_checking_goal", "switch_model"],
+    "expected": ["stop_recovery_for_the_task"]
+  }
+]
