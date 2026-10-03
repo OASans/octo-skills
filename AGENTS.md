@@ -40,5 +40,5 @@ Edit skills in `skills/<name>/SKILL.md`, then run `./install.sh` to deploy. Do n
 ## Validation
 
 - For installer/config changes, run `python3 -m unittest discover -s tests -p '*_test.py'` and `bash tests/install_codex_config_test.sh`; the installer test uses disposable local fixtures and controlled external commands.
-- For skill/prompt changes, run `python3 tests/skill_contract_test.py`; run the opt-in model scenarios in `evals/` when changing decision boundaries or model defaults.
+- For skill/prompt changes, run `python3 tests/skill_contract_test.py`. Model/prompt comparisons follow the common coding guide's temporary-work rule.
 - Check shell syntax with `bash -n` for changed scripts and parse changed JSON/TOML/YAML. Rerun only affected checks after fixes.

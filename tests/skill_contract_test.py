@@ -30,15 +30,5 @@ class SkillContractTest(unittest.TestCase):
                 self.assertTrue(policy.is_file())
                 self.assertRegex(policy.read_text(), r'policy:\s*\n\s+allow_implicit_invocation: false\s*\n')
 
-    def test_scenario_answers_use_distinct_valid_choices(self):
-        import json
-        suite = json.loads((ROOT / 'evals/suite.json').read_text())
-        cases = json.loads((ROOT / 'evals' / suite['cases']).read_text())
-        self.assertEqual(len({case['id'] for case in cases}), len(cases))
-        for case in cases:
-            self.assertTrue(set(case['expected']) <= set(case['choices']))
-            self.assertEqual(len(set(case['expected'])), len(case['expected']))
-
-
 if __name__ == '__main__':
     unittest.main()

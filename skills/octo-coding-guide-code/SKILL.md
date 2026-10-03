@@ -18,6 +18,8 @@ Apply the rules relevant to the changed behavior or prose. For Rust, also read [
 - Add or retain compatibility layers only when compatibility is an explicit requirement. Update affected callers together.
 - Fix the underlying implementation and remove obsolete paths within the authorized scope; do not hide them behind wrappers, adapters, or fallbacks.
 - Judge simplification by clearer behavior and lower maintenance cost, not line counts. Removing supported behavior is a behavior change and needs authorization.
+- Keep one-time comparisons, benchmarks, and diagnostic helpers in ignored project workspaces. Do not commit their harnesses, fixtures, or results, or make them permanent workflow gates, unless the user explicitly requests maintained infrastructure. Run model/prompt performance comparisons only when requested.
+- Get explicit user approval before creating a new tracked top-level directory. State its purpose and maintenance role; a request naming that directory already provides approval. Use existing project structure and ignored workspaces for routine changes and temporary work.
 
 ## Correctness
 
