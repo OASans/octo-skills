@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
 # install-components/install-rust.sh
 # Install (or update) the Rust toolchain via rustup. Works on macOS and Linux
-# (including WSL2). Idempotent: updates an existing toolchain, fresh-installs
-# otherwise. Requires curl (present by default on macOS; install-linux.sh /
-# install-wsl2.sh install it before calling this).
+# via rustup. Updates an existing toolchain or installs a new one.
+# Requires curl (present on macOS; install-linux.sh installs it first).
 #
 # Usage:  bash install-components/install-rust.sh
-# Meant to be called by install-mac.sh / install-linux.sh / install-wsl2.sh.
+# Meant to be called by install-mac.sh / install-linux.sh.
 set -u
 
 echo "--- install-components: Rust toolchain ---"
 
-# Detect platform (macos | linux). WSL2 reports as Linux, which is what we want.
+# Detect platform (macos | linux).
 case "$(uname -s)" in
   Darwin) PLATFORM="macos" ;;
   Linux)  PLATFORM="linux" ;;

@@ -6,7 +6,7 @@ The repo's top-level `install.sh` deploys shared Codex skills and config, and in
 
 ## First: create `.env`
 
-The Linux, macOS, and WSL2 installers read git identity and relevant network settings from `setup/.env`, which is **gitignored** and required by those scripts. The Windows host script does not use it:
+The Linux and macOS installers read git identity and relevant network settings from `setup/.env`, which is **gitignored** and required by those scripts:
 
 ```bash
 cp setup/.env.example setup/.env   # then fill it in
@@ -22,21 +22,12 @@ Scripts can be rerun: they skip installed components, refresh managed configurat
 |----------|--------|-------|
 | Linux (Debian/Ubuntu) | `bash setup/install-linux.sh` | Also provisions at least 32 GiB of persistent swap and hardens the box as an internal-only server: key-only SSH, ufw default-deny, never auto-suspend. Installs CUDA when an NVIDIA GPU is present — **reboot** after a fresh driver install. |
 | macOS | `bash setup/install-mac.sh` | Homebrew, gh, casks, Xcode, and Codex. Xcode's license/first-launch steps need sudo and are printed for you to run. |
-| Windows + WSL2 | `install-windows.ps1`, then `install-wsl2.sh` | See the ordering below. |
 
-`install-components/` holds the pieces shared across platforms (`install-rust.sh`, `install-tmux.sh`, `install-gh.sh`); the platform scripts call them.
+`install-components/` holds the pieces shared across platforms (`install-rust.sh`, `install-tmux.sh`); the platform scripts call them.
 
 Both `install.sh` and the tmux install component refresh the managed `~/.tmux.conf` from `global-tmux.conf`, replacing local edits. It sets `tmux-256color` and clears inherited `NO_COLOR` for new panes. Existing servers load it with `tmux source-file ~/.tmux.conf`; running applications need a restart from a shell with `NO_COLOR` unset.
 
 Run `bash scripts/reboot-tmux.sh` from the repo root in a terminal outside tmux to destroy all default-server sessions and panes, then leave an empty server running with the repo's shared config. Other named tmux servers are untouched.
-
-## WSL2 ordering
-
-The Windows host and the WSL guest must be configured in this order — the host sets mirrored networking, which the guest depends on:
-
-1. `install-windows.ps1` on the Windows host, from an **elevated** PowerShell.
-2. `wsl --shutdown` (close all WSL terminals first).
-3. `bash setup/install-wsl2.sh` inside WSL.
 
 ## SSH access to the server
 

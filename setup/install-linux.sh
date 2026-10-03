@@ -14,7 +14,7 @@
 #       * ufw firewall: deny all inbound except SSH from the LAN and your web
 #         port from specific internal IPs (configured in setup/.env)
 #       * power: never auto-suspend/hibernate; blank screen after 5 min, no lock
-#   - Set git globals (matches install-mac.sh / install-wsl2.sh)
+#   - Set git globals (matches install-mac.sh)
 #   - Log in to GitHub via gh (browser device flow) and wire gh up as the
 #     git credential helper so HTTPS push/pull works without passwords
 #
@@ -364,7 +364,20 @@ echo
 # Use the official GitHub apt repo so we get a current gh on any Debian/Ubuntu
 # release (distro packages are often old or absent).
 echo "=== Step 3: install gh (GitHub CLI) ==="
-bash "$SCRIPT_DIR/install-components/install-gh.sh"
+if command -v gh >/dev/null 2>&1; then
+  echo "gh already installed ($(gh --version | head -n1)) — skipping install"
+else
+  KEYRING=/usr/share/keyrings/githubcli-archive-keyring.gpg
+  if [ ! -f "$KEYRING" ]; then
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | sudo dd of="$KEYRING" status=none
+    sudo chmod go+r "$KEYRING"
+  fi
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=$KEYRING] https://cli.github.com/packages stable main" \
+    | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+  sudo apt-get update -qq
+  sudo apt-get install -y gh
+fi
 echo
 
 # ---------- Step 4: configure git globals ----------

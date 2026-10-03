@@ -29,7 +29,7 @@ fi
 echo "Server registered this key under label: $LABEL"
 echo "(Used on the server to revoke this laptop later.)"
 echo
-read -rp "SSH alias to use locally — what you'll type as 'ssh <alias>' (e.g. wsl-home): " ALIAS
+read -rp "SSH alias to use locally — what you'll type as 'ssh <alias>' (e.g. home-server): " ALIAS
 ALIAS=$(printf '%s' "$ALIAS" | tr -c 'A-Za-z0-9._-' '-' | sed 's/^-*//;s/-*$//')
 if [[ -z "$ALIAS" ]]; then
   echo "Alias is required." >&2

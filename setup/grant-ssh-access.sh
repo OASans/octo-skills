@@ -28,10 +28,7 @@ else
   echo "$PUB" >> "$HOME/.ssh/authorized_keys"
 fi
 
-# Detect the LAN IP automatically. With WSL2 mirrored networking (set in
-# %USERPROFILE%\.wslconfig on the Windows host), the WSL VM shares the
-# Windows host's network interfaces — its own IP IS the LAN IP, and no
-# `netsh portproxy` is needed. Override by exporting HOST=<ip> before running.
+# Detect the LAN IP automatically; override by exporting HOST=<ip>.
 detect_host_ip() {
   local iface ip
   iface=$(ip -4 route show default 2>/dev/null | awk '{print $5; exit}')
@@ -56,9 +53,6 @@ BUNDLE_RAW=$(printf 'HOST=%s\nPORT=%s\nUSER=%s\nALIAS=%s\nKEY_BEGIN\n%s\nKEY_END
 BUNDLE=$(printf '%s' "$BUNDLE_RAW" | base64 | tr -d '\n')
 
 copy_to_clipboard() {
-  if command -v clip.exe >/dev/null 2>&1; then
-    printf '%s' "$1" | clip.exe && echo "clip.exe (Windows)" && return 0
-  fi
   if command -v wl-copy >/dev/null 2>&1; then
     printf '%s' "$1" | wl-copy && echo "wl-copy" && return 0
   fi
@@ -81,7 +75,7 @@ echo
 if CLIP_TOOL=$(copy_to_clipboard "$BUNDLE"); then
   echo "Bundle copied to clipboard via $CLIP_TOOL."
 else
-  echo "(No clipboard tool found — install clip.exe / xclip / xsel / wl-copy / pbcopy to enable auto-copy.)"
+  echo "(No clipboard tool found — install xclip / xsel / wl-copy / pbcopy to enable auto-copy.)"
 fi
 echo
 echo "===== BUNDLE (single line) — also printed below in case clipboard fails ====="

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # install-components/install-tmux.sh
-# Ensure tmux meets OctoCode's minimum version on macOS and Linux (incl. WSL2).
+# Ensure tmux meets OctoCode's minimum version on macOS and Linux.
 #   - macOS:  install/upgrade via Homebrew (tracks the latest tmux release)
 #   - Linux:  use apt's tmux if it's new enough, otherwise build
 #             TMUX_BUILD_VERSION from source into /usr/local (Ubuntu LTS ships an
 #             older tmux in apt — e.g. 22.04 → 3.2a — that OctoCode rejects)
 #
 # Usage:  bash install-components/install-tmux.sh
-# Meant to be called by install-mac.sh / install-linux.sh / install-wsl2.sh.
+# Meant to be called by install-mac.sh / install-linux.sh.
 set -u
 
 echo "--- install-components: tmux ---"
