@@ -128,6 +128,22 @@ class BrowserDOMTests(unittest.TestCase):
             with self.subTest(changed=changed), self.assertRaises(browser.BrowserError):
                 browser.verify_draft(draft, changed, [])
 
+    def test_composer_ignores_unrelated_and_hidden_editors(self):
+        unrelated = '<div role="textbox" contenteditable="true">Canvas notes</div>'
+        hidden = '<div style="display:none">' + self.composer_html('Old draft') + '</div>'
+        actual = self.composer_html('Keep this draft').replace('</form>',
+            '<div data-composer-attachments><button aria-label="Remove facts.zip"></button></div></form>')
+        draft = self.observe_html(unrelated + hidden + actual, browser.composer)
+        self.assertEqual(draft['text'], 'Keep this draft')
+        self.assertEqual(draft['files'], ['facts.zip'])
+
+    def test_composer_requires_one_visible_form_editor(self):
+        for markup in ('<div role="textbox" contenteditable="true">Canvas notes</div>',
+                       self.composer_html('First') + self.composer_html('Second')):
+            with self.subTest(markup=markup), self.assertRaisesRegex(
+                    browser.BrowserError, 'Expected one visible form-backed composer'):
+                self.observe_html(markup, browser.composer)
+
     def test_decorated_sent_prompt_and_research_chip_preserve_block_separators(self):
         url = 'https://www.sec.gov/files/form4.pdf'
         content = '<p>Read ' + self.decorated_link(url) + '</p><p>Keep\nthese lines.</p>'

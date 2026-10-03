@@ -233,8 +233,12 @@ RESPONSE_TEXT_SCRIPT = r'''const responseText=root=>{
 
 
 def composer(page):
-    return evaluate(page, PROMPT_TEXT_SCRIPT + '''const e=document.querySelector('[role=textbox][contenteditable=true]');
-      const f=e?.closest('form');
+    return evaluate(page, PROMPT_TEXT_SCRIPT + '''
+      const editors=[...document.querySelectorAll('form [role=textbox][contenteditable=true]')]
+        .filter(e=>e.getClientRects().length &&
+          !/^(hidden|collapse)$/.test(getComputedStyle(e).visibility));
+      if(editors.length!==1) throw new Error('Expected one visible form-backed composer; found '+editors.length);
+      const e=editors[0], f=e.closest('form');
       return {text:promptText(e),
         files:[...f.querySelectorAll('[data-composer-attachments] button[aria-label^="Remove "]')]
           .map(b=>b.getAttribute('aria-label').slice(7)),
