@@ -195,6 +195,22 @@ class BrowserDOMTests(unittest.TestCase):
                      submitted_prompt='Deep research Research this')
         self.assertTrue(browser.prompt_visible(state, observation))
 
+    def test_sent_inline_code_restores_delimiters_without_hiding_edits(self):
+        prompt = 'Use `F01 — Title`.\n\nEnd with `Formal claim — Fxx.`'
+        content = ('<div style="white-space:pre-wrap">Use <code>F01 — Title</code>.\n\n'
+                   'End with <code>Formal claim — Fxx.</code></div>')
+        markup = '<main><div data-user-message-bubble><div data-search-result-target>' + content + '</div></div></main>'
+        observation = self.observe_html(markup)
+        self.assertEqual(observation['users'], [prompt])
+        browser.verify_conversation(dict(prompt=prompt), observation)
+        for changed in (markup.replace('F01', 'F02'),
+                        markup.replace('<code>', '').replace('</code>', ''),
+                        markup.replace('\n\n', '\n')):
+            with self.subTest(changed=changed), self.assertRaises(browser.BrowserError):
+                browser.verify_conversation(dict(prompt=prompt), self.observe_html(changed))
+        composer = self.observe_html(self.composer_html('<code>Literal code node</code>'), browser.composer)
+        self.assertEqual(composer['text'], 'Literal code node')
+
     def test_current_assistant_text_is_collected_without_role_attributes(self):
         observation = self.observe_html('<main><div><h4>You said:</h4>'
             '<div data-user-message-bubble><div dir="auto">Analyze</div></div></div>'
@@ -607,7 +623,7 @@ class BrowserTests(unittest.TestCase):
         args.prompt.read_text.return_value = 'Draw a cat'
         run = MagicMock()
         saved = []
-        with patch.multiple(browser, cli=DEFAULT, save=DEFAULT, wait_until=DEFAULT,
+        with patch.object(browser.time, 'time_ns', return_value=123456789000000), patch.multiple(browser, cli=DEFAULT, save=DEFAULT, wait_until=DEFAULT,
                             evaluate=DEFAULT, composer=DEFAULT, select_model=DEFAULT,
                             model_proof=DEFAULT, snapshot_uid=DEFAULT, click=DEFAULT) as mocks:
             mocks['cli'].return_value = '1: ChatGPT (https://chatgpt.com/) [selected]'
@@ -621,6 +637,8 @@ class BrowserTests(unittest.TestCase):
             mocks['click'].assert_called_once_with(1, 'button[aria-label="Send"]')
             self.assertEqual(saved[-2]['phase'], 'sending')
             self.assertEqual(saved[-1]['phase'], 'sending')
+            self.assertEqual(saved[-1]['send_attempt_ms'], 123456789)
+            self.assertNotIn('submission_confirmed_ms', saved[-1])
             self.assertIn('connection lost', saved[-1]['error'])
 
     def test_wrong_model_cannot_reach_send(self):

@@ -134,11 +134,12 @@ def snapshot_uid(page, role, label, *, allow_description=False):
     return matches[0]
 
 
-PROMPT_TEXT_SCRIPT = r'''const promptText=e=>{
+PROMPT_TEXT_SCRIPT = r'''const promptText=(e,restoreCode=false)=>{
       if(!e) return undefined;
       const icon='[data-rich-text-generated-autolink] [data-inline-url-icon][aria-hidden="true"][contenteditable="false"], '
         + 'a[data-inline-mention-interactive][href] > [data-layout="inline-flow"] > [data-markdown-copy="exclude"]:has(img[alt=""])';
-      if(!e.querySelector(icon)) return e.innerText.trim();
+      const inlineCode=node=>restoreCode && node.tagName==='CODE' && !node.closest('pre');
+      if(!e.querySelector(icon) && ![...e.querySelectorAll('code')].some(inlineCode)) return e.innerText.trim();
       // innerText adds layout breaks around URL icons; retain actual DOM text and breaks.
       let text='', boundary=0;
       const append=value=>{
@@ -153,6 +154,9 @@ PROMPT_TEXT_SCRIPT = r'''const promptText=e=>{
       const read=node=>{
         if(node.nodeType===Node.TEXT_NODE) { append(node.data); return; }
         if(node.nodeType!==Node.ELEMENT_NODE || node.matches(icon)) return;
+        // Sent user bubbles render inline code without its source delimiters.
+        // Composer text remains literal; only restore the observed single-backtick form.
+        if(inlineCode(node)) { append('`'+node.innerText+'`'); return; }
         if(node.tagName==='BR') { append('\n'); return; }
         const separator=node.tagName==='P' ? 2 :
           /^(DIV|PRE|BLOCKQUOTE|LI|UL|OL)$/.test(node.tagName) ? 1 : 0;
@@ -382,7 +386,7 @@ def observe(page, *, legacy=False):
       return {url:location.href, users:[...main.querySelectorAll('[data-user-message-bubble]')]
         .filter(visible).map(e=>{
           const content=e.querySelector('[data-search-result-target]') || e.querySelector('[dir="auto"]') || e;
-          return promptText(content);
+          return promptText(content,true);
         }),
         text:assistantText(last).replace(/^ChatGPT said:\s*/, '').trim(), citations,
         streaming:[...document.querySelectorAll('button[data-testid="stop-button"],button[aria-label="Stop streaming"],button[aria-label="Stop"]')].some(visible),
@@ -523,10 +527,12 @@ def submit(args, run):
             state['model'] = model_proof(page, args.mode)
             verify_draft(composer(page), prompt, files)
         state['phase'] = 'sending'
+        state['send_attempt_ms'] = time.time_ns() // 1_000_000
         save(run, state)  # A timeout after this point must never trigger a resend.
         click(page, 'button[aria-label="Send"]')
         wait_until(lambda: prompt_visible(state, observe(page)), 30)
         state.update(phase='submitted', url=conversation_url(observe(page)['url']))
+        state['submission_confirmed_ms'] = time.time_ns() // 1_000_000
         save(run, state)
         result = {'phase': state['phase'], 'run': str(run), 'url': state['url']}
         key = 'research' if args.mode == 'research' else 'model'
