@@ -24,25 +24,11 @@ class SkillContractTest(unittest.TestCase):
 
     def test_existing_explicit_only_skills_remain_explicit_only(self):
         # Pin the migration guarantees independently of the deployed policy files.
-        for name in ('octo-blueprint', 'octo-codex-usage', 'octo-memory', 'octo-memory-long-term'):
+        for name in ('octo-codex-usage', 'octo-memory'):
             policy = ROOT / 'skills' / name / 'agents/openai.yaml'
             with self.subTest(skill=name):
                 self.assertTrue(policy.is_file())
                 self.assertRegex(policy.read_text(), r'policy:\s*\n\s+allow_implicit_invocation: false\s*\n')
-
-    def test_blueprint_documented_examples_have_their_headings(self):
-        knowledge = ROOT / '.codex/skills/knowledge-octo-blueprint/SKILL.md'
-        entries = knowledge.read_text().split('## Key Files', 1)[1]
-        examples = 0
-        for line in entries.splitlines():
-            headings = re.findall(r'`(### [^`]+)`', line)
-            if headings:
-                source = ROOT / re.search(r'`([^`]+)`', line).group(1)
-                text = source.read_text()
-                for heading in headings:
-                    self.assertIn(heading, text.splitlines())
-                    examples += 1
-        self.assertGreater(examples, 0)
 
     def test_scenario_answers_use_distinct_valid_choices(self):
         import json

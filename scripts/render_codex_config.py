@@ -4,18 +4,7 @@
 import json
 from pathlib import Path
 import sys
-
-try:
-    import tomllib
-except ImportError:
-    # Python <3.11 needs tomli; pip also ships it on supported older Pythons.
-    try:
-        import tomli as tomllib
-    except ImportError:
-        try:
-            from pip._vendor import tomli as tomllib
-        except ImportError as error:
-            raise SystemExit("Codex config rendering needs Python 3.11+, tomli, or pip with tomli.") from error
+import tomllib
 
 
 def toml_value(value):

@@ -43,7 +43,7 @@ Keep inline: quick lookups, exploratory debugging where the problem isn't unders
 
 - Use project `knowledge-*` skills for selective memory retrieval. Run `/octo-memory` only when the user explicitly requests a memory audit or asks to remember something; never add capture or transcript analysis to ordinary task completion.
 - Treat remembered facts as scoped guidance: investigate conflicts with current implementation, tests, or authoritative documentation before applying or correcting them. Preserve explicit user constraints.
-- `/octo-memory` owns manual transcript analysis, durable progress tracking, verification, and maintenance. `/octo-memory-long-term` is a manual compatibility entrypoint.
+- `/octo-memory` owns manual transcript analysis, durable progress tracking, verification, and maintenance.
 
 ## Workflow
 

@@ -44,6 +44,50 @@
     ]
   },
   {
+    "id": "simplify_small_scope",
+    "task": "The user requests simplification of one small Python module and its two callers. Reading them establishes that removing a redundant helper preserves behavior. Focused tests are available; project instructions allow direct inspection of this obvious change. What should you do?",
+    "choices": [
+      "inspect_inline",
+      "update_definition_and_callers_together",
+      "run_affected_checks",
+      "require_finder_verifier_and_worker_agents",
+      "create_coverage_manifest_and_line_count_report"
+    ],
+    "expected": [
+      "inspect_inline",
+      "update_definition_and_callers_together",
+      "run_affected_checks"
+    ]
+  },
+  {
+    "id": "simplify_internal_compatibility",
+    "task": "The user requests removal of an obsolete internal implementation. All callers are known and in scope; the replacement preserves observable behavior, and no backward compatibility is required. What should you do?",
+    "choices": [
+      "remove_obsolete_implementation",
+      "update_known_callers",
+      "retain_old_path_with_compatibility_wrapper",
+      "add_adapter_for_imagined_future_callers"
+    ],
+    "expected": [
+      "remove_obsolete_implementation",
+      "update_known_callers"
+    ]
+  },
+  {
+    "id": "simplify_boundary_validation",
+    "task": "The user requests simplification of a file importer. It validates row types when reading external files, then repeats the same validation in trusted internal functions. The boundary check establishes the required invariant. No malformed file has been reported yet. What should you do?",
+    "choices": [
+      "keep_external_input_validation",
+      "remove_proven_redundant_internal_checks",
+      "delete_all_checks_because_no_failure_occurred",
+      "add_fallbacks_for_imagined_file_formats"
+    ],
+    "expected": [
+      "keep_external_input_validation",
+      "remove_proven_redundant_internal_checks"
+    ]
+  },
+  {
     "id": "review",
     "task": "Review this changed Python function, whose contract returns the arithmetic mean and returns 0 for empty input: def mean(xs): return sum(xs) / len(xs). Existing tests cover only nonempty input. Independent verification is available.",
     "choices": [
