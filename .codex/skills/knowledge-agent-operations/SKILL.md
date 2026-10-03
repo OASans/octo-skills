@@ -74,6 +74,6 @@ Inspect and recover local Codex sessions while preserving live work and conversa
 
 ## Key Files
 
-- `global-codex-config.toml` — shared Codex defaults; `scripts/render_codex_config.py` preserves local project trust and reviewed hook hashes
+- `global-config/global-codex-config.toml` — shared Codex defaults; `scripts/render_codex_config.py` preserves local project trust and reviewed hook hashes
 
 <!-- Last verified: 2026-09-30, commit: edc4ecb -->

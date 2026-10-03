@@ -3,6 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+GLOBAL_CONFIG_DIR="$SCRIPT_DIR/global-config"
+
 CODEX_DIR="${CODEX_HOME:-$HOME/.codex}"
 CODEX_LAUNCHER_DIR="$HOME/.local/bin"
 CODEX_STANDALONE_BIN="${CODEX_HOME:-$HOME/.codex}/packages/standalone/current/bin/codex"
@@ -32,7 +34,7 @@ done
 
 echo "Installing Codex config to: $CODEX_DIR"
 
-# install_skills <target-skills-dir>: mirror skills/* into the target EXACTLY —
+# install_skills <target-skills-dir>: mirror global-config/skills/* into the target EXACTLY —
 # a skill removed from this package is removed there on install.
 install_skills() {
     local target="$1" installed_dir name skill_dir
@@ -40,12 +42,12 @@ install_skills() {
     for installed_dir in "$target"/*/; do
         [ -d "$installed_dir" ] || continue   # no-match glob; nothing installed yet
         name="$(basename "$installed_dir")"
-        if [ ! -d "$SCRIPT_DIR/skills/$name" ]; then
+        if [ ! -d "$GLOBAL_CONFIG_DIR/skills/$name" ]; then
             rm -rf "$installed_dir"
             echo "  Removed stale skill: $name ($target)"
         fi
     done
-    for skill_dir in "$SCRIPT_DIR/skills"/*/; do
+    for skill_dir in "$GLOBAL_CONFIG_DIR/skills"/*/; do
         [ -d "$skill_dir" ] || continue   # no-match glob; nothing to copy (don't wipe the target)
         name="$(basename "$skill_dir")"
         rm -rf "$target/$name"
@@ -79,23 +81,23 @@ install_file() {
 install_skills "$CODEX_DIR/skills"
 
 # Reusable Codex agents. Preserve unrelated personal agents in the target.
-for agent_file in "$SCRIPT_DIR/codex-agents"/*.toml; do
+for agent_file in "$GLOBAL_CONFIG_DIR/codex-agents"/*.toml; do
     [ -f "$agent_file" ] || continue
     install_file "$agent_file" "$CODEX_DIR/agents/$(basename "$agent_file")" \
         "Codex agent $(basename "$agent_file" .toml)"
 done
 
-install_file "$SCRIPT_DIR/global-AGENTS.md" "$CODEX_DIR/AGENTS.md" "AGENTS.md"
-install_file "$SCRIPT_DIR/global-tmux.conf" "$HOME/.tmux.conf" "tmux.conf"
+install_file "$GLOBAL_CONFIG_DIR/global-AGENTS.md" "$CODEX_DIR/AGENTS.md" "AGENTS.md"
+install_file "$GLOBAL_CONFIG_DIR/global-tmux.conf" "$HOME/.tmux.conf" "tmux.conf"
 
 codex_config="$(python3 "$SCRIPT_DIR/scripts/render_codex_config.py" \
-    "$SCRIPT_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml")"
+    "$GLOBAL_CONFIG_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml")"
 write_if_changed "$codex_config" "$CODEX_DIR/config.toml" "config.toml"
-install_file "$SCRIPT_DIR/global-codex-rules.rules" "$CODEX_DIR/rules/default.rules" "Codex default.rules"
+install_file "$GLOBAL_CONFIG_DIR/global-codex-rules.rules" "$CODEX_DIR/rules/default.rules" "Codex default.rules"
 
 # Git Sync uses jq to format session context. Preserve existing hooks if missing.
 if command -v jq >/dev/null 2>&1; then
-    install_file "$SCRIPT_DIR/global-codex-hooks.json" "$CODEX_DIR/hooks.json" "hooks.json"
+    install_file "$GLOBAL_CONFIG_DIR/global-codex-hooks.json" "$CODEX_DIR/hooks.json" "hooks.json"
 else
     echo "  WARNING: jq not found; skipped Codex hooks.json (rerun with jq installed)."
 fi

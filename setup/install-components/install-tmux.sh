@@ -156,5 +156,5 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   esac
   # Refresh the shared config even when the installed tmux version is current.
   component_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  cp "$component_dir/../../global-tmux.conf" "$HOME/.tmux.conf"
+  cp "$component_dir/../../global-config/global-tmux.conf" "$HOME/.tmux.conf"
 fi

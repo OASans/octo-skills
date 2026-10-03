@@ -25,7 +25,7 @@ Scripts can be rerun: they skip installed components, refresh managed configurat
 
 `install-components/` holds the pieces shared across platforms (`install-rust.sh`, `install-tmux.sh`); the platform scripts call them.
 
-Both `install.sh` and the tmux install component refresh the managed `~/.tmux.conf` from `global-tmux.conf`, replacing local edits. It sets `tmux-256color` and clears inherited `NO_COLOR` for new panes. Existing servers load it with `tmux source-file ~/.tmux.conf`; running applications need a restart from a shell with `NO_COLOR` unset.
+Both `install.sh` and the tmux install component refresh the managed `~/.tmux.conf` from `global-config/global-tmux.conf`, replacing local edits. It sets `tmux-256color` and clears inherited `NO_COLOR` for new panes. Existing servers load it with `tmux source-file ~/.tmux.conf`; running applications need a restart from a shell with `NO_COLOR` unset.
 
 Run `bash scripts/reboot-tmux.sh` from the repo root in a terminal outside tmux to destroy all default-server sessions and panes, then leave an empty server running with the repo's shared config. Other named tmux servers are untouched.
 

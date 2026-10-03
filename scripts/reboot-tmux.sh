@@ -10,7 +10,7 @@ if tmux -L default display-message -p '#{pid}' >/dev/null 2>&1; then
 fi
 
 # A temporary session keeps startup alive until exit-empty has been disabled.
-env -u NO_COLOR tmux -L default -f "$SCRIPT_DIR/../global-tmux.conf" \
+env -u NO_COLOR tmux -L default -f "$SCRIPT_DIR/../global-config/global-tmux.conf" \
     new-session -d -s restart-bootstrap \; \
     set-option -g exit-empty off \; \
     kill-session -t restart-bootstrap

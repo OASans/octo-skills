@@ -16,7 +16,7 @@ Return actionable findings only; never implement fixes or invent findings. AGENT
 
 ## Reviewer dispatch
 
-Use the model, effort, and read-only instructions from the configured `octo-reviewer` agent (source `codex-agents/` in this package). Select the custom role when its advertised settings match; otherwise use a general agent with the configured settings explicitly. Use no history inheritance and include the actual model in the agent name.
+Use the model, effort, and read-only instructions from the configured `octo-reviewer` agent (source `global-config/codex-agents/` in this package). Select the custom role when its advertised settings match; otherwise use a general agent with the configured settings explicitly. Use no history inheritance and include the actual model in the agent name.
 
 Give the reviewer the exact diff command, tracked/untracked file scope, guide paths, task intent, and this prompt:
 
