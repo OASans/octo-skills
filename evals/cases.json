@@ -88,6 +88,86 @@
     ]
   },
   {
+    "id": "simplify_audit_browser_default",
+    "task": "The user invokes $octo-simplify without paths or a mode. Browser ChatGPT GPT-6 Pro and its workflow are available. The checkout has a tiny diff but many unchanged source files. What should you do?",
+    "choices": [
+      "inventory_whole_project",
+      "use_browser_gpt6_pro_scope_analysis",
+      "return_ranked_read_only_cleanup_plan",
+      "inspect_only_changed_files",
+      "apply_cleanup_automatically",
+      "choose_local_agents_by_default"
+    ],
+    "expected": [
+      "inventory_whole_project",
+      "use_browser_gpt6_pro_scope_analysis",
+      "return_ranked_read_only_cleanup_plan"
+    ]
+  },
+  {
+    "id": "simplify_audit_local_choice",
+    "task": "The user invokes $octo-simplify for the full src tree using local agents, without specifying models. Independent scopes and candidate findings are available. What should you do?",
+    "choices": [
+      "use_fresh_sol_6_1_medium_finders",
+      "use_separate_sol_6_1_high_candidate_reviewers",
+      "main_agent_checks_final_candidates_and_cross_scope_contracts",
+      "use_browser_pro_anyway",
+      "default_all_roles_to_luna",
+      "edit_source_during_audit"
+    ],
+    "expected": [
+      "use_fresh_sol_6_1_medium_finders",
+      "use_separate_sol_6_1_high_candidate_reviewers",
+      "main_agent_checks_final_candidates_and_cross_scope_contracts"
+    ]
+  },
+  {
+    "id": "simplify_audit_browser_unavailable",
+    "task": "The user invokes $octo-simplify with the default mode, but the browser reports GPT-6 Pro unavailable before submission. No local mode was requested. What should you do?",
+    "choices": [
+      "report_browser_model_blocker",
+      "keep_unread_scopes_pending",
+      "silently_fall_back_to_local_agents",
+      "use_api_pro_instead",
+      "claim_audit_complete"
+    ],
+    "expected": [
+      "report_browser_model_blocker",
+      "keep_unread_scopes_pending"
+    ]
+  },
+  {
+    "id": "simplify_audit_incomplete_coverage",
+    "task": "During $octo-simplify, a browser response correctly answers the attachment verification question and gives two findings. It says three inventory files were not read. What should you do?",
+    "choices": [
+      "mark_unread_files_pending_or_partial",
+      "verify_candidate_claims_against_local_source",
+      "report_incomplete_coverage",
+      "treat_attachment_verification_as_full_read_proof",
+      "report_full_audit_complete"
+    ],
+    "expected": [
+      "mark_unread_files_pending_or_partial",
+      "verify_candidate_claims_against_local_source",
+      "report_incomplete_coverage"
+    ]
+  },
+  {
+    "id": "simplify_audit_zero_findings",
+    "task": "A full local $octo-simplify audit read all included files, traced callers, and found no supported cleanup candidates. Existing tests cover meaningful distinct behaviors. What should you do?",
+    "choices": [
+      "report_complete_coverage_and_zero_findings",
+      "skip_candidate_reviewer_without_candidates",
+      "invent_cleanup_to_reduce_lines",
+      "recommend_deleting_tests_for_a_quota",
+      "require_another_finder_until_something_is_found"
+    ],
+    "expected": [
+      "report_complete_coverage_and_zero_findings",
+      "skip_candidate_reviewer_without_candidates"
+    ]
+  },
+  {
     "id": "review",
     "task": "Review this changed Python function, whose contract returns the arithmetic mean and returns 0 for empty input: def mean(xs): return sum(xs) / len(xs). Existing tests cover only nonempty input. Independent verification is available.",
     "choices": [
