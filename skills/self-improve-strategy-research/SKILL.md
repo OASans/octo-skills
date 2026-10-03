@@ -40,9 +40,10 @@ read-only preflight and shared capacity setup while their identities remain vali
    waiting, cancellation and cleanup; no coordinator READY/GO scheduling or catalog barrier.
    Receive completion and exception notifications; use occasional checks only to unblock
    demonstrated trouble.
-2. **Analyze before another researcher starts.** Delegate a bounded read-only original
-   worker transcript and result-artifact review to `gpt-6.1-sol`, explicitly selected and
-   named. Check the actual model/task binding. Include failed preparation and operational
+2. **Analyze every completed worker before another researcher starts.** Delegate a bounded
+   read-only granular review of the original worker transcript and result artifacts to
+   `gpt-6.1-sol`, explicitly selected and named. Follow the transcript analysis below;
+   a final summary or occasional sample is insufficient. Include failed preparation and operational
    HELP episodes, not only successes. Locate concrete repeated work, unnecessary fields or
    reads, missing interface guidance, tool misuse, repeated comparisons and blockers.
    Distinguish useful science and necessary causal checks from overhead. Source/formula
@@ -65,7 +66,8 @@ read-only preflight and shared capacity setup while their identities remain vali
    required project checks and independent `gpt-6.1-sol` review for consequential changes.
    Resolve actionable findings. Commit and push each authorized major fix promptly before
    using it in the next round; do not accumulate fixes until the loop ends.
-5. **Close and restart the cycle.** Verify accepted closure and actual supervisor exit,
+5. **Close and restart the cycle.** Complete and retain the granular transcript analysis
+   and supported findings before declaring the round complete. Verify accepted closure and actual supervisor exit,
    cancellation and resource cleanup. For recoverable trouble, resume the same episode
    within its original budget; do not reset its claim/deadline to disguise a failure.
    Preserve unresolved HELP and exact next actions when the budget expires. Use the checked
@@ -78,6 +80,28 @@ strategy code, settings, result artifacts and workflow documents; ZIP them and u
 ZIP directly within the authorized scope. Preserve actual permission requirements and
 follow the browser skill. Save its response and distinguish proposals from verified facts.
 No sanitizer, exporter, deduplication system or reusable bundling tool.
+
+## Granular transcript analysis
+
+For every finished research worker, authenticate its original transcript against the actual
+model, task, idea and assignment. Use that transcript, normal-operation receipts and existing
+accounting; coordinator summaries or nested reviewer sessions cannot replace it.
+
+Reconstruct what the worker did and elapsed time for setup/context/comparisons, strategy
+implementation, operational repairs, capacity waiting, evaluation, publication and closure.
+Match tool calls to results and cite timestamps or receipt identities. Partition the worker
+lifecycle into non-overlapping intervals; show nested tool timings as detail, never add them
+again. Mark mixed or unobserved intervals explicitly. Keep coordinator fixes, other agents
+and reporting after supervisor exit separate from worker lifecycle time.
+
+For each major task, record its actions, elapsed interval, supporting evidence and useful
+scientific work versus demonstrated repetition or operational detours. Wall time is not CPU
+usage or active model time; uncovered time is not proof of thinking or waste. Report authentic
+worker token totals when available; phase-level token use stays unknown without accounting.
+Retain this breakdown and ranked actionable findings in the existing compact round report.
+If the transcript or timing evidence is unavailable, record the gap and recover it before
+calling the analysis complete; never fabricate precise attribution or mark the research
+outcome rejected because its operational evidence is missing.
 
 ## Evidence and quality
 
