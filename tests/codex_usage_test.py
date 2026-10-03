@@ -3,13 +3,19 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-import analyze
+PATH = Path(__file__).resolve().parents[1] / 'skills/octo-codex-usage/scripts/analyze.py'
+SPEC = importlib.util.spec_from_file_location('codex_usage', PATH)
+analyze = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = analyze
+SPEC.loader.exec_module(analyze)
 
 
 class ClassifyCommandTests(unittest.TestCase):

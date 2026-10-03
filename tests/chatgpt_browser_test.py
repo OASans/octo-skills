@@ -369,10 +369,10 @@ class BrowserTests(unittest.TestCase):
     def test_research_acknowledgment_is_not_a_finished_report(self):
         acknowledgment = dict(streaming=False, complete=True, text='Research has started')
         self.assertFalse(browser.is_finished('research', acknowledgment))
-        self.assertFalse(browser.is_finished('research', {**acknowledgment, 'research_complete': False}))
-        self.assertTrue(browser.is_finished('research', {**acknowledgment, 'research_complete': True}))
+        self.assertFalse(browser.is_finished('research', {**acknowledgment, 'research': {'complete': False}}))
+        self.assertTrue(browser.is_finished('research', {**acknowledgment, 'research': {'complete': True}}))
         self.assertFalse(browser.is_finished('research', {
-            **acknowledgment, 'research_complete': True, 'streaming': True}))
+            **acknowledgment, 'research': {'complete': True}, 'streaming': True}))
 
     def test_research_completion_requires_finished_widget_and_report(self):
         data = dict(status='Research completed in 1m', text='Cited report', buttons=['Export'])
@@ -676,63 +676,65 @@ class BrowserTests(unittest.TestCase):
             cli.side_effect = browser.BrowserError('disconnected')
             self.assertEqual(browser.close_completed_tab(state, observation), 'close failed: disconnected')
 
+    @contextmanager
+    def collection_run(self, **state):
+        workspace = PATH.parents[3] / '.browser-workspace'
+        workspace.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=workspace) as directory:
+            run = Path(directory)
+            (run / 'run.json').write_text(json.dumps(state))
+            yield run
+
     def test_collection_saves_before_cleanup_and_preserves_tab_on_failure(self):
         url = 'https://chatgpt.com/c/6ab83f53-4ee8-83ea-b640-29791f4c725a'
         observation = dict(url=url, users=['Draw'], streaming=False, complete=True,
                            images=[dict(src='image', width=2, height=2)])
-        run = MagicMock()
-        (run / 'image-1.png').name = 'image-1.png'
-        (run / 'run.json').read_text.return_value = json.dumps(
-            dict(phase='submitted', mode='images', prompt='Draw', page=7, url=url))
-        args = SimpleNamespace(run=Mock())
-        args.run.resolve.return_value = run
-        with patch.object(browser.fcntl, 'flock'), patch('builtins.print'), \
+        state = dict(phase='submitted', mode='images', prompt='Draw', page=7, url=url)
+        with self.collection_run(**state) as run, patch('builtins.print'), \
                 patch.multiple(browser, observe=DEFAULT, network_evidence=DEFAULT,
-                               download=DEFAULT, save=DEFAULT, close_completed_tab=DEFAULT) as mocks:
+                               download=DEFAULT, close_completed_tab=DEFAULT) as mocks:
             mocks['observe'].return_value = observation
             mocks['network_evidence'].return_value = dict(chatgpt_conversation_request=True)
             mocks['download'].return_value = (b'image data', 'png')
+
             def close(state, observation):
-                self.assertEqual(state['phase'], 'complete')
-                mocks['save'].assert_called_once()
-                (run / 'image-1.png').write_bytes.assert_called_once_with(b'image data')
+                self.assertEqual(json.loads((run / 'run.json').read_text())['phase'], 'complete')
+                self.assertEqual((run / 'image-1.png').read_bytes(), b'image data')
                 return 'closed'
+
             mocks['close_completed_tab'].side_effect = close
-            browser.collect(args)
-            self.assertEqual(mocks['save'].call_args.args[1]['tab'], 'closed')
+            browser.collect(SimpleNamespace(run=run))
+            self.assertEqual(json.loads((run / 'run.json').read_text())['tab'], 'closed')
             mocks['close_completed_tab'].reset_mock()
             mocks['download'].side_effect = browser.BrowserError('download failed')
-            with self.assertRaises(browser.BrowserError):
-                browser.collect(args)
+            with self.collection_run(**state) as failed_run:
+                with self.assertRaises(browser.BrowserError):
+                    browser.collect(SimpleNamespace(run=failed_run))
+                self.assertEqual(json.loads((failed_run / 'run.json').read_text())['phase'], 'submitted')
+                self.assertFalse((failed_run / 'image-1.png').exists())
             mocks['close_completed_tab'].assert_not_called()
 
     def test_analysis_collection_saves_response_before_closing(self):
         url = 'https://chatgpt.com/c/6ab83f53-4ee8-83ea-b640-29791f4c725a'
         observation = dict(url=url, users=['Analyze'], streaming=False, complete=True,
                            text='Analysis result')
-        run = MagicMock()
-        paths = {}
-        run.__truediv__.side_effect = lambda name: paths.setdefault(name, MagicMock())
-        (run / 'run.json').read_text.return_value = json.dumps(
-            dict(phase='submitted', mode='analysis', prompt='Analyze', page=7, url=url))
-        args = SimpleNamespace(run=Mock())
-        args.run.resolve.return_value = run
-        with patch.object(browser.fcntl, 'flock'), patch('builtins.print'), \
+        with self.collection_run(phase='submitted', mode='analysis', prompt='Analyze',
+                                 page=7, url=url) as run, patch('builtins.print'), \
                 patch.multiple(browser, observe=DEFAULT, network_evidence=DEFAULT,
-                               save=DEFAULT, close_completed_tab=DEFAULT) as mocks:
+                               close_completed_tab=DEFAULT) as mocks:
             mocks['observe'].return_value = observation
             mocks['network_evidence'].return_value = dict(chatgpt_conversation_request=True)
 
             def close(state, observation):
-                (run / 'response.md').write_text.assert_called_once_with('Analysis result\n')
-                mocks['save'].assert_called_once()
-                self.assertEqual(state['url'], url)
-                self.assertEqual(state['phase'], 'complete')
+                self.assertEqual((run / 'response.md').read_text(), 'Analysis result\n')
+                saved = json.loads((run / 'run.json').read_text())
+                self.assertEqual(saved['url'], url)
+                self.assertEqual(saved['phase'], 'complete')
                 return 'closed'
 
             mocks['close_completed_tab'].side_effect = close
-            browser.collect(args)
-            self.assertEqual(mocks['save'].call_args.args[1]['tab'], 'closed')
+            browser.collect(SimpleNamespace(run=run))
+            self.assertEqual(json.loads((run / 'run.json').read_text())['tab'], 'closed')
 
     def test_research_collection_saves_report_and_sources_before_closing(self):
         url = 'https://chatgpt.com/c/6ab83f53-4ee8-83ea-b640-29791f4c725a'
@@ -740,43 +742,32 @@ class BrowserTests(unittest.TestCase):
                            complete=True, text='Research started')
         sources = [dict(title='Official source', url='https://example.com/source')]
         research = dict(phase='complete', complete=True, text='Final research report', links=sources)
-        run = MagicMock()
-        paths = {}
-        run.__truediv__.side_effect = lambda name: paths.setdefault(name, MagicMock())
-        (run / 'run.json').read_text.return_value = json.dumps(dict(
-            phase='sending', mode='research', prompt='Research this',
-            submitted_prompt='Deep research Research this', page=7, url=None))
-        args = SimpleNamespace(run=Mock())
-        args.run.resolve.return_value = run
-        with patch.object(browser.fcntl, 'flock'), patch('builtins.print'), \
-                patch.multiple(browser, observe=DEFAULT, observe_research=DEFAULT,
-                               network_evidence=DEFAULT, save=DEFAULT, close_completed_tab=DEFAULT) as mocks:
+        with self.collection_run(phase='sending', mode='research', prompt='Research this',
+                                 submitted_prompt='Deep research Research this', page=7, url=None) as run, \
+                patch('builtins.print'), patch.multiple(browser, observe=DEFAULT,
+                    observe_research=DEFAULT, network_evidence=DEFAULT, close_completed_tab=DEFAULT) as mocks:
             mocks['observe'].return_value = observation
             mocks['observe_research'].return_value = research
             mocks['network_evidence'].return_value = dict(chatgpt_conversation_request=True)
 
             def close(state, observation):
-                content = (run / 'response.md').write_text.call_args.args[0]
+                content = (run / 'response.md').read_text()
                 self.assertIn('Final research report', content)
                 self.assertIn('[Official source](https://example.com/source)', content)
                 self.assertIn(url, content)
                 self.assertNotIn('Research started', content)
-                self.assertEqual(json.loads((run / 'sources.json').write_text.call_args.args[0]), sources)
-                self.assertEqual(state['phase'], 'complete')
-                mocks['save'].assert_called_once()
+                self.assertEqual(json.loads((run / 'sources.json').read_text()), sources)
+                self.assertEqual(json.loads((run / 'run.json').read_text())['phase'], 'complete')
                 return 'closed'
 
             mocks['close_completed_tab'].side_effect = close
-            browser.collect(args)
-            self.assertEqual(mocks['save'].call_args.args[1]['tab'], 'closed')
+            browser.collect(SimpleNamespace(run=run))
+            self.assertEqual(json.loads((run / 'run.json').read_text())['tab'], 'closed')
 
     def test_collect_completed_run_does_not_touch_browser_or_resend(self):
-        run = MagicMock()
-        (run / 'run.json').read_text.return_value = json.dumps({'phase': 'complete', 'url': 'saved'})
-        args = SimpleNamespace(run=Mock())
-        args.run.resolve.return_value = run
-        with patch.object(browser.fcntl, 'flock'), patch.object(browser, 'cli') as cli, patch('builtins.print'):
-            browser.collect(args)
+        with self.collection_run(phase='complete', url='saved') as run, \
+                patch.object(browser, 'cli') as cli, patch('builtins.print'):
+            browser.collect(SimpleNamespace(run=run))
         cli.assert_not_called()
 
 

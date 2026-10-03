@@ -9,7 +9,7 @@
 #   - Set git globals (matches install-mac.sh)
 #
 # Run with: bash install-wsl2.sh
-# Safe to re-run — every step skips work that's already done.
+# Safe to re-run: installed tools are skipped, managed config refreshed, and Rust updated.
 #
 # Order of operations across machines:
 #   1. install-windows.ps1 on the Windows host (elevated PowerShell)
@@ -116,20 +116,7 @@ echo
 
 # ---------- Step 4: install gh ----------
 echo "=== Step 4: install gh (GitHub CLI) ==="
-if command -v gh >/dev/null 2>&1; then
-  echo "gh already installed ($(gh --version | head -n1))"
-else
-  KEYRING=/usr/share/keyrings/githubcli-archive-keyring.gpg
-  if [ ! -f "$KEYRING" ]; then
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      | sudo dd of="$KEYRING" status=none
-    sudo chmod go+r "$KEYRING"
-  fi
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=$KEYRING] https://cli.github.com/packages stable main" \
-    | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
-  sudo apt-get update -qq
-  sudo apt-get install -y gh
-fi
+bash "$SCRIPT_DIR/install-components/install-gh.sh"
 echo
 
 # ---------- Step 5: git globals ----------

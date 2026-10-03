@@ -6,7 +6,7 @@ The repo's top-level `install.sh` deploys shared Codex skills and config, and in
 
 ## First: create `.env`
 
-Every install script reads its machine-specific values — git identity, LAN topology — from `setup/.env`, which is **gitignored** and never committed. Nothing runs without it:
+The Linux, macOS, and WSL2 installers read git identity and relevant network settings from `setup/.env`, which is **gitignored** and required by those scripts. The Windows host script does not use it:
 
 ```bash
 cp setup/.env.example setup/.env   # then fill it in
@@ -16,7 +16,7 @@ cp setup/.env.example setup/.env   # then fill it in
 
 ## Then: run the script for your platform
 
-Each is idempotent — safe to re-run, every step skips work already done.
+Scripts can be rerun: they skip installed components, refresh managed configuration, and update Rust.
 
 | Platform | Script | Notes |
 |----------|--------|-------|
@@ -24,7 +24,7 @@ Each is idempotent — safe to re-run, every step skips work already done.
 | macOS | `bash setup/install-mac.sh` | Homebrew, gh, casks, Xcode, and Codex. Xcode's license/first-launch steps need sudo and are printed for you to run. |
 | Windows + WSL2 | `install-windows.ps1`, then `install-wsl2.sh` | See the ordering below. |
 
-`install-components/` holds the pieces shared across platforms (`install-rust.sh`, `install-tmux.sh`); the platform scripts call them.
+`install-components/` holds the pieces shared across platforms (`install-rust.sh`, `install-tmux.sh`, `install-gh.sh`); the platform scripts call them.
 
 Both `install.sh` and the tmux install component refresh the managed `~/.tmux.conf` from `global-tmux.conf`, replacing local edits. It sets `tmux-256color` and clears inherited `NO_COLOR` for new panes. Existing servers load it with `tmux source-file ~/.tmux.conf`; running applications need a restart from a shell with `NO_COLOR` unset.
 

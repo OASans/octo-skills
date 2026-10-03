@@ -139,6 +139,21 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(memory.identity('git@example.test:team/project.git'), self.remote)
         self.assertNotEqual(memory.identity('https://example.test/other/project.git'), self.remote)
 
+    def test_originless_worktrees_share_identity(self):
+        subprocess.run(['git', '-C', str(self.repo), 'remote', 'remove', 'origin'], check=True)
+        subprocess.run(['git', '-C', str(self.repo), '-c', 'user.name=Test',
+                        '-c', 'user.email=test@example.invalid', 'commit', '-q',
+                        '--allow-empty', '-m', 'fixture'], check=True)
+        worktree = self.base / 'worktree'
+        subprocess.run(['git', '-C', str(self.repo), 'worktree', 'add', '-q',
+                        '-b', 'fixture', str(worktree)], check=True)
+        root, remote, key = memory.project(self.repo)
+        worktree_root, worktree_remote, worktree_key = memory.project(worktree)
+        self.assertEqual((root, remote), (self.repo.resolve(), ''))
+        self.assertEqual((worktree_root, worktree_remote), (worktree.resolve(), ''))
+        self.assertEqual(worktree_key, key)
+        self.assertNotEqual(key, self.store.name)
+
     def test_budget_and_malformed_sources_are_reported_without_checkpoint(self):
         self.session('a', [self.row('oversized')])
         bad = self.session('bad', [])

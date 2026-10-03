@@ -8,7 +8,6 @@ import json
 import os
 import re
 import shlex
-from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -77,7 +76,6 @@ class CandidateStats:
 
 @dataclass
 class Report:
-    files: int = 0
     sessions: set[str] = field(default_factory=set)
     executions: int = 0
     ordinary_executions: int = 0
@@ -142,13 +140,6 @@ def inline_purpose(language: str, command: str) -> str:
     if "\n" not in command and re.search(r"\bprint\s*\(", lowered_command):
         return "one-line calculation or formatting"
     return "ad hoc computation"
-
-
-def normalized_language(raw_language: str) -> str:
-    lowered = raw_language.lower()
-    if lowered.startswith("python"):
-        return "Python"
-    return lowered.capitalize()
 
 
 def shell_segments(command: str) -> list[list[str]]:
@@ -242,7 +233,7 @@ def inline_language(command: str) -> str | None:
         if executable in {"node", "ruby", "perl"} and any(
             mode == "-e" for mode in tokens[1:4]
         ):
-            return normalized_language(executable)
+            return executable.capitalize()
         if executable == "php" and any(mode == "-r" for mode in tokens[1:4]):
             return "Php"
     return None
@@ -384,7 +375,7 @@ def analyze(
     if not paths:
         raise RuntimeError(f"no recent Codex transcripts found under {codex_home}")
 
-    report = Report(files=len(paths))
+    report = Report()
     for path in paths:
         try:
             analyze_file(path, cutoff, ignored, report)

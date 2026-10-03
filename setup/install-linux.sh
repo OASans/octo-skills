@@ -19,7 +19,7 @@
 #     git credential helper so HTTPS push/pull works without passwords
 #
 # Run with: bash install-linux.sh
-# Safe to re-run — every step skips work that's already done.
+# Safe to re-run: installed tools are skipped, managed config refreshed, and Rust updated.
 #
 # Unlike install-mac.sh, this script *runs* `gh auth login` for you. The login
 # is interactive: it prints a one-time code and opens your browser. Run this
@@ -284,7 +284,7 @@ setup_firewall() {
       echo "  allowed $ip ($label) → port $WEB_PORT"
     done
   else
-    echo "WEB_PORT / WEB_ALLOWED_IPS not set — web port stays CLOSED (skipping rule)."
+    echo "WEB_PORT / WEB_ALLOWED_IPS not set — no web allow rule added; existing rules unchanged."
     echo "  Set them in $SCRIPT_DIR/.env, then re-run to open it."
   fi
 
@@ -364,20 +364,7 @@ echo
 # Use the official GitHub apt repo so we get a current gh on any Debian/Ubuntu
 # release (distro packages are often old or absent).
 echo "=== Step 3: install gh (GitHub CLI) ==="
-if command -v gh >/dev/null 2>&1; then
-  echo "gh already installed ($(gh --version | head -n1)) — skipping install"
-else
-  KEYRING=/usr/share/keyrings/githubcli-archive-keyring.gpg
-  if [ ! -f "$KEYRING" ]; then
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-      | sudo dd of="$KEYRING" status=none
-    sudo chmod go+r "$KEYRING"
-  fi
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=$KEYRING] https://cli.github.com/packages stable main" \
-    | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
-  sudo apt-get update -qq
-  sudo apt-get install -y gh
-fi
+bash "$SCRIPT_DIR/install-components/install-gh.sh"
 echo
 
 # ---------- Step 4: configure git globals ----------

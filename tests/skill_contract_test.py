@@ -32,7 +32,8 @@ class SkillContractTest(unittest.TestCase):
 
     def test_scenario_answers_use_distinct_valid_choices(self):
         import json
-        cases = json.loads((ROOT / 'evals/cases.json').read_text())
+        suite = json.loads((ROOT / 'evals/suite.json').read_text())
+        cases = json.loads((ROOT / 'evals' / suite['cases']).read_text())
         self.assertEqual(len({case['id'] for case in cases}), len(cases))
         for case in cases:
             self.assertTrue(set(case['expected']) <= set(case['choices']))

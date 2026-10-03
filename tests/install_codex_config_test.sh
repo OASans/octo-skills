@@ -11,7 +11,6 @@ PLAYWRIGHT_CACHE="$TEST_ROOT/playwright"
 TEST_BIN="$TEST_ROOT/bin"
 CURL_CALLS="$TEST_ROOT/curl-calls"
 CODEX_PROXY_CALLS="$TEST_ROOT/codex-proxy-calls"
-CODEX_PROXY_STDIN="$TEST_ROOT/codex-proxy-stdin"
 CODEX_DAEMON_CALLS="$TEST_ROOT/codex-daemon-calls"
 CODEX_REMOTE_CONTROL_CALLS="$TEST_ROOT/codex-remote-control-calls"
 CODEX_BOOTSTRAP_UNMANAGED_MARKER="$TEST_ROOT/codex-bootstrap-unmanaged-marker"
@@ -76,14 +75,6 @@ if [ "${1:-}" = remote-control ]; then
 fi
 if [ "${1:-}" = app-server ] && [ "${2:-}" = proxy ]; then
     printf '%s\n' "$*" >> "$CODEX_PROXY_CALLS"
-    while IFS= read -r line; do
-        printf '%s\n' "$line" >> "$CODEX_PROXY_STDIN"
-        case "$line" in
-            *'"id":2'*)
-                printf '%s\n' '{"id":2,"result":{"status":"ok"}}'
-                ;;
-        esac
-    done
 fi
 exit 0
 CODEX
@@ -175,7 +166,7 @@ run_install() {
         PATH="$TEST_BIN:$PATH" PLAYWRIGHT_BROWSERS_PATH="$PLAYWRIGHT_CACHE" \
         CURL_CALLS="$CURL_CALLS" STANDALONE_ENV="$STANDALONE_ENV" \
         STANDALONE_INSTALL_DIR="$STANDALONE_INSTALL_DIR" \
-        CODEX_PROXY_CALLS="$CODEX_PROXY_CALLS" CODEX_PROXY_STDIN="$CODEX_PROXY_STDIN" \
+        CODEX_PROXY_CALLS="$CODEX_PROXY_CALLS" \
         CODEX_DAEMON_CALLS="$CODEX_DAEMON_CALLS" \
         CODEX_REMOTE_CONTROL_CALLS="$CODEX_REMOTE_CONTROL_CALLS" \
         CODEX_BOOTSTRAP_UNMANAGED_MARKER="$CODEX_BOOTSTRAP_UNMANAGED_MARKER" \

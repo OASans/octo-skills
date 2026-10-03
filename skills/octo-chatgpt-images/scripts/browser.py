@@ -26,6 +26,7 @@ class BrowserError(RuntimeError):
 MAX_CITATIONS = 256
 MAX_CITATION_BYTES = 512 * 1024
 MAX_CLEANUP_BYTES = 4096
+CONVERSATION_PATHS = ('/backend-api/f/conversation', '/backend-api/conversation')
 
 
 def cli(*args):
@@ -345,16 +346,13 @@ def network_evidence(page, mode, *, run=None):
         url = urlsplit(match[3])
         if url.hostname == 'chatgpt.com' and url.path.startswith('/backend-api/'):
             entries.append({'method': match[2], 'path': url.path, 'status': match[4]})
-            if match[2] == 'POST' and url.path in ('/backend-api/f/conversation', '/backend-api/conversation') and match[4] == '200':
+            if match[2] == 'POST' and url.path in CONVERSATION_PATHS and match[4] == '200':
                 model = request_model(page, match[1], run=run)
                 validate_request_model(mode, model)
                 models.append(model)
     if any(e['path'].startswith('/backend-api/codex') for e in entries):
         raise BrowserError('Unexpected Codex endpoint in browser traffic; inspect the run')
-    sent = any(e['method'] == 'POST' and e['path'] in
-               ('/backend-api/f/conversation', '/backend-api/conversation')
-               and e['status'] == '200' for e in entries)
-    return {'chatgpt_conversation_request': sent, 'codex_requests': 0,
+    return {'chatgpt_conversation_request': bool(models), 'codex_requests': 0,
             'submitted_models': models, 'requests': entries}
 
 
@@ -447,7 +445,6 @@ def observe_run(page, mode):
         if (research['phase'] == 'waiting' and observation['complete'] and
                 not observation['streaming'] and observation['text']):
             research['phase'] = 'needs_input'
-        observation['research_complete'] = research['complete']
         if research['complete']:
             observation['text'] = research['text']
     return observation
@@ -516,7 +513,7 @@ def submit(args, run):
         cli('fill', page, uid, prompt)
         if args.mode == 'research':
             state['research'] = select_research(page)
-        wait_until(lambda: composer(page)['send'] and not composer(page)['busy'], 60)
+        wait_until(lambda: (draft := composer(page))['send'] and not draft['busy'], 60)
         if args.mode == 'research':
             state['research'] = research_proof(page)
             validate_research(state['research'])
@@ -548,7 +545,7 @@ def is_finished(mode, observation):
     if observation.get('streaming'):
         return False
     if mode == 'research':
-        return bool(observation.get('research_complete') and observation.get('text'))
+        return bool(observation.get('research', {}).get('complete') and observation.get('text'))
     if not observation.get('complete'):
         return False
     return bool(observation.get('images') if mode == 'images' else observation.get('text'))
@@ -620,7 +617,7 @@ def validate_cleanup_network(evidence):
     if any(row['path'].startswith('/backend-api/codex') for row in requests):
         raise BrowserError('Cleanup refuses Codex request evidence')
     submissions = [row for row in requests if row['method'] == 'POST' and row['path'] in
-                   ('/backend-api/f/conversation', '/backend-api/conversation')]
+                   CONVERSATION_PATHS]
     if len(submissions) != 1 or submissions[0]['status'] != '200':
         raise BrowserError('Cleanup requires exactly one successful original conversation POST')
     return submissions[0]

@@ -35,8 +35,8 @@ def project(repo):
         remote = identity(git(root, 'remote', 'get-url', 'origin'))
     except subprocess.CalledProcessError:
         remote = ''
-    common = str(Path(git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir')).resolve())
-    return root, remote, digest(remote or common)[:24]
+    project_id = remote or str(Path(git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir')).resolve())
+    return root, remote, digest(project_id)[:24]
 
 
 def atomic(path, value):

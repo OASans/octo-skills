@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Setup script: configure macOS dev tools, desktop apps, GitHub auth, and Codex.
 # Run with: bash install-mac.sh
-# Safe to re-run — every step skips work that's already done.
+# Safe to re-run: installed tools are skipped, managed config refreshed, and Rust updated.
 set -u
 
 # Directory this script lives in, so it can find install-components/ regardless of cwd.
@@ -51,12 +51,9 @@ ensure_cask() {
   fi
 }
 
-# ---------- Preflight: Xcode license ----------
-# /usr/bin/git is a stub that goes through xcrun; an unaccepted Xcode license
-# blocks every git invocation by dumping the license text and waiting on stdin.
-# Detect that case up front (with all I/O redirected so the license doesn't
-# flood the terminal) and exit with a clear instruction.
-preflight_xcode_license() {
+# ---------- Preflight: selected Xcode readiness ----------
+# License and first-launch probes need separate remedies, but share selection gating.
+preflight_xcode() {
   [ -d "/Applications/Xcode.app" ] || return 0
   local xcode_dev_dir
   xcode_dev_dir="$(xcode-select -p 2>/dev/null || true)"
@@ -64,10 +61,8 @@ preflight_xcode_license() {
     /Applications/Xcode.app/*) ;;
     *) return 0 ;;
   esac
-  if /usr/bin/xcrun --find git </dev/null >/dev/null 2>&1; then
-    return 0
-  fi
-  cat <<'EOF'
+  if ! /usr/bin/xcrun --find git </dev/null >/dev/null 2>&1; then
+    cat <<'EOF'
 Xcode is installed and selected, but its license has not been accepted yet.
 Every git and xcodebuild call below would be blocked by the license prompt.
 
@@ -77,22 +72,8 @@ Run this yourself in the prompt (interactive — needs sudo):
 
 Then re-run this script with:  bash install-mac.sh
 EOF
-  exit 1
-}
-preflight_xcode_license
-
-# ---------- Preflight: Xcode first-launch components ----------
-# After license accept, xcodebuild still needs CoreSimulator and other
-# privately-installed frameworks before any build/test will succeed.
-# `-checkFirstLaunchStatus` returns 0 when first-launch tasks are done.
-preflight_xcode_first_launch() {
-  [ -d "/Applications/Xcode.app" ] || return 0
-  local xcode_dev_dir
-  xcode_dev_dir="$(xcode-select -p 2>/dev/null || true)"
-  case "$xcode_dev_dir" in
-    /Applications/Xcode.app/*) ;;
-    *) return 0 ;;
-  esac
+    exit 1
+  fi
   if xcodebuild -checkFirstLaunchStatus </dev/null >/dev/null 2>&1; then
     return 0
   fi
@@ -108,7 +89,7 @@ Then re-run this script with:  bash install-mac.sh
 EOF
   exit 1
 }
-preflight_xcode_first_launch
+preflight_xcode
 
 # ---------- Step 1: inspect ----------
 echo "=== Step 1: inspect existing tools ==="

@@ -8,8 +8,8 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-import sys
 import time
+import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 # The suite manifest defines the intentionally bounded policy fixture.
@@ -63,8 +63,6 @@ def score_answer(answer, cases):
 
 
 def configured_models():
-    sys.path.insert(0, str(ROOT))
-    from scripts.render_codex_config import tomllib
     configs = [ROOT / 'global-codex-config.toml', ROOT / 'codex-agents/octo-reviewer.toml']
     models = []
     for config in configs:

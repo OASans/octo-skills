@@ -10,7 +10,7 @@ Codex skills and config, available in ALL projects once installed.
 - `global-codex-hooks.json` — Codex SessionStart Git Sync hook; installs directly to `$CODEX_HOME/hooks.json`. Codex status comes from its App Server.
 - `global-AGENTS.md` — global instructions; installs to `$CODEX_HOME/AGENTS.md`. Edit the source, not the installed copy.
 - `global-codex-config.toml` — shared Codex defaults; `scripts/render_codex_config.py` preserves host-local project and hook trust from the installed config. `install.sh` honors `CODEX_HOME` (default `~/.codex`); Python 3.11+ is required for TOML parsing.
-- `global-codex-rules.rules` — managed Codex command policy. Installs to `~/.codex/rules/default.rules`; `rm` requires user confirmation while other commands use the global defaults.
+- `global-codex-rules.rules` — managed Codex command policy. Installs to `$CODEX_HOME/rules/default.rules` (default `~/.codex/rules/default.rules`); `rm` requires user confirmation while other commands use the global defaults.
 - `setup/` — machine provisioning (a different job from `install.sh`: these set up the *machine*, `install.sh` sets up the *agents*). Per-platform installers (`install-linux.sh`, `install-mac.sh`, `install-wsl2.sh`, `install-windows.ps1`), the shared `install-components/`, and the SSH grant/accept pair. All machine-specific values — git identity, LAN CIDR, firewall-allowed IPs — live in `setup/.env`, which is **gitignored**; `setup/.env.example` is the committed template and `setup/load-env.sh` loads and validates it. This repo is public: never hardcode an email, IP, or hostname in a setup script — it goes in `.env`. See `setup/README.md`.
 - `install.sh` — deploys `skills/*`, global instructions, hooks, config, rules, and review agents to `CODEX_HOME` (default `~/.codex`), and installs OpenAI's standalone Codex package. `~/.local/bin/codex` points directly to the official executable. Normal installs preserve the running daemon; `--restart` updates and restarts it.
 
@@ -21,7 +21,7 @@ Codex skills and config, available in ALL projects once installed.
 | `/octo-coding-guide-code` | Reference (guide) | Common implementation, verification, and documentation rules. `guide-scope: all` |
 | `/octo-coding-guide-rust` | Reference (guide) | Rust-specific conventions. `guide-scope: **/*.rs` |
 | `/octo-review` | Workflow | One holistic reviewer when independent review is needed; one verifier for concrete failure claims |
-| `/octo-commit` | Workflow | Primary commit path: verify the AGENTS.md workflow was followed, then write a meaningful + compact commit. Never pushes |
+| `/octo-commit` | Workflow | Primary commit path: verify the AGENTS.md workflow was followed, then write a meaningful + compact commit; pushes only when authorized |
 | `/octo-simplify` | Audit (on request) | Full simplification audit through browser GPT-6 Pro; coverage and ranked cleanup plan, no implementation |
 | `/octo-memory` | Memory (manual) | Audit transcripts through browser Pro and publish verified topics |
 

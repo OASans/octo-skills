@@ -13,6 +13,6 @@ Analyze Codex tool use without exposing prompts, responses, file paths, or raw c
 ## Steps
 
 1. Use seven days unless the user supplied another positive number.
-2. Run `bash "${CODEX_HOME:-$HOME/.codex}/skills/octo-codex-usage/scripts/analyze.sh" --days 7`, replacing `7` only when the user supplied another number.
+2. Run `python3 "${CODEX_HOME:-$HOME/.codex}/skills/octo-codex-usage/scripts/analyze.py" --days 7`, replacing `7` only when the user supplied another number.
 3. Report the analyzer's scope and repeated unusual patterns. Suppress ordinary workflow tools; do not open session files or inspect raw transcript content.
 4. Suggest a purpose-built tool only for a pattern recurring across multiple sessions. State when the evidence is too weak.
