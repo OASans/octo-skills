@@ -74,6 +74,15 @@ read-only preflight and shared capacity setup while their identities remain vali
    committed runtime and refreshed readiness evidence for the next idea. Retain unchanged
    reviews/comparisons. Never rerun an accepted terminal trial as an operational retry.
 
+Justified operational recovery is authorized through existing owner/fencing tools, using
+agent judgment without repeated confirmation. Authenticate previous-owner exit and accepted
+provenance before takeover; bound renewed operations' scope and budget. After research-budget
+expiry, for example, a separate bounded operational owner may solely finalize the original
+accepted IS rejection and cancel unexecuted tails. Retain the original failed episode,
+research budget and timing; report recovery separately, never as a concealed restart.
+Never rerun accepted trials or add cleanup-specific capabilities, statuses or gates. Honor
+actual host approvals and report exact automatic-review rejection reasons.
+
 For a complex unresolved bottleneck or periodic deeper second opinion, optionally use
 `octo-chatgpt-analysis` for browser GPT-6 Pro. Collect relevant original transcripts,
 strategy code, settings, result artifacts and workflow documents; ZIP them and upload that
