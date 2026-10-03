@@ -298,5 +298,51 @@
       "use_browser_gpt6_pro_with_markdown_and_zip",
       "verify_facts_before_promotion"
     ]
+  },
+  {
+    "id": "simplify_audit_local_verification",
+    "task": "A browser $octo-simplify audit has returned supported cleanup candidates with source locations. The user wants local agents to double-check these findings. Which work fits this stage?",
+    "choices": [
+      "verify_returned_claims_with_needed_source_callers_tests",
+      "delegate_bounded_verification_groups_if_useful",
+      "rerun_full_audit_locally",
+      "search_whole_project_for_new_findings",
+      "implement_cleanup_during_audit"
+    ],
+    "expected": [
+      "verify_returned_claims_with_needed_source_callers_tests",
+      "delegate_bounded_verification_groups_if_useful"
+    ]
+  },
+  {
+    "id": "simplify_audit_binary_verdicts",
+    "task": "Local verification of a browser audit confirms a dead private helper. A second proposed removal depends on an unavailable external consumer. A third candidate mixes a proven redundant field with a still-used guard. How should the final cleanup plan classify these?",
+    "choices": [
+      "recommend_change_for_verified_dead_helper",
+      "do_not_change_missing_context_candidate_now",
+      "split_mixed_candidate_into_change_and_do_not_change_parts",
+      "leave_uncertain_removal_as_maybe_recommended",
+      "remove_used_guard_to_maximize_reduction"
+    ],
+    "expected": [
+      "recommend_change_for_verified_dead_helper",
+      "do_not_change_missing_context_candidate_now",
+      "split_mixed_candidate_into_change_and_do_not_change_parts"
+    ]
+  },
+  {
+    "id": "simplify_audit_process_metrics",
+    "task": "A completed browser audit reports 77/77 files inspected and displays Worked for 28m 5s. Collection took 28m 20s. What belongs in local process reporting?",
+    "choices": [
+      "report_browser_claim_of_77_of_77_inspected",
+      "report_displayed_work_time_28m5s",
+      "claim_28m5s_of_pure_thinking",
+      "substitute_collection_elapsed_for_displayed_work_time",
+      "audit_intermediate_activity_to_prove_effort"
+    ],
+    "expected": [
+      "report_browser_claim_of_77_of_77_inspected",
+      "report_displayed_work_time_28m5s"
+    ]
   }
 ]
