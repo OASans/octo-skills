@@ -83,25 +83,67 @@ No sanitizer, exporter, deduplication system or reusable bundling tool.
 
 ## Granular transcript analysis
 
-For every finished research worker, authenticate its original transcript against the actual
-model, task, idea and assignment. Use that transcript, normal-operation receipts and existing
-accounting; coordinator summaries or nested reviewer sessions cannot replace it.
+Timing attribution is mandatory for **every completed-worker analysis**, including failed
+preparation and HELP, before another researcher starts. Authenticate the original worker
+transcript against its actual model, task, idea and assignment. Use original call/result
+windows, normal-operation receipts and existing accounting; summaries or nested reviewer
+sessions cannot replace them. Recover missing original evidence before calling the analysis
+complete; missing operational evidence never makes the scientific outcome rejected.
 
-Reconstruct what the worker did and elapsed time for setup/context/comparisons, strategy
-implementation, operational repairs, capacity waiting, evaluation, publication and closure.
-Match tool calls to results and cite timestamps or receipt identities. Partition the worker
-lifecycle into non-overlapping intervals; show nested tool timings as detail, never add them
-again. Mark mixed or unobserved intervals explicitly. Keep coordinator fixes, other agents
-and reporting after supervisor exit separate from worker lifecycle time.
+Retain two levels in the existing compact round report: an exclusive, non-overlapping
+worker lifecycle partition with its total, and a granular subtask table with nested measured
+components. Each row states actions, start/end or elapsed time, attribution class and exact
+transcript timestamps/lines or receipt identities. Keep pre-start work, post-supervisor-exit
+reporting, coordinator fixes and other agents separate. Match launches to results and actual
+process exit; launch/approval/response windows, asynchronous waits and overlapping worker
+activity are not fabricated program runtime. Never add nested or overlapping durations to
+the lifecycle total or copy another operation's measured timings onto an unmeasured one.
 
-For each major task, record its actions, elapsed interval, supporting evidence and useful
-scientific work versus demonstrated repetition or operational detours. Wall time is not CPU
-usage or active model time; uncovered time is not proof of thinking or waste. Report authentic
-worker token totals when available; phase-level token use stays unknown without accounting.
-Retain this breakdown and ranked actionable findings in the existing compact round report.
-If the transcript or timing evidence is unavailable, record the gap and recover it before
-calling the analysis complete; never fabricate precise attribution or mark the research
-outcome rejected because its operational evidence is missing.
+Classify **every reported subtask interval**:
+
+- **PROGRAM**: a measured process/tool invocation or receipt-bounded computation. Name the
+  operation and its measured boundaries; its wall time is not CPU usage.
+- **AGENT**: only directly evidenced agent work with supported timing boundaries. Cite the
+  authored reasoning, decisions, code or instruction/interface work; gaps between transcript
+  events are not pure thinking time or proof of active model work.
+- **MIXED**: the interval contains program work, agent work, interface overhead or waiting
+  that existing evidence cannot reliably separate. Show known nested measurements without
+  assigning the remainder to thinking or waste.
+- **UNKNOWN**: timing or attribution is unsupported. State what is missing; do not invent
+  precision, phase tokens or prorated time.
+
+Use at least this subtask granularity wherever the worker's evidence permits:
+
+- Setup: instruction discovery, saved source/formula review, API/schema reads and activation.
+- Candidate implementation: scientific construction, native code and formatting/checks.
+- Early probe: economic/native engine runtime separately from wrapper, snapshot and
+  publication work; keep the enclosing mixed probe window distinct.
+- Similarity: candidate retrieval separately from actual-source reads and scientific judgments.
+- Declarations: scientist-authored assumptions/falsifier separately from mechanical binding,
+  grids, semantic publication and frozen workflow preparation.
+- Capacity: exact automatic wait separately from other setup/evaluation activity.
+- Evaluation: snapshot inventory, hardlinks and index; entire snapshot as their parent;
+  build, native engine, terminal bank and materialization. Uninstrumented bank substeps
+  remain unknown even when the enclosing bank duration is measured.
+- Closure: result projection, warning interpretation, checkpoint authoring/publication,
+  memory checking, finish, correction/retry and supervisor/resource cleanup.
+
+These are analysis dimensions, not stages every strategy must execute. Mark confirmed
+absent stages **not run** and unsupported stages **unknown**. Split further when receipts
+permit; a single evaluation or closure block is insufficient when its components are known.
+Distinguish known computation from agent/interface overhead, useful science and necessary
+causal checks from evidenced repetition or operational detours. Zero variations does not
+remove fixed work; preserve the authorized one-shot/no-tuning scope instead of adding trials
+as a latency remedy. Source reads needed for execution are not repeated intake reviews.
+
+Rank concrete improvement proposals using cited actions, measurements and failure evidence.
+Identify the existing interface/instruction to change, correctness constraints, expected
+mechanism of benefit and conservative observations to compare on the next ordinary worker.
+An enclosing mixed interval bounds the observed sequence, not potential savings. Do not
+infer waste from elapsed time, claim causality from one worker, rerun accepted economics for
+comparison or invent manual metrics. Report authentic cumulative worker tokens when
+available; phase-level usage stays unknown without existing accounting. Preserve full
+warnings and scientific judgment while reducing demonstrated repeated mechanics.
 
 ## Evidence and quality
 
