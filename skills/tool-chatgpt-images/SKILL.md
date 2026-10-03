@@ -1,5 +1,5 @@
 ---
-name: octo-chatgpt-images
+name: tool-chatgpt-images
 description: >
   Generate images through the user's logged-in ChatGPT website with non-Pro
   settings. Use for browser/subscription image generation, including prompt

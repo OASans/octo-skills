@@ -84,7 +84,7 @@ Never rerun accepted trials or add cleanup-specific capabilities, statuses or ga
 actual host approvals and report exact automatic-review rejection reasons.
 
 For a complex unresolved bottleneck or periodic deeper second opinion, optionally use
-`octo-chatgpt-analysis` for browser GPT-6 Pro. Collect relevant original transcripts,
+`tool-chatgpt-analysis` for browser GPT-6 Pro. Collect relevant original transcripts,
 strategy code, settings, result artifacts and workflow documents; ZIP them and upload that
 ZIP directly within the authorized scope. Preserve actual permission requirements and
 follow the browser skill. Save its response and distinguish proposals from verified facts.

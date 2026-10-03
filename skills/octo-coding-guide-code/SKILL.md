@@ -1,13 +1,12 @@
 ---
 name: octo-coding-guide-code
-guide-scope: all
 description: >
   Guide implementation, documentation, and review with compact shared quality rules. Read inline; load language-specific guidance only when relevant. No subagents.
 ---
 
 # Coding Guide
 
-Apply the rules relevant to the changed behavior or prose. For Rust, also read [Rust guidance](../octo-coding-guide-rust/SKILL.md); discover other specialist guides by their `guide-scope` when needed. Scopes select guidance, never agent count.
+Apply the common rules below to all implementation, documentation, and review. Before changing or reviewing Rust code (`*.rs`), read [Rust instructions](languages/rust.md). Language-specific instructions live in `languages/` within this skill; read the relevant file rather than loading a separate language skill.
 
 ## Scope and simplicity
 
@@ -31,11 +30,13 @@ Apply the rules relevant to the changed behavior or prose. For Rust, also read [
 
 ## Verification
 
-- Test changed behavior, boundaries, and relevant failure cases; avoid tests that merely mirror the implementation. Use coverage to locate gaps; do not impose blanket coverage targets or force unrelated refactoring.
+- Keep a test only when it answers: “What realistic wrong outcome would this catch?” Protect required behavior or a concrete regression; use coverage to locate gaps, not impose quotas or test every function.
+- Place tests beside the code they exercise, such as `scripts/browser_test.py`; do not create a separate root test directory.
+- Assert observable results rather than internal call sequences or copies of prose and configuration defaults. Avoid overlapping tests and large mock setups; delete tests when their supported behavior is removed.
 - Use the cheapest reliable check of the observable contract: unit tests for logic, isolated integration tests for boundaries, and E2E checks for important workflows not established below. Do not duplicate evidence across layers or require a test for every function or path.
 - For behavioral bug fixes, add or reuse a regression test that fails before the fix and passes after. A test should pin the wrong outcome, not the implementation used to fix it.
 - Keep unit tests independent of live services and developer state. Integration/E2E checks using real systems must isolate their resources and clean up.
-- Do not add tests for shell scripts, including regression tests; use syntax checks and direct verification. Still run existing project-required checks.
+- Do not maintain tests for shell scripts, including regression tests; use syntax checks and temporary direct verification. Retire existing shell-test harnesses and gates rather than retaining compatibility exceptions.
 - Refactor only as needed to verify the authorized behavior. Rerun affected checks after changes; broaden only for changed behavior, failures, or unresolved concerns.
 
 ## Documentation

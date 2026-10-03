@@ -18,8 +18,7 @@ Codex skills and config, available in ALL projects once installed.
 
 | Skill | Type | Description |
 |-------|------|-------------|
-| `/octo-coding-guide-code` | Reference (guide) | Common implementation, verification, and documentation rules. `guide-scope: all` |
-| `/octo-coding-guide-rust` | Reference (guide) | Rust-specific conventions. `guide-scope: **/*.rs` |
+| `/octo-coding-guide-code` | Reference (guide) | Common rules and language-specific instructions in `languages/` |
 | `/octo-review` | Workflow | One holistic reviewer when independent review is needed; one verifier for concrete failure claims |
 | `/octo-commit` | Workflow | Primary commit path: verify the AGENTS.md workflow was followed, then write a meaningful + compact commit; pushes only when authorized |
 | `/octo-simplify` | Audit (on request) | Full simplification audit through browser GPT-6 Pro; coverage and ranked cleanup plan, no implementation |
@@ -27,11 +26,11 @@ Codex skills and config, available in ALL projects once installed.
 
 ## Skill Relationships
 
-- `octo-coding-guide-code` is the common entrypoint, including documentation rules. Specialist guides such as `octo-coding-guide-rust` add guidance only for their `guide-scope`; headings never determine agent count.
+- `octo-coding-guide-code` is the single coding-guide entrypoint, including documentation rules. Its `languages/` directory holds language-specific instructions, starting with Rust.
 - `/octo-review` defaults to one reviewer across the change and relevant guidance, with at most one independent verifier for failure claims. Global instructions own review triggers and freshness.
 - `/octo-commit` enforces the merged AGENTS.md workflow, completes missing authorized steps, and checks that required review/checks cover the current change. It never pushes without user authorization.
 - `/octo-memory` owns explicitly requested transcript audits, global progress tracking, and verified topic publication. Existing knowledge remains available during ordinary tasks.
-- `/octo-simplify` audits the whole requested scope through `/octo-chatgpt-analysis`; it records coverage and proposes cleanup without implementing it. Browser GPT-6 Pro is its only execution route.
+- `/octo-simplify` audits the whole requested scope through `/tool-chatgpt-analysis`; it records coverage and proposes cleanup without implementing it. Browser GPT-6 Pro is its only execution route.
 
 ## Editing Skills
 
@@ -39,6 +38,6 @@ Edit skills in `skills/<name>/SKILL.md`, then run `./install.sh` to deploy. Do n
 
 ## Validation
 
-- For installer/config changes, run `python3 -m unittest discover -s tests -p '*_test.py'` and `bash tests/install_codex_config_test.sh`; the installer test uses disposable local fixtures and controlled external commands.
-- For skill/prompt changes, run `python3 tests/skill_contract_test.py`. Model/prompt comparisons follow the common coding guide's temporary-work rule.
+- Tests live beside their scripts. Run the affected `*_test.py` files directly with Python. For all Python tests: `for test in scripts/*_test.py skills/*/scripts/*_test.py; do python3 "$test" || exit; done`.
+- For skill/prompt changes, check skill names against their directories, referenced paths, and changed invocation policies directly. Model/prompt comparisons follow the common coding guide's temporary-work rule.
 - Check shell syntax with `bash -n` for changed scripts and parse changed JSON/TOML/YAML. Rerun only affected checks after fixes.

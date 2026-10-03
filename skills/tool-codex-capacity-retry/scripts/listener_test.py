@@ -13,7 +13,7 @@ import tempfile
 import threading
 import unittest
 
-SCRIPTS = Path(__file__).resolve().parents[1] / 'skills/octo-capacity-retry/scripts'
+SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 spec = importlib.util.spec_from_file_location('capacity_listener', SCRIPTS / 'listener.py')
 listener = importlib.util.module_from_spec(spec)

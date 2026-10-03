@@ -1,12 +1,3 @@
----
-name: octo-coding-guide-rust
-guide-scope: "**/*.rs"
-description: >
-  Print the shared Rust guide — this codebase's Rust-specific conventions for
-  test layout, pattern matching, global state, and module layout. Inline skill — no sub-agents.
-  Use as a reference for Rust code reviews, implementation decisions, and plan evaluation.
----
-
 # Rust Guide
 
 Use alongside the common coding guide when changing Rust.

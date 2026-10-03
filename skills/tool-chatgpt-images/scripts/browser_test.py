@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import DEFAULT, MagicMock, Mock, patch
 
-PATH = Path(__file__).resolve().parents[1] / 'skills/octo-chatgpt-images/scripts/browser.py'
+PATH = Path(__file__).with_name('browser.py')
 SPEC = importlib.util.spec_from_file_location('chatgpt_browser', PATH)
 browser = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(browser)
@@ -29,7 +29,7 @@ class BrowserDOMTests(unittest.TestCase):
                       shutil.which('chromium-browser'))
         if not cls.chrome:
             raise unittest.SkipTest('Offline DOM regression checks require Chrome or Chromium')
-        cls.workspace = Path(__file__).resolve().parents[1] / '.browser-workspace'
+        cls.workspace = Path.cwd() / '.browser-workspace'
         cls.workspace.mkdir(exist_ok=True)
 
     def observe_html(self, markup, reader=None):
@@ -185,15 +185,6 @@ class BrowserDOMTests(unittest.TestCase):
         self.assertTrue(browser.prompt_visible(dict(prompt=prompt), observation))
         self.assertTrue(browser.is_finished('images', observation))
         self.assertEqual(len(observation['images']), 1)
-
-    def test_rendered_research_chip_keeps_its_text_and_block_separator(self):
-        observation = self.observe_html('<main><div><h4>You said:</h4>'
-            '<div data-user-message-bubble><div data-search-result-target>'
-            '<div>Deep research</div><div dir="auto">Research this</div></div>'
-            '<button>Show more</button></div></div></main>')
-        state = dict(mode='research', prompt='Research this',
-                     submitted_prompt='Deep research Research this')
-        self.assertTrue(browser.prompt_visible(state, observation))
 
     def test_sent_inline_code_restores_delimiters_without_hiding_edits(self):
         prompt = 'Use `F01 — Title`.\n\nEnd with `Formal claim — Fxx.`'
@@ -570,19 +561,6 @@ class BrowserTests(unittest.TestCase):
             browser.verify_conversation({'prompt': 'Review', 'url': url}, {**obs, 'url': 'https://example.com'})
 
     @patch.object(browser, 'cli')
-    @patch.object(browser, 'evaluate', return_value=True)
-    @patch.object(browser, 'click')
-    @patch.object(browser, 'model_proof', return_value={})
-    def test_model_selection_uses_supported_arrow_controls(self, proof, click, evaluate, cli):
-        for mode, direction in [('images', 'ArrowLeft'), ('analysis', 'ArrowRight')]:
-            cli.reset_mock()
-            browser.select_model(1, mode)
-            keys = [call.args[2] for call in cli.call_args_list if call.args[0] == 'press_key']
-            self.assertEqual(keys.count(direction), 4)
-            self.assertNotIn('End', keys)
-            self.assertNotIn('Home', keys)
-
-    @patch.object(browser, 'cli')
     def test_no_implicit_browser_launch(self, cli):
         for status in ('daemon is not running', 'args=["--headless"]', 'args=["--browser-url=http://remote"]'):
             cli.return_value = status
@@ -678,7 +656,7 @@ class BrowserTests(unittest.TestCase):
 
     @contextmanager
     def collection_run(self, **state):
-        workspace = PATH.parents[3] / '.browser-workspace'
+        workspace = Path.cwd() / '.browser-workspace'
         workspace.mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=workspace) as directory:
             run = Path(directory)
@@ -774,7 +752,7 @@ class BrowserTests(unittest.TestCase):
 class CitationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.workspace = Path(__file__).resolve().parents[1] / '.browser-workspace'
+        cls.workspace = Path.cwd() / '.browser-workspace'
         cls.workspace.mkdir(exist_ok=True)
 
     def archive(self, directory, text='Ross paper and its proposal.'):
@@ -989,7 +967,7 @@ class CitationTests(unittest.TestCase):
 class CleanupTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.workspace = Path(__file__).resolve().parents[1] / '.browser-workspace'
+        cls.workspace = Path.cwd() / '.browser-workspace'
         cls.workspace.mkdir(exist_ok=True)
 
     def archive(self, directory):

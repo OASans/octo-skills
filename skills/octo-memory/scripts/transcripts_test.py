@@ -10,7 +10,7 @@ import unittest
 import zipfile
 from unittest.mock import patch
 
-PATH = Path(__file__).resolve().parents[1] / 'skills/octo-memory/scripts/transcripts.py'
+PATH = Path(__file__).with_name('transcripts.py')
 SPEC = importlib.util.spec_from_file_location('memory_transcripts', PATH)
 memory = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(memory)

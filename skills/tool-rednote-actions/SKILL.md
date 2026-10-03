@@ -1,5 +1,5 @@
 ---
-name: octo-rednote
+name: tool-rednote-actions
 description: >
   Read a shared Xiaohongshu / RedNote post link, including its caption and images.
   Use for xhslink.com, xhslink.cn, xiaohongshu.com, or rednote.com post links.

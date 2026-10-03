@@ -10,8 +10,8 @@ import unittest
 from unittest.mock import Mock
 
 
-ROOT = Path(__file__).resolve().parents[1]
-PATH = ROOT / 'skills/octo-rednote/scripts/read_post.py'
+ROOT = Path.cwd()
+PATH = Path(__file__).with_name('read_post.py')
 SPEC = importlib.util.spec_from_file_location('rednote_reader', PATH)
 reader = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(reader)
@@ -108,7 +108,7 @@ class RedNoteTests(unittest.TestCase):
         session.get.side_effect = [
             response(text=html({'note': {'noteDetailMap': {NOTE_ID: {'note': note(imageList=images)}}}})),
             response(), response(content=b'<html>blocked</html>', headers={'Content-Type': 'text/html'})]
-        workspace = ROOT / '.eval-workspace'
+        workspace = ROOT / '.rednote-workspace'
         workspace.mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=workspace) as temp:
             output = Path(temp) / 'post'
@@ -141,7 +141,7 @@ argv = ['read_post', test['POST_URL'], '--output', sys.argv[2]]
 with patch.dict(sys.modules, {'curl_cffi.requests': requests}), patch.object(sys, 'argv', argv):
     sys.exit(reader.main())
 '''
-        workspace = ROOT / '.eval-workspace'
+        workspace = ROOT / '.rednote-workspace'
         workspace.mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(dir=workspace) as temp:
             output = Path(temp) / 'post'

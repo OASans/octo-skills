@@ -1,10 +1,10 @@
 ---
-name: octo-capacity-retry
+name: tool-codex-capacity-retry
 description: >
-  Start, inspect, or stop a background Codex capacity-error listener across local projects, with bounded retries and notifications in the initiating conversation.
+  Human-invoked only: start, inspect, or stop a background Codex capacity-error listener across local projects, with bounded retries and notifications in the initiating conversation. Never invoke autonomously or from another agent or skill.
 ---
 
-Start the listener only when the user requests it. It watches loaded root tasks on the existing local Codex daemon, regardless of project path. Separate daemons and machines need separate listeners.
+Run commands only when the human user explicitly invokes this skill or requests its start, status, or stop operation. Never invoke it autonomously, from another skill, or at another agent's request. It watches loaded root tasks on the existing local Codex daemon, regardless of project path. Separate daemons and machines need separate listeners.
 
 ## Commands
 

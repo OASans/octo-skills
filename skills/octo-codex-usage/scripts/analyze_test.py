@@ -11,7 +11,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-PATH = Path(__file__).resolve().parents[1] / 'skills/octo-codex-usage/scripts/analyze.py'
+PATH = Path(__file__).with_name('analyze.py')
 SPEC = importlib.util.spec_from_file_location('codex_usage', PATH)
 analyze = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = analyze
