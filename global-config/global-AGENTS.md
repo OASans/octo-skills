@@ -23,9 +23,9 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 
 ## Subagents
 
-Include the actual selected model in the sub-agent's visible name: `agent_name [model]` (for example, `doc_review [gpt-5.6-terra]`). When the name field restricts characters, use `agent_name_model` with punctuation replaced by underscores (for example, `doc_review_gpt_5_6_terra`); always put the model in the name itself, not just the description or dispatch message.
+Include the actual selected model and reasoning effort in the sub-agent's visible name: `agent_name [model, effort]` (for example, `doc_review [gpt-6.1-sol, low]`). When the name field restricts characters, use `agent_name_model_effort` with punctuation replaced by underscores (for example, `doc_review_gpt_6_1_sol_low`). Both belong in the name itself, not just the description or dispatch message.
 
-Delegate when independent work can save time or improve quality; keep quick lookups and coupled design decisions inline. Every dispatch must be self-contained (goal, files, contracts, decisions, definition of done), select an available model explicitly, and use no history inheritance where supported.
+Delegate when independent work can save time or improve quality; keep quick lookups and coupled design decisions inline. Every dispatch must be self-contained (goal, files, contracts, decisions, definition of done), select an available model and reasoning effort explicitly unless fixed by the agent role, and use no history inheritance where supported.
 
 Use models appropriate to the task within the model-selection rule above. Three modes:
 
