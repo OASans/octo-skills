@@ -248,6 +248,8 @@ stop_unmanaged_codex_app_server() {
         return 1
     fi
 
+    # macOS lsof does not match a Unix socket through its symlink.
+    socket="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$socket")"
     while IFS= read -r pid; do
         owner_pids+=("$pid")
     done < <(lsof -t -- "$socket" 2>/dev/null | sort -u)
