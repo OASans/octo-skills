@@ -1,4 +1,0 @@
-interface:
-  display_name: "Self-improve strategy research"
-  short_description: "Improve research quality, tokens and latency serially"
-  default_prompt: "Use $self-improve-strategy-research to run one researcher at a time, analyze each original transcript including skills read and used, and verify improvements before the next idea."
