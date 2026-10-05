@@ -455,6 +455,10 @@ else
 fi
 install_playwright    # warms the Playwright MCP cache
 
+# Remove the bundled imagegen skill after runtime installation can restore it.
+rm -rf "$CODEX_DIR/skills/.system/imagegen"
+echo "  Removed default imagegen skill; use tool-chatgpt-images for image generation."
+
 echo ""
 echo "Done. Installed skills:"
 ls -1 "$CODEX_DIR/skills/"

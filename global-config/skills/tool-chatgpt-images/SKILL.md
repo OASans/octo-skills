@@ -2,8 +2,8 @@
 name: tool-chatgpt-images
 description: >
   Generate images through the user's logged-in ChatGPT website with non-Pro
-  settings. Use for browser/subscription image generation, including prompt
-  iteration; not API or native Codex image generation.
+  settings. This is the only route to use for image generation, including prompt
+  iteration; never use native Codex image generation or an image API.
 ---
 
 # ChatGPT browser images
