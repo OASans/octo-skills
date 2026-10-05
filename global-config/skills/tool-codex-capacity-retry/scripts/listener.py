@@ -50,7 +50,11 @@ class Recovery:
         except RpcError as error:
             empty_history = (f'thread {thread_id} is not materialized yet; '
                              'thread/turns/list is unavailable before first user message')
-            if error.error == {'code': -32600, 'message': empty_history}:
+            unavailable_history = (
+                empty_history, 'ephemeral threads do not support thread/turns/list',
+            )
+            if any(error.error == {'code': -32600, 'message': message}
+                   for message in unavailable_history):
                 return None
             raise
         return turns[0] if turns else None

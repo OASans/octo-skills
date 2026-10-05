@@ -251,6 +251,62 @@ class RecoveryTest(unittest.TestCase):
         with self.assertRaises(RpcError):
             self.recovery.latest('target')
 
+    def test_ephemeral_thread_does_not_stop_scans_or_receive_retries(self):
+        self.rpc.threads['ephemeral'] = metadata('ephemeral')
+        original_call = self.rpc.call
+
+        def call(method, params):
+            if method == 'thread/turns/list' and params['threadId'] == 'ephemeral':
+                error = {'code': -32600,
+                         'message': 'ephemeral threads do not support thread/turns/list'}
+                raise RpcError('unsupported history', error)
+            return original_call(method, params)
+
+        self.rpc.call = call
+        self.recovery.scan(baseline=True)
+        self.assertEqual(self.rpc.starts, [])
+        self.rpc.turns['target'] = dict(failed('new-failure'), completedAt=101)
+        self.now = 101
+        self.recovery.scan()
+        self.now += 5
+        self.recovery.scan()
+        self.assertEqual(len(self.target_starts()), 1)
+        self.assertNotIn('ephemeral', self.state)
+
+    def test_ephemeral_history_error_cancels_pending_retry(self):
+        self.observe()
+        original_call = self.rpc.call
+
+        def call(method, params):
+            if method == 'thread/turns/list':
+                error = {'code': -32600,
+                         'message': 'ephemeral threads do not support thread/turns/list'}
+                raise RpcError('unsupported history', error)
+            return original_call(method, params)
+
+        self.rpc.call = call
+        self.send()
+        self.assertEqual(self.target_starts(), [])
+        self.assertIsNone(self.state['target']['pending'])
+
+    def test_other_history_errors_still_stop_scanning(self):
+        original_call = self.rpc.call
+        error = {'code': -32600,
+                 'message': 'ephemeral threads do not support thread/turns/list unexpected'}
+
+        def call(method, params):
+            if method == 'thread/turns/list':
+                raise RpcError('history failed', error)
+            return original_call(method, params)
+
+        self.rpc.call = call
+        with self.assertRaises(RpcError):
+            self.recovery.scan()
+        error['message'] = 'ephemeral threads do not support thread/turns/list'
+        error['code'] = -32000
+        with self.assertRaises(RpcError):
+            self.recovery.scan()
+
 
 class WebSocketTest(unittest.TestCase):
     def test_real_unix_handshake_fragmented_rpc_ping_and_exact_error(self):
