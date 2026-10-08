@@ -34,7 +34,7 @@ Apply the common rules below to all implementation, documentation, and review. B
 - Place tests beside the code they exercise, such as `scripts/browser_test.py`; do not create a separate root test directory.
 - Assert observable results rather than internal call sequences or copies of prose and configuration defaults. Avoid overlapping tests and large mock setups; delete tests when their supported behavior is removed.
 - Use the cheapest reliable check of the observable contract: unit tests for logic, isolated integration tests for boundaries, and E2E checks for important workflows not established below. Do not duplicate evidence across layers or require a test for every function or path.
-- For behavioral bug fixes, add or reuse a regression test that fails before the fix and passes after. A test should pin the wrong outcome, not the implementation used to fix it.
+- For bug fixes, verify that the failure is resolved. Reuse or strengthen existing tests first; add a focused regression test when existing checks would miss the wrong outcome. Simple wiring or configuration fixes may need only direct verification.
 - Keep unit tests independent of live services and developer state. Integration/E2E checks using real systems must isolate their resources and clean up.
 - Do not maintain tests for shell scripts, including regression tests; use syntax checks and temporary direct verification. Retire existing shell-test harnesses and gates rather than retaining compatibility exceptions.
 - Refactor only as needed to verify the authorized behavior. Rerun affected checks after changes; broaden only for changed behavior, failures, or unresolved concerns.
