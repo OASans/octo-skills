@@ -39,10 +39,15 @@ class FakeRpc:
         self.calls = []
         self.starts = []
         self.send_error = False
+        self.used = 20
+        self.reset = 10000
 
     def call(self, method, params):
         self.calls.append((method, copy.deepcopy(params)))
         thread_id = params.get('threadId')
+        if method == 'account/rateLimits/read':
+            return {'rateLimits': {'limitId': 'codex', 'secondary': {
+                'windowDurationMins': 10080, 'usedPercent': self.used, 'resetsAt': self.reset}}}
         if method == 'thread/read':
             return {'thread': copy.deepcopy(self.threads[thread_id])}
         if method == 'thread/turns/list':
@@ -251,6 +256,23 @@ class RecoveryTest(unittest.TestCase):
         with self.assertRaises(RpcError):
             self.recovery.latest('target')
 
+    def test_daemon_without_list_turns_uses_materialized_history(self):
+        original = self.rpc.call
+        def call(method, params):
+            if method == 'thread/turns/list':
+                raise RpcError('unsupported', {'code': -32601,
+                                              'message': 'list_turns is not supported yet'})
+            result = original(method, params)
+            if method == 'thread/read' and params.get('includeTurns'):
+                result['thread']['turns'] = [dict(failed('old'), completedAt=90),
+                                             self.rpc.turns[params['threadId']]]
+            return result
+        self.rpc.call = call
+        self.assertEqual(self.recovery.latest('target')['id'], 'original')
+        self.recovery.scan()
+        self.send()
+        self.assertEqual(len(self.target_starts()), 1)
+
     def test_ephemeral_thread_does_not_stop_scans_or_receive_retries(self):
         self.rpc.threads['ephemeral'] = metadata('ephemeral')
         original_call = self.rpc.call
@@ -306,6 +328,98 @@ class RecoveryTest(unittest.TestCase):
         error['code'] = -32000
         with self.assertRaises(RpcError):
             self.recovery.scan()
+
+
+class QuotaTest(unittest.TestCase):
+    def setUp(self):
+        self.rpc = FakeRpc()
+        self.state = {}
+        self.quota = listener.QuotaGuard(self.rpc, self.state, lambda: None, log=lambda text: None)
+        self.recovery = listener.Recovery(self.rpc, {}, lambda: None, 'host',
+                                          clock=lambda: 100, quota=self.quota, log=lambda text: None)
+
+    def activate(self, thread_id):
+        self.rpc.threads[thread_id]['status']['type'] = 'active'
+        self.rpc.turns[thread_id] = {'id': thread_id + '-turn', 'status': 'inProgress'}
+
+    def steers(self):
+        return [params for method, params in self.rpc.calls if method == 'turn/steer']
+
+    def test_boundary_all_active_parents_including_host_and_new_chats(self):
+        self.activate('host')
+        self.activate('target')
+        self.rpc.threads['child'] = dict(metadata('child', status='active'), parentThreadId='target')
+        self.rpc.turns['child'] = {'id': 'child-turn', 'status': 'inProgress'}
+        self.rpc.used = 90
+        self.recovery.scan()
+        self.assertEqual(self.steers(), [])
+        self.rpc.used = 91
+        self.recovery.scan()
+        self.assertEqual({p['threadId'] for p in self.steers()}, {'target', 'host'})
+        self.assertEqual(self.rpc.starts, [])
+        self.quota = listener.QuotaGuard(self.rpc, self.state, lambda: None, log=lambda text: None)
+        self.recovery.quota = self.quota
+        self.recovery.scan()
+        self.assertEqual(len(self.steers()), 2)
+        self.rpc.threads['new'] = metadata('new', status='active')
+        self.rpc.turns['new'] = {'id': 'new-turn', 'status': 'inProgress'}
+        self.recovery.scan()
+        self.assertEqual(self.steers()[-1]['threadId'], 'new')
+
+    def test_low_quota_cancels_pending_retry_and_never_wakes_idle_chat(self):
+        self.recovery.observe(self.rpc.threads['target'], self.rpc.turns['target'])
+        self.assertIsNotNone(self.recovery.state['target']['pending'])
+        self.rpc.used = 95
+        self.recovery.scan()
+        self.assertIsNone(self.recovery.state['target']['pending'])
+        self.assertEqual(self.rpc.starts, [])
+        self.assertEqual(self.steers(), [])
+        self.rpc.used = 0
+        self.recovery.scan()
+        self.assertEqual(self.rpc.starts, [])
+
+    def test_capacity_failure_notification_does_not_wake_host_while_low(self):
+        self.recovery.state['target'] = {
+            'seen': None, 'attempts': 3, 'pending': None, 'awaiting': None, 'blocked': None,
+        }
+        self.rpc.used = 95
+        self.recovery.scan()
+        self.assertEqual(self.rpc.starts, [])
+        self.assertEqual(self.steers(), [])
+
+    def test_reset_rearms_but_does_not_resume_work(self):
+        self.activate('target')
+        self.rpc.used = 99
+        self.recovery.scan()
+        self.rpc.reset += 10080 * 60
+        self.recovery.scan()
+        self.assertEqual(len(self.steers()), 2)
+        self.rpc.used = 0
+        self.recovery.scan()
+        self.assertEqual(self.state['notified'], [])
+        self.assertEqual(self.rpc.starts, [])
+
+    def test_unknown_usage_stops_before_retries_or_commands(self):
+        for used in (None, True, float('nan'), -1, 101):
+            self.rpc.used = used
+            with self.assertRaises(ValueError):
+                self.recovery.scan()
+        self.assertEqual(self.rpc.starts, [])
+        self.assertEqual(self.steers(), [])
+
+    def test_lost_command_reply_is_not_repeated(self):
+        self.activate('target')
+        self.rpc.used = 95
+        original = self.rpc.call
+        def call(method, params):
+            result = original(method, params)
+            if method == 'turn/steer':
+                raise RpcError('reply lost')
+            return result
+        self.rpc.call = call
+        self.recovery.scan()
+        self.recovery.scan()
+        self.assertEqual(len(self.steers()), 1)
 
 
 class WebSocketTest(unittest.TestCase):

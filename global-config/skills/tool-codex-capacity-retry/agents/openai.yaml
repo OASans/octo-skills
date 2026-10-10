@@ -1,5 +1,0 @@
-interface:
-  display_name: "Tool Codex Capacity Retry"
-  short_description: "Retry capacity failures across local Codex projects"
-policy:
-  allow_implicit_invocation: false

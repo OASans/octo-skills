@@ -1,8 +1,9 @@
-"""Bounded, exact-code capacity recovery for loaded local Codex tasks."""
+"""Capacity recovery and weekly quota stop commands for loaded local Codex tasks."""
 
 import argparse
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import select
@@ -26,10 +27,74 @@ def capacity_failure(turn):
             and turn['error'].get('codexErrorInfo') == 'serverOverloaded')
 
 
+class QuotaGuard:
+    def __init__(self, rpc, state, save, log=print):
+        self.rpc = rpc
+        self.state = state
+        self.save = save
+        self.log = log
+        self.low = False
+        self.remaining = None
+
+    def read(self):
+        response = self.rpc.call('account/rateLimits/read', {})
+        buckets = response.get('rateLimitsByLimitId') or {}
+        bucket = buckets.get('codex') or response.get('rateLimits')
+        if not bucket or bucket.get('limitId') not in (None, 'codex'):
+            raise ValueError('No Codex allowance was returned for this account')
+        window = next((bucket.get(field) for field in ('primary', 'secondary')
+                       if bucket.get(field)
+                       and bucket[field].get('windowDurationMins') == 10080), None)
+        if window is None:
+            raise ValueError('No weekly Codex allowance was returned for this account')
+        used = window.get('usedPercent')
+        if type(used) not in (int, float) or not math.isfinite(used) or not 0 <= used <= 100:
+            raise ValueError('Invalid weekly usage percentage')
+        self.remaining = 100 - used
+        self.low = self.remaining < 10
+        epoch = window.get('resetsAt')
+        if not self.low or self.state.get('reset') != epoch:
+            self.state.clear()
+            self.state.update(reset=epoch, notified=[])
+            self.save()
+
+    def steer(self, thread, latest):
+        if (not self.low or thread.get('parentThreadId')
+                or thread.get('canAcceptDirectInput') is not True
+                or thread['status']['type'] != 'active'
+                or thread['id'] in self.state.get('notified', [])):
+            return
+        turn = latest(thread['id'])
+        if not turn or turn['status'] != 'inProgress':
+            return
+        # Reserve before sending; do not duplicate a command after a lost reply.
+        self.state.setdefault('notified', []).append(thread['id'])
+        self.save()
+        message = (
+            f'User-authorized quota stop command: weekly Codex allowance has '
+            f'{self.remaining:g}% remaining, below 10%. Start no new work, research '
+            'iterations, or subagents. Tell existing subagents to finish their current '
+            'assigned work without starting more work; do not interrupt them. Wait for '
+            'their results, save current progress and a brief handoff, pause any active '
+            'goal using the user-authorized pause, and stop. Do not resume until the '
+            'user explicitly asks. This command does not authorize commits, pushes, '
+            'or any other additional actions.'
+        )
+        try:
+            self.rpc.call('turn/steer', {
+                'threadId': thread['id'], 'expectedTurnId': turn['id'],
+                'input': [{'type': 'text', 'text': message}],
+            })
+            self.log(f'Quota stop command sent to {thread["id"]}: {self.remaining:g}% remaining')
+        except RpcError as error:
+            self.log(f'Quota command failed (not retried) for {thread["id"]}: {error}')
+
+
 class Recovery:
     def __init__(self, rpc, state, save, notify_thread, max_retries=3, retry_delay=300,
-                 clock=time.time, log=print):
+                 clock=time.time, log=print, quota=None):
         self.rpc = rpc
+        self.quota = quota
         self.state = state
         self.save = save
         self.notify_thread = notify_thread
@@ -48,6 +113,12 @@ class Recovery:
                 'threadId': thread_id, 'limit': 1, 'sortDirection': 'desc', 'itemsView': 'summary',
             })['data']
         except RpcError as error:
+            if error.error == {'code': -32601, 'message': 'list_turns is not supported yet'}:
+                thread = self.rpc.call('thread/read', {
+                    'threadId': thread_id, 'includeTurns': True,
+                })['thread']
+                turns = thread.get('turns', [])
+                return turns[-1] if turns else None
             empty_history = (f'thread {thread_id} is not materialized yet; '
                              'thread/turns/list is unavailable before first user message')
             unavailable_history = (
@@ -66,11 +137,13 @@ class Recovery:
 
     def notify(self, text):
         self.log(text)
+        if self.quota and self.quota.low:
+            return
         try:
             host = self.metadata(self.notify_thread)
             if host.get('canAcceptDirectInput') is not True:
                 raise RpcError('Notification conversation cannot accept input')
-            message = ('[tool-codex-capacity-retry notification] ' + text
+            message = ('[tool-codex-capacity-and-quota-listener notification] ' + text
                        + '\nStatus only: acknowledge briefly and keep following the existing user request. '
                        'Do not take action on the reported task.')
             params = {'threadId': self.notify_thread, 'input': [{'type': 'text', 'text': message}]}
@@ -170,6 +243,8 @@ class Recovery:
         self.notify(f'Retry {attempt}/{self.max_retries} sent to task {thread_id} in {thread["cwd"]}.')
 
     def scan(self, baseline=False):
+        if self.quota:
+            self.quota.read()
         loaded = []
         cursor = None
         while True:
@@ -180,12 +255,19 @@ class Recovery:
                 break
         loaded = set(loaded)
         for thread_id in loaded:
+            thread = self.metadata(thread_id)
+            if self.quota:
+                self.quota.steer(thread, self.latest)
             if thread_id == self.notify_thread:
                 continue
-            thread = self.metadata(thread_id)
             if thread.get('parentThreadId') or thread.get('canAcceptDirectInput') is not True:
                 continue
             self.observe(thread, self.latest(thread_id), baseline)
+        if self.quota and self.quota.low:
+            for entry in self.state.values():
+                entry['pending'] = None
+            self.save()
+            return
         for thread_id, entry in self.state.items():
             if thread_id not in loaded and entry['pending']:
                 entry['pending'] = None
@@ -227,9 +309,13 @@ def run(args, directory, codex_home):
     socket_path = directory / 'control.sock'
     try:
         rpc = AppServer(codex_home / 'app-server-control/app-server-control.sock')
+        quota_path = directory / 'quota.json'
+        quota_state = json.loads(quota_path.read_text()) if quota_path.exists() else {}
+        quota = QuotaGuard(rpc, quota_state, lambda: save_json(quota_path, quota_state),
+                           log=lambda text: print(text, flush=True))
         recovery = Recovery(rpc, state, lambda: save_json(state_path, state),
                             args.notify_thread, args.max_retries, args.retry_delay,
-                            log=lambda text: print(text, flush=True))
+                            log=lambda text: print(text, flush=True), quota=quota)
         host = recovery.metadata(args.notify_thread)
         if host.get('canAcceptDirectInput') is not True:
             raise RuntimeError('Notification thread must be loaded and accept direct input')
@@ -238,7 +324,7 @@ def run(args, directory, codex_home):
         server.bind(str(socket_path))
         server.listen(4)
         save_json(status_path, status)
-        print('Capacity listener started', flush=True)
+        print('Capacity and quota listener started', flush=True)
         next_scan = time.monotonic() + args.poll_interval
         while True:
             readable, _, _ = select.select([server], [], [], max(0, next_scan - time.monotonic()))
@@ -246,7 +332,7 @@ def run(args, directory, codex_home):
                 with server.accept()[0] as client:
                     client.settimeout(2)
                     command = client.recv(64).decode().strip()
-                    reply = dict(status, tasks=state)
+                    reply = dict(status, tasks=state, weekly_remaining=quota.remaining, quota_low=quota.low)
                     client.sendall((json.dumps(reply) + '\n').encode())
                     if command == 'stop':
                         break
@@ -290,10 +376,10 @@ def main():
         rpc = AppServer(codex_home / 'app-server-control/app-server-control.sock')
         try:
             host = rpc.call('thread/read', {'threadId': args.notify_thread, 'includeTurns': False})['thread']
-            page = rpc.call('thread/turns/list', {'threadId': args.notify_thread, 'limit': 1})
+            latest = Recovery(rpc, {}, lambda: None, args.notify_thread).latest(args.notify_thread)
             print(json.dumps({'connected': True, 'notify_thread': host['id'],
                               'can_accept_input': host.get('canAcceptDirectInput'),
-                              'latest_turn_count': len(page['data'])}))
+                              'latest_turn_count': int(latest is not None)}))
         finally:
             rpc.close()
         return

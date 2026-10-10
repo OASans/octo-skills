@@ -18,7 +18,7 @@ percentage used, and reset time with its timezone. If the check fails, report th
 error without guessing the allowance.
 
 The helper reads `account/rateLimits/read` from the existing local Codex daemon.
-It requires Python 3 and the sibling `tool-codex-capacity-retry` transport helper,
+It requires Python 3 and the sibling `tool-codex-capacity-and-quota-listener` transport helper,
 both deployed by this repository's installer. It honors `CODEX_HOME`, never starts
 or restarts a daemon, and never spends credits or redeems a rate-limit reset.
 This check reports usage; it does not prevent later credit spending.

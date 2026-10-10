@@ -1,0 +1,5 @@
+interface:
+  display_name: "Tool Codex Capacity and Quota Listener"
+  short_description: "Retry capacity failures and stop work when weekly quota is low"
+policy:
+  allow_implicit_invocation: false

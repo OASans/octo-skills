@@ -8,7 +8,7 @@ import sys
 
 # Reuse the repository's Unix WebSocket client without invoking its listener.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]
-                       / 'tool-codex-capacity-retry' / 'scripts'))
+                       / 'tool-codex-capacity-and-quota-listener' / 'scripts'))
 from app_server import AppServer, RpcError
 
 
