@@ -54,7 +54,7 @@ class BrowserDOMTests(unittest.TestCase):
                 output = re.search(r'<pre id="result">(.*?)</pre>', result.stdout, re.S)
                 self.assertIsNotNone(output, result.stdout)
                 value = json.loads(html.unescape(output[1]))
-                if 'error' in value:
+                if isinstance(value, dict) and 'error' in value:
                     raise browser.BrowserError(value['error'])
                 return value
         with patch.object(browser, 'evaluate', side_effect=evaluate_fixture):
@@ -68,6 +68,27 @@ class BrowserDOMTests(unittest.TestCase):
                 '<span class="IconContainer-K62H88" contenteditable="false">'
                 '<svg width="20" height="20"><path d="M10 2.125 L10 17.875"></path></svg>'
                 f'</span><span class="Label-arpLwJ"></span></span>{url}</span></span>')
+
+    def test_analysis_proof_reads_selected_generation_separately_from_power(self):
+        markup = ('<div role="menu"><div>Pro</div><div role="slider" aria-valuenow="4"></div>'
+                  '<div hidden><div role="menuitemradio" aria-checked="true">GPT-6</div>'
+                  '<div role="menuitemradio" aria-checked="false">GPT-5.6 Sol</div></div></div>')
+        def read_model(page):
+            with patch.object(browser, 'click'), patch.object(browser, 'cli'):
+                return browser.model_proof(page, 'analysis')
+        proof = self.observe_html(markup, reader=read_model)
+        self.assertEqual(proof['model'], 'GPT-6')
+        self.assertEqual(proof['value'], '4')
+
+    def test_analysis_proof_rejects_unselected_gpt6_option(self):
+        markup = ('<div role="menu"><div>Pro</div><div role="slider" aria-valuenow="4"></div>'
+                  '<div role="menuitemradio" aria-checked="false">GPT-6</div>'
+                  '<div role="menuitemradio" aria-checked="true">GPT-5.6 Sol</div></div>')
+        def read_model(page):
+            with patch.object(browser, 'click'), patch.object(browser, 'cli'):
+                return browser.model_proof(page, 'analysis')
+        with self.assertRaises(browser.BrowserError):
+            self.observe_html(markup, reader=read_model)
 
     def composer_html(self, content):
         return ('<form><div role="textbox" contenteditable="true" style="white-space:pre-wrap">'
@@ -432,6 +453,10 @@ class BrowserTests(unittest.TestCase):
 
     def test_analysis_rejects_wrong_generation_and_effort(self):
         browser.validate_model('analysis', {'text': '6\nPro\nPro, 5 of 5.', 'value': '4'})
+        browser.validate_model('analysis', {'text': 'Pro\nGPT-6', 'model': 'GPT-6', 'value': '4'})
+        for model in ('GPT-5.6 Sol', 'GPT-16', None, ''):
+            with self.subTest(model=model), self.assertRaises(browser.BrowserError):
+                browser.validate_model('analysis', {'text': 'Pro\nGPT-6', 'model': model, 'value': '4'})
         for text, value in [('5.5\nPro', '4'), ('6\nThinking', '4'), ('6\nPro', '0'),
                             ('16\nPro', '4'), ('GPT-6 Sol\nPro', '4'), ('', None)]:
             with self.subTest(text=text), self.assertRaises(browser.BrowserError):

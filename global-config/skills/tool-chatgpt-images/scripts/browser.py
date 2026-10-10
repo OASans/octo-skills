@@ -88,6 +88,7 @@ def model_proof(page, mode):
     wait_until(lambda: evaluate(page, "return !!document.querySelector('[role=menu] [role=slider]');"))
     proof = evaluate(page, '''const m=document.querySelector('[role="menu"]');
         return {text:m?.innerText,
+          model:m?.querySelector('[role="menuitemradio"][aria-checked="true"]')?.innerText.trim(),
           value:m?.querySelector('[role="slider"]')?.getAttribute('aria-valuenow')};''')
     cli('press_key', page, 'Escape')
     validate_model(mode, proof)
@@ -99,7 +100,11 @@ def validate_model(mode, proof):
     if mode == 'images':
         valid = proof.get('value') == '0' and bool(re.search(r'\bInstant\b', text))
     else:
-        valid = proof.get('value') == '4' and bool(re.search(r'(?:^|\n)(?:GPT-)?6\s*\nPro(?:\n|$)', text))
+        # Current menus separate the selected generation from the effort label.
+        # Saved receipts from the previous UI contain only the combined text.
+        generation = (proof['model'] == 'GPT-6' if 'model' in proof else
+                      bool(re.search(r'(?:^|\n)(?:GPT-)?6\s*\nPro(?:\n|$)', text)))
+        valid = generation and proof.get('value') == '4' and bool(re.search(r'(?:^|\n)Pro(?:\n|$)', text))
     if not valid:
         raise BrowserError(f'Model mismatch for {mode}: {text!r}. Nothing will be sent.')
 
@@ -109,8 +114,10 @@ def select_model(page, mode):
     click(page, '[role="menuitem"][aria-label="Select model"]')
     wait_until(lambda: evaluate(page, "return !!document.querySelector('[role=menuitemradio]');"))
     evaluate(page, '''const e=[...document.querySelectorAll('[role="menuitemradio"]')]
-      .find(e=>e.innerText.trim()==='Latest');
-      if(!e) throw new Error('Latest model option missing'); e.click(); return true;''')
+      .find(e=>e.innerText.trim()==='GPT-6');
+      if(!e || e.getAttribute('aria-disabled')==='true')
+        throw new Error('GPT-6 model option unavailable');
+      e.click(); return true;''')
     cli('press_key', page, 'Escape')
     click(page, 'button[aria-label="Select ChatGPT model"]')
     wait_until(lambda: evaluate(page, "return !!document.querySelector('[role=menuitem][aria-label=Power]');"))
