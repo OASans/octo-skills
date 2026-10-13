@@ -350,10 +350,10 @@ class QuotaTest(unittest.TestCase):
         self.activate('target')
         self.rpc.threads['child'] = dict(metadata('child', status='active'), parentThreadId='target')
         self.rpc.turns['child'] = {'id': 'child-turn', 'status': 'inProgress'}
-        self.rpc.used = 90
+        self.rpc.used = 97
         self.recovery.scan()
         self.assertEqual(self.steers(), [])
-        self.rpc.used = 91
+        self.rpc.used = 98
         self.recovery.scan()
         self.assertEqual({p['threadId'] for p in self.steers()}, {'target', 'host'})
         self.assertEqual(self.rpc.starts, [])
@@ -369,7 +369,7 @@ class QuotaTest(unittest.TestCase):
     def test_low_quota_cancels_pending_retry_and_never_wakes_idle_chat(self):
         self.recovery.observe(self.rpc.threads['target'], self.rpc.turns['target'])
         self.assertIsNotNone(self.recovery.state['target']['pending'])
-        self.rpc.used = 95
+        self.rpc.used = 98
         self.recovery.scan()
         self.assertIsNone(self.recovery.state['target']['pending'])
         self.assertEqual(self.rpc.starts, [])
@@ -382,7 +382,7 @@ class QuotaTest(unittest.TestCase):
         self.recovery.state['target'] = {
             'seen': None, 'attempts': 3, 'pending': None, 'awaiting': None, 'blocked': None,
         }
-        self.rpc.used = 95
+        self.rpc.used = 98
         self.recovery.scan()
         self.assertEqual(self.rpc.starts, [])
         self.assertEqual(self.steers(), [])
@@ -409,7 +409,7 @@ class QuotaTest(unittest.TestCase):
 
     def test_lost_command_reply_is_not_repeated(self):
         self.activate('target')
-        self.rpc.used = 95
+        self.rpc.used = 98
         original = self.rpc.call
         def call(method, params):
             result = original(method, params)
