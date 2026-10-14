@@ -90,6 +90,10 @@ done
 install_file "$GLOBAL_CONFIG_DIR/global-AGENTS.md" "$CODEX_DIR/AGENTS.md" "AGENTS.md"
 install_file "$GLOBAL_CONFIG_DIR/global-tmux.conf" "$HOME/.tmux.conf" "tmux.conf"
 
+# Linux desktop and Remote-SSH share the lightweight extension policy.
+python3 "$SCRIPT_DIR/scripts/install_vscode_config.py" \
+    "$GLOBAL_CONFIG_DIR/global-vscode-settings.json"
+
 codex_config="$(python3 "$SCRIPT_DIR/scripts/render_codex_config.py" \
     "$GLOBAL_CONFIG_DIR/global-codex-config.toml" "$CODEX_DIR/config.toml")"
 write_if_changed "$codex_config" "$CODEX_DIR/config.toml" "config.toml"

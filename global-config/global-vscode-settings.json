@@ -1,0 +1,21 @@
+{
+  "extensions.allowed": {
+    "*": true,
+    "ms-python.vscode-pylance": false,
+    "ms-python.python": false,
+    "ms-python.vscode-python-envs": false,
+    "rust-lang.rust-analyzer": false,
+    "GitHub.copilot": false,
+    "GitHub.copilot-chat": false,
+    "anthropic.claude-code": false,
+    "eamodio.gitlens": false
+  },
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/.venv/**": true,
+    "**/__pycache__/**": true,
+    "**/target/**": true
+  }
+}
