@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from zipfile import ZipFile
 
 
 def read_settings(path):
@@ -67,11 +68,42 @@ def remove_blocked(cli, blocked):
                            check=True, timeout=60)
 
 
+def install_html_watch(cli, source):
+    package = json.loads((source / "package.json").read_text())
+    identifier = f"{package['publisher']}.{package['name']}"
+    with tempfile.TemporaryDirectory(prefix="octo-html-watch-") as directory:
+        archive = Path(directory) / f"{identifier}.vsix"
+        with ZipFile(archive, "w") as bundle:
+            bundle.writestr("extension.vsixmanifest", f'''<?xml version="1.0"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011">
+  <Metadata>
+    <Identity Language="en-US" Id="{identifier}" Version="{package['version']}" Publisher="{package['publisher']}"/>
+    <DisplayName>{package['displayName']}</DisplayName>
+    <Description xml:space="preserve">{package['description']}</Description>
+    <Properties><Property Id="Microsoft.VisualStudio.Code.Engine" Value="{package['engines']['vscode']}"/></Properties>
+  </Metadata>
+  <Installation><InstallationTarget Id="Microsoft.VisualStudio.Code"/></Installation>
+  <Dependencies/>
+  <Assets><Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true"/></Assets>
+</PackageManifest>''')
+            bundle.writestr("[Content_Types].xml", '''<?xml version="1.0"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="json" ContentType="application/json"/>
+  <Default Extension="js" ContentType="application/javascript"/>
+  <Default Extension="vsixmanifest" ContentType="text/xml"/>
+</Types>''')
+            for name in ["package.json", "extension.js"]:
+                bundle.write(source / name, f"extension/{name}")
+        subprocess.run([str(cli), "--install-extension", str(archive), "--force"],
+                       check=True, timeout=60)
+
+
 def main():
     if not sys.platform.startswith("linux"):
         print("  Skipped Linux VS Code configuration")
         return
     managed = json.loads(Path(sys.argv[1]).read_text())
+    html_watch = Path(sys.argv[1]).resolve().parent / "html-preview-watch"
     home = Path.home()
     merge_settings(Path(os.environ.get("XDG_CONFIG_HOME", home / ".config"))
                    / "Code/User/settings.json", managed)
@@ -84,6 +116,7 @@ def main():
     desktop_cli = shutil.which("code")
     if desktop_cli:
         remove_blocked(desktop_cli, blocked)
+        install_html_watch(desktop_cli, html_watch)
     # Use the newest installed official server, including the older bin layout.
     candidates = []
     for cli in [*server.glob("cli/servers/Stable-*/server/bin/code-server"),
@@ -93,6 +126,7 @@ def main():
         candidates.append((version, str(cli)))
     if candidates:
         remove_blocked(max(candidates)[1], blocked)
+        install_html_watch(max(candidates)[1], html_watch)
     elif (server / "extensions/extensions.json").exists():
         raise RuntimeError("Remote extensions exist but no official server CLI was found")
     else:

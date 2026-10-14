@@ -1,6 +1,7 @@
 {
   "extensions.allowed": {
     "*": true,
+    "octo.html-preview-watch": true,
     "ms-python.vscode-pylance": false,
     "ms-python.python": false,
     "ms-python.vscode-python-envs": false,
@@ -11,11 +12,6 @@
     "eamodio.gitlens": false
   },
   "files.watcherExclude": {
-    "**/.git/objects/**": true,
-    "**/.git/subtree-cache/**": true,
-    "**/node_modules/**": true,
-    "**/.venv/**": true,
-    "**/__pycache__/**": true,
-    "**/target/**": true
+    "**": true
   }
 }

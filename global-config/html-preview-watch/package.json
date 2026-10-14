@@ -1,0 +1,11 @@
+{
+  "name": "html-preview-watch",
+  "displayName": "HTML Preview Watch",
+  "description": "Watch opened HTML documents without recursively watching workspace folders.",
+  "publisher": "octo",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.85.0" },
+  "activationEvents": ["onLanguage:html"],
+  "extensionKind": ["workspace"],
+  "main": "./extension.js"
+}
