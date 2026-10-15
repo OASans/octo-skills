@@ -350,12 +350,13 @@ class QuotaTest(unittest.TestCase):
         self.activate('target')
         self.rpc.threads['child'] = dict(metadata('child', status='active'), parentThreadId='target')
         self.rpc.turns['child'] = {'id': 'child-turn', 'status': 'inProgress'}
-        self.rpc.used = 97
+        self.rpc.used = 95
         self.recovery.scan()
         self.assertEqual(self.steers(), [])
-        self.rpc.used = 98
+        self.rpc.used = 95.1
         self.recovery.scan()
         self.assertEqual({p['threadId'] for p in self.steers()}, {'target', 'host'})
+        self.assertIn('4.9% remaining, below 5%', self.steers()[0]['input'][0]['text'])
         self.assertEqual(self.rpc.starts, [])
         self.quota = listener.QuotaGuard(self.rpc, self.state, lambda: None, log=lambda text: None)
         self.recovery.quota = self.quota
@@ -369,7 +370,7 @@ class QuotaTest(unittest.TestCase):
     def test_low_quota_cancels_pending_retry_and_never_wakes_idle_chat(self):
         self.recovery.observe(self.rpc.threads['target'], self.rpc.turns['target'])
         self.assertIsNotNone(self.recovery.state['target']['pending'])
-        self.rpc.used = 98
+        self.rpc.used = 96
         self.recovery.scan()
         self.assertIsNone(self.recovery.state['target']['pending'])
         self.assertEqual(self.rpc.starts, [])

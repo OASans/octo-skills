@@ -51,7 +51,7 @@ class QuotaGuard:
         if type(used) not in (int, float) or not math.isfinite(used) or not 0 <= used <= 100:
             raise ValueError('Invalid weekly usage percentage')
         self.remaining = 100 - used
-        self.low = self.remaining < 3
+        self.low = self.remaining < 5
         epoch = window.get('resetsAt')
         if not self.low or self.state.get('reset') != epoch:
             self.state.clear()
@@ -72,7 +72,7 @@ class QuotaGuard:
         self.save()
         message = (
             f'User-authorized quota stop command: weekly Codex allowance has '
-            f'{self.remaining:g}% remaining, below 3%. Start no new work, research '
+            f'{self.remaining:g}% remaining, below 5%. Start no new work, research '
             'iterations, or subagents. Tell existing subagents to finish their current '
             'assigned work without starting more work; do not interrupt them. Wait for '
             'their results, save current progress and a brief handoff, pause any active '
