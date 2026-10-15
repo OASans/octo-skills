@@ -1,16 +1,16 @@
 ---
 name: tool-codex-capacity-and-quota-listener
 description: >
-  Human-invoked only: start, inspect, or stop a background Codex capacity and weekly-quota listener across local projects. Retry capacity failures and send a graceful stop command below 5% weekly allowance. Never invoke autonomously or from another agent or skill.
+  Human-invoked only: start, inspect, or stop a background Codex capacity and weekly-quota listener across local projects. Retry capacity failures and send a graceful stop command below 5% or at least 99% weekly allowance remaining. Never invoke autonomously or from another agent or skill.
 ---
 
 Run commands only when the human user explicitly invokes this skill or requests its start, status, or stop operation. Never invoke it autonomously, from another skill, or at another agent's request. Starting authorizes the quota stop command described below on the user’s behalf. It watches loaded root tasks on the existing local Codex daemon, regardless of project path. Separate daemons and machines need separate listeners.
 
 ## Weekly quota
 
-- Read `account/rateLimits/read` each scan. Below 5% weekly allowance remaining, send a user-authorized stop command once per active root conversation, including the initiating chat. Watch newly active chats while quota stays low. Idle chats are not awakened.
+- Read `account/rateLimits/read` each scan. When weekly allowance remaining is below 5% or at least 99% (including after a reset), send a user-authorized stop command once per active root conversation, including the initiating chat. Watch newly active chats while either stop gate holds. Idle chats are not awakened.
 - The command tells parents to start no new work or subagents, let existing subagents finish their current assignments, save progress and a handoff, pause active goals, and stop until the user explicitly resumes. Never interrupt workers or automatically resume paused work.
-- Suppress capacity retries and cancel pending retries while quota is low. Quota recovery clears notification tracking; it does not resume tasks. Tracking persists across listener restarts.
+- Suppress capacity retries and cancel pending retries while either stop gate holds. Returning to the range from 5% inclusive to 99% exclusive clears notification tracking; it does not resume tasks. Tracking persists across listener restarts.
 - This is a cooperative stop request, not a spending cap. Finishing work and delivering commands can consume quota. Only loaded conversations on this daemon are covered.
 - An unavailable or invalid weekly allowance stops the listener; never guess usage. Failed or uncertain command delivery is logged and not retried.
 

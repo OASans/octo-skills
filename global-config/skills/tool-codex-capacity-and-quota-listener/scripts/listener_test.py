@@ -367,16 +367,35 @@ class QuotaTest(unittest.TestCase):
         self.recovery.scan()
         self.assertEqual(self.steers()[-1]['threadId'], 'new')
 
-    def test_low_quota_cancels_pending_retry_and_never_wakes_idle_chat(self):
-        self.recovery.observe(self.rpc.threads['target'], self.rpc.turns['target'])
-        self.assertIsNotNone(self.recovery.state['target']['pending'])
-        self.rpc.used = 96
+    def test_quota_gates_cancel_pending_retry_and_never_wake_idle_chat(self):
+        for used in (96, 1):
+            with self.subTest(used=used):
+                self.setUp()
+                self.recovery.observe(self.rpc.threads['target'], self.rpc.turns['target'])
+                self.assertIsNotNone(self.recovery.state['target']['pending'])
+                self.rpc.used = used
+                self.recovery.scan()
+                self.assertIsNone(self.recovery.state['target']['pending'])
+                self.assertEqual(self.rpc.starts, [])
+                self.assertEqual(self.steers(), [])
+                self.rpc.used = 20
+                self.recovery.scan()
+                self.assertEqual(self.rpc.starts, [])
+
+    def test_fresh_allowance_boundary_stops_once_including_host(self):
+        self.activate('host')
+        self.activate('target')
+        self.rpc.used = 1.1
         self.recovery.scan()
-        self.assertIsNone(self.recovery.state['target']['pending'])
-        self.assertEqual(self.rpc.starts, [])
         self.assertEqual(self.steers(), [])
-        self.rpc.used = 0
+        self.rpc.used = 1
         self.recovery.scan()
+        self.assertEqual({p['threadId'] for p in self.steers()}, {'target', 'host'})
+        self.assertIn('99% remaining, at or above 99%', self.steers()[0]['input'][0]['text'])
+        self.quota = listener.QuotaGuard(self.rpc, self.state, lambda: None, log=lambda text: None)
+        self.recovery.quota = self.quota
+        self.recovery.scan()
+        self.assertEqual(len(self.steers()), 2)
         self.assertEqual(self.rpc.starts, [])
 
     def test_capacity_failure_notification_does_not_wake_host_while_low(self):
@@ -393,9 +412,13 @@ class QuotaTest(unittest.TestCase):
         self.rpc.used = 99
         self.recovery.scan()
         self.rpc.reset += 10080 * 60
+        self.rpc.used = 0
         self.recovery.scan()
         self.assertEqual(len(self.steers()), 2)
-        self.rpc.used = 0
+        self.assertIn('100% remaining, at or above 99%', self.steers()[-1]['input'][0]['text'])
+        self.recovery.scan()
+        self.assertEqual(len(self.steers()), 2)
+        self.rpc.used = 20
         self.recovery.scan()
         self.assertEqual(self.state['notified'], [])
         self.assertEqual(self.rpc.starts, [])

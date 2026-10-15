@@ -33,7 +33,7 @@ class QuotaGuard:
         self.state = state
         self.save = save
         self.log = log
-        self.low = False
+        self.stop_required = False
         self.remaining = None
 
     def read(self):
@@ -51,15 +51,15 @@ class QuotaGuard:
         if type(used) not in (int, float) or not math.isfinite(used) or not 0 <= used <= 100:
             raise ValueError('Invalid weekly usage percentage')
         self.remaining = 100 - used
-        self.low = self.remaining < 5
+        self.stop_required = self.remaining < 5 or self.remaining >= 99
         epoch = window.get('resetsAt')
-        if not self.low or self.state.get('reset') != epoch:
+        if not self.stop_required or self.state.get('reset') != epoch:
             self.state.clear()
             self.state.update(reset=epoch, notified=[])
             self.save()
 
     def steer(self, thread, latest):
-        if (not self.low or thread.get('parentThreadId')
+        if (not self.stop_required or thread.get('parentThreadId')
                 or thread.get('canAcceptDirectInput') is not True
                 or thread['status']['type'] != 'active'
                 or thread['id'] in self.state.get('notified', [])):
@@ -70,9 +70,10 @@ class QuotaGuard:
         # Reserve before sending; do not duplicate a command after a lost reply.
         self.state.setdefault('notified', []).append(thread['id'])
         self.save()
+        reason = 'below 5%' if self.remaining < 5 else 'at or above 99%'
         message = (
             f'User-authorized quota stop command: weekly Codex allowance has '
-            f'{self.remaining:g}% remaining, below 5%. Start no new work, research '
+            f'{self.remaining:g}% remaining, {reason}. Start no new work, research '
             'iterations, or subagents. Tell existing subagents to finish their current '
             'assigned work without starting more work; do not interrupt them. Wait for '
             'their results, save current progress and a brief handoff, pause any active '
@@ -137,7 +138,7 @@ class Recovery:
 
     def notify(self, text):
         self.log(text)
-        if self.quota and self.quota.low:
+        if self.quota and self.quota.stop_required:
             return
         try:
             host = self.metadata(self.notify_thread)
@@ -263,7 +264,7 @@ class Recovery:
             if thread.get('parentThreadId') or thread.get('canAcceptDirectInput') is not True:
                 continue
             self.observe(thread, self.latest(thread_id), baseline)
-        if self.quota and self.quota.low:
+        if self.quota and self.quota.stop_required:
             for entry in self.state.values():
                 entry['pending'] = None
             self.save()
@@ -332,7 +333,8 @@ def run(args, directory, codex_home):
                 with server.accept()[0] as client:
                     client.settimeout(2)
                     command = client.recv(64).decode().strip()
-                    reply = dict(status, tasks=state, weekly_remaining=quota.remaining, quota_low=quota.low)
+                    reply = dict(status, tasks=state, weekly_remaining=quota.remaining,
+                                 quota_stop_required=quota.stop_required)
                     client.sendall((json.dumps(reply) + '\n').encode())
                     if command == 'stop':
                         break
