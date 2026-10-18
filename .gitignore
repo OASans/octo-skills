@@ -3,6 +3,8 @@
 
 # Machine-specific setup values (git identity, LAN topology). Never commit.
 setup/.env
+setup/.linux-install-*.log
+setup/.linux-install-*.log.status
 
 # Python bytecode.
 __pycache__/

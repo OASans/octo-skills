@@ -4,11 +4,13 @@
 #   - Install git, curl, ca-certificates, gnupg
 #   - Install gh (GitHub CLI) from the official apt repo
 #   - Install desktop apps: Google Chrome, VS Code (official apt repos)
-#   - Install CUDA: NVIDIA driver + full toolkit from NVIDIA's official apt repo
+#   - Disable GNOME LocalSearch indexing for the installing user
+#   - Install NVIDIA drivers (Ubuntu signed modules) + NVIDIA CUDA toolkit
 #     (only when an NVIDIA GPU is present; a reboot is needed after the driver)
 #   - Install OctoCode's build/runtime libraries (OpenSSL, ALSA, cmake, clang,
 #     ffmpeg, etc.) so `cargo build` works on a fresh box
 #   - Ensure at least 32 GiB of persistent swap for short memory spikes
+#   - Attach the existing Linux data SSD configured in setup/.env (never format)
 #   - Configure this box as an internal-only server:
 #       * SSH server with key-only auth (no passwords, no root login)
 #       * ufw firewall: deny all inbound except SSH from the LAN and your web
@@ -70,6 +72,28 @@ ensure_gsetting() {
   if [ "$before" = "$after" ]; then echo "  $key already = $after — skipping"; else echo "  $key: $before -> $after"; fi
 }
 
+# Disable indexing persistently, including desktop and D-Bus activation.
+disable_localsearch() {
+  local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+  systemctl --user mask localsearch-3.service localsearch-control-3.service \
+    localsearch-writeback-3.service || return 1
+  mkdir -p "$config_dir/autostart" || return 1
+  cat > "$config_dir/autostart/localsearch-3.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=LocalSearch
+Hidden=true
+EOF
+  [ "$?" -eq 0 ] || return 1
+  if systemctl --user show-environment >/dev/null 2>&1; then
+    systemctl --user daemon-reload || return 1
+    systemctl --user stop localsearch-3.service localsearch-control-3.service \
+      localsearch-writeback-3.service || return 1
+  else
+    echo "No user service manager available; LocalSearch will be disabled at next login."
+  fi
+}
+
 # Fetch and dearmor an apt repo signing key into a keyring (idempotent).
 # Args: <keyring-path> <key-url>
 ensure_apt_repo_key() {
@@ -110,6 +134,81 @@ install_vscode() {
   sudo apt-get install -y code
 }
 
+# A damaged CUDA index can prevent even unrelated apt installs. Retry once after
+# deleting only NVIDIA's downloaded indexes; sources and installed packages stay.
+refresh_apt() {
+  local log
+  log="$(mktemp "$SCRIPT_DIR/.apt-update.XXXXXX")" || return 1
+  if sudo apt-get update -qq --error-on=any >"$log" 2>&1; then
+    cat "$log"
+    rm -f "$log"
+    return 0
+  fi
+  cat "$log" >&2
+  if ! grep -qE 'Problem with MergeList /var/lib/apt/lists/developer\.download\.nvidia\.com_compute_cuda_repos_' "$log"; then
+    rm -f "$log"
+    return 1
+  fi
+  rm -f "$log"
+  echo "Refreshing damaged NVIDIA CUDA package indexes (one retry)."
+  sudo find /var/lib/apt/lists -maxdepth 1 -type f \
+    -name 'developer.download.nvidia.com_compute_cuda_repos_*' -delete || return 1
+  sudo apt-get update -qq --error-on=any
+}
+
+# Ubuntu supplies signed modules for Secure Boot. Upgrade the kernel and NVIDIA
+# tracking packages together; old kernels may require obsolete driver versions.
+# https://ubuntu.com/server/docs/how-to/graphics/install-nvidia-drivers/
+repair_ubuntu_nvidia_driver() {
+  local drivers driver kernel flavour image target
+  local -a module_packages=() kernel_images=()
+  drivers="$(dpkg-query -W -f='${Package}\t${db:Status-Abbrev}\t${Depends}\n' 'nvidia-driver-*' 2>/dev/null \
+    | awk -F '\t' '$2 ~ /^ii/ && $1 ~ /^nvidia-driver-[0-9]+(-server)?(-open)?$/ && $3 !~ /nvidia-driver-[0-9]/ {print $1}')"
+  if [ -z "$drivers" ]; then
+    sudo apt-get install -y ubuntu-drivers-common || return 1
+    sudo ubuntu-drivers install || return 1
+    drivers="$(dpkg-query -W -f='${Package}\t${db:Status-Abbrev}\t${Depends}\n' 'nvidia-driver-*' 2>/dev/null \
+      | awk -F '\t' '$2 ~ /^ii/ && $1 ~ /^nvidia-driver-[0-9]+(-server)?(-open)?$/ && $3 !~ /nvidia-driver-[0-9]/ {print $1}')"
+  fi
+  if [ -z "$drivers" ] || [[ "$drivers" == *$'\n'* ]]; then
+    echo "ERROR: expected one installed Ubuntu NVIDIA driver; found: ${drivers:-none}" >&2
+    return 1
+  fi
+  driver="${drivers#nvidia-driver-}"
+  kernel="$(uname -r)"
+  flavour="${kernel##*-}"
+  # Follow the installed kernel track, including HWE/OEM suffixes. uname alone
+  # cannot distinguish generic from generic-hwe-<release>.
+  while IFS= read -r image; do
+    [ -n "$image" ] || continue
+    kernel_images+=("$image")
+    module_packages+=("linux-modules-nvidia-$driver-${image#linux-image-}")
+  done < <(dpkg-query -W -f='${Package} ${db:Status-Abbrev}\n' "linux-image-$flavour*" 2>/dev/null \
+    | awk '$2 == "ii" {print $1}')
+  if [ "${#module_packages[@]}" -eq 0 ]; then
+    echo "ERROR: no installed kernel tracking package for $flavour; cannot ensure future NVIDIA modules." >&2
+    return 1
+  fi
+  echo "Installing matching kernel and NVIDIA $driver tracking packages."
+  sudo apt-get install -y "${kernel_images[@]}" "${module_packages[@]}" "$drivers" || return 1
+  for image in "${kernel_images[@]}"; do
+    target="$(dpkg-query -W -f='${Depends}\n' "$image" \
+      | grep -oE 'linux-image-[0-9][^ ,(|)]*')" || return 1
+    if [ -z "$target" ] || [[ "$target" == *$'\n'* ]]; then
+      echo "ERROR: cannot determine the installed kernel for $image." >&2
+      return 1
+    fi
+    target="${target#linux-image-}"
+    sudo depmod -a "$target" || return 1
+    if [ ! -f "/boot/vmlinuz-$target" ] || ! modinfo -k "$target" nvidia >/dev/null 2>&1; then
+      echo "ERROR: kernel or NVIDIA module is missing for $target." >&2
+      return 1
+    fi
+    echo "NVIDIA module installed for $target (running kernel: $kernel)."
+  done
+  echo "Reboot into the updated kernel, then verify with nvidia-smi."
+}
+
 # Pick the NVIDIA CUDA apt repo path for this machine (e.g. ubuntu2404). NVIDIA
 # publishes one repo per distro release; brand-new releases may not have one yet,
 # so we probe and fall back to the newest known-good repo. Echoes the repo slug.
@@ -135,16 +234,20 @@ install_cuda() {
     return 0
   fi
 
-  # Fully set up already? (driver responds AND nvcc present) → nothing to do.
-  if command -v nvidia-smi >/dev/null 2>&1 && command -v nvcc >/dev/null 2>&1 \
-     && nvidia-smi >/dev/null 2>&1; then
-    echo "NVIDIA driver + CUDA toolkit already installed — skipping:"
-    nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null || true
-    nvcc --version | tail -n1
-    return 0
+  . /etc/os-release
+  if [ "$ID" = ubuntu ]; then
+    repair_ubuntu_nvidia_driver || return 1
   fi
 
-  . /etc/os-release
+  # CUDA availability must not prevent Ubuntu driver repair above.
+  if command -v nvcc >/dev/null 2>&1; then
+    if [ "$ID" = ubuntu ] || nvidia-smi >/dev/null 2>&1; then
+      echo "CUDA toolkit already installed — skipping toolkit install."
+      nvcc --version
+      return
+    fi
+  fi
+
   local arch repo
   arch="$(uname -m)"
   if ! repo="$(nvidia_cuda_repo)"; then
@@ -155,23 +258,31 @@ install_cuda() {
   echo "Using NVIDIA CUDA repo: $repo ($arch)"
 
   # The driver builds a kernel module via DKMS — needs a compiler + matching headers.
-  ensure_apt_pkg build-essential
-  ensure_apt_pkg "linux-headers-$(uname -r)"
+  if [ "$ID" != ubuntu ]; then
+    ensure_apt_pkg build-essential || return 1
+    ensure_apt_pkg "linux-headers-$(uname -r)" || return 1
+  fi
 
   # Add NVIDIA's CUDA apt repo via their keyring package (idempotent).
   if [ ! -f /usr/share/keyrings/cuda-archive-keyring.gpg ]; then
-    local tmp; tmp="$(mktemp -d)"
-    curl -fsSL -o "$tmp/cuda-keyring.deb" \
-      "https://developer.download.nvidia.com/compute/cuda/repos/$repo/$arch/cuda-keyring_1.1-1_all.deb"
-    sudo dpkg -i "$tmp/cuda-keyring.deb"
+    local tmp status
+    tmp="$(mktemp -d "$SCRIPT_DIR/.cuda-keyring.XXXXXX")" || return 1
+    if curl -fsSL -o "$tmp/cuda-keyring.deb" \
+      "https://developer.download.nvidia.com/compute/cuda/repos/$repo/$arch/cuda-keyring_1.1-1_all.deb" \
+      && sudo dpkg -i "$tmp/cuda-keyring.deb"; then
+      status=0
+    else
+      status=1
+    fi
     rm -rf "$tmp"
+    [ "$status" -eq 0 ] || return "$status"
   fi
-  sudo apt-get update -qq
+  refresh_apt || return 1
 
   # Latest toolkit + driver. If a working driver is already present, don't risk
   # clobbering it — install the toolkit only.
-  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
-    echo "Existing NVIDIA driver detected — installing CUDA toolkit only."
+  if [ "$ID" = ubuntu ] || { command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; }; then
+    echo "Installing CUDA toolkit without replacing the NVIDIA driver."
     sudo apt-get install -y cuda-toolkit
   else
     sudo apt-get install -y cuda-toolkit cuda-drivers
@@ -203,8 +314,8 @@ warn_secure_boot() {
 NOTE: Secure Boot is ENABLED. The NVIDIA kernel module must be signed and
 enrolled or the driver won't load after reboot. If the driver install prompted
 you to set a one-time password, then on the NEXT reboot pick "Enroll MOK" in the
-blue MOK Manager screen and enter that password. Otherwise disable Secure Boot
-in your BIOS/UEFI.
+blue MOK Manager screen and enter that password. Ubuntu's prebuilt signed
+modules do not need MOK enrollment. Keep Secure Boot enabled.
 EOF
   fi
 }
@@ -344,6 +455,10 @@ if ! command -v apt-get >/dev/null 2>&1; then
 fi
 require_sudo
 
+echo "=== Disable GNOME LocalSearch indexing ==="
+disable_localsearch || { echo "ERROR: could not disable LocalSearch." >&2; exit 1; }
+echo
+
 # ---------- Step 1: inspect ----------
 echo "=== Step 1: inspect existing tools ==="
 command -v git && git --version || echo "git: not installed"
@@ -353,11 +468,12 @@ echo
 
 # ---------- Step 2: install apt packages ----------
 echo "=== Step 2: install apt packages ==="
-sudo apt-get update -qq
+refresh_apt || { echo "ERROR: apt index refresh failed." >&2; exit 1; }
 ensure_apt_pkg curl
 ensure_apt_pkg ca-certificates
 ensure_apt_pkg gnupg
 ensure_apt_pkg git
+ensure_apt_pkg python-is-python3
 echo
 
 # ---------- Step 3: install gh (GitHub CLI) ----------
@@ -429,7 +545,7 @@ echo
 
 # ---------- Step 10: install CUDA (NVIDIA driver + full toolkit) ----------
 echo "=== Step 10: install CUDA (NVIDIA driver + full toolkit) ==="
-install_cuda
+install_cuda || { echo "ERROR: NVIDIA/CUDA setup failed — see output above." >&2; exit 1; }
 persist_cuda_path
 warn_secure_boot
 echo
@@ -460,6 +576,13 @@ echo
 # ---------- Step 15: power (never suspend; blank screen, no lock) ----------
 echo "=== Step 15: power settings (never suspend; blank screen, no lock) ==="
 setup_power
+echo
+
+echo "=== Step 16: Linux data SSD ==="
+bash "$SCRIPT_DIR/install-components/configure-storage.sh" || {
+  echo "ERROR: storage setup failed; inspect lsblk before retrying." >&2
+  exit 1
+}
 echo
 
 echo "=== Done ==="
