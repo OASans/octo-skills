@@ -35,6 +35,8 @@ Linux installs `python-is-python3` so `python` runs Python 3 in terminals and ag
 
 Linux also attaches the optional data SSD selected by `SSD_DISK_ID` in `setup/.env`, using a stable whole-disk `/dev/disk/by-id/` path. No flags are needed. It requires exactly one existing ext4 partition and never partitions or formats disks. Other layouts and disks in use elsewhere are refused. The mount defaults to the installing user's `~/Storage`; `SSD_MOUNT_DIR` overrides it. Existing file ownership is preserved, and the filesystem UUID is saved in `/etc/fstab` for automatic mounting. The underlying directory blocks ordinary user writes while the SSD is absent. Leave `SSD_DISK_ID` empty on machines without a data SSD.
 
+For a descriptive mount name, set `SSD_MOUNT_DIR="$HOME/9100-pro-4tb"` in `setup/.env`. To rename an existing mount, first unmount it and update its existing UUID entry in `/etc/fstab` to the new path, then run the storage component. Changing `.env` alone does not move an active mount. Update any applications using the old path.
+
 To configure only storage, without rerunning the other installer steps:
 
 ```bash
