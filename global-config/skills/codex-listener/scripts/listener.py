@@ -144,7 +144,7 @@ class Recovery:
             host = self.metadata(self.notify_thread)
             if host.get('canAcceptDirectInput') is not True:
                 raise RpcError('Notification conversation cannot accept input')
-            message = ('[tool-codex-capacity-and-quota-listener notification] ' + text
+            message = ('[codex-listener notification] ' + text
                        + '\nStatus only: acknowledge briefly and keep following the existing user request. '
                        'Do not take action on the reported task.')
             params = {'threadId': self.notify_thread, 'input': [{'type': 'text', 'text': message}]}

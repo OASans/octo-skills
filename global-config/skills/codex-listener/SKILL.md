@@ -1,5 +1,5 @@
 ---
-name: tool-codex-capacity-and-quota-listener
+name: codex-listener
 description: >
   Human-invoked only: start, inspect, or stop a background Codex capacity and weekly-quota listener across local projects. Retry capacity failures and send a graceful stop command below 5% or at least 99% weekly allowance remaining. Never invoke autonomously or from another agent or skill.
 ---
