@@ -5,10 +5,6 @@
 			"path": "."
 		},
 		{
-			"name": "octofin-data",
-			"path": "../octofin-data"
-		},
-		{
 			"name": "fin-1",
 			"path": "../fin-1"
 		},
@@ -23,14 +19,6 @@
 		{
 			"name": "beam",
 			"path": "../octo-beam"
-		},
-		{
-			"name": "octofin-research",
-			"path": "../octofin-research"
-		},
-		{
-			"name": "octofin-raw-downloads",
-			"path": "../octofin-raw-downloads"
 		}
 	],
 	"settings": {}
