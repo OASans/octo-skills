@@ -1,5 +1,5 @@
 interface:
-  display_name: "Codex Listener"
+  display_name: "Codex Capacity and Stop Listener"
   short_description: "Retry capacity failures and stop work at weekly quota gates"
 policy:
   allow_implicit_invocation: false

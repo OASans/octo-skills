@@ -311,6 +311,89 @@ class RecoveryTest(unittest.TestCase):
         self.assertEqual(self.target_starts(), [])
         self.assertIsNone(self.state['target']['pending'])
 
+    def test_unloaded_thread_is_bounded_and_other_tasks_continue(self):
+        self.rpc.threads['gone'] = metadata('gone')
+        original = self.rpc.call
+        reads = []
+
+        def call(method, params):
+            if params.get('threadId') == 'gone':
+                reads.append(method)
+                raise RpcError('unloaded', {'code': -32600,
+                                           'message': 'thread not loaded: gone'})
+            return original(method, params)
+
+        self.rpc.call = call
+        for _ in range(6):
+            self.recovery.scan()
+            self.now += 5
+        self.assertEqual(len(reads), 3)
+        self.assertEqual(len(self.logs), 4)  # Three skips and the healthy task's retry.
+        self.assertEqual(len(self.target_starts()), 1)
+        self.assertNotIn('gone', self.state)
+        del self.rpc.threads['gone']
+        self.recovery.scan()
+        self.rpc.threads['gone'] = metadata('gone')
+        self.recovery.scan()
+        self.assertEqual(len(reads), 4)
+
+    def test_transient_unloaded_read_recovers_without_loading_thread(self):
+        original = self.rpc.call
+        errors = [True]
+
+        def call(method, params):
+            if method == 'thread/read' and params['threadId'] == 'target' and errors:
+                errors.pop()
+                raise RpcError('unloaded', {'code': -32600,
+                                           'message': 'thread not loaded: target'})
+            return original(method, params)
+
+        self.rpc.call = call
+        self.recovery.scan()
+        self.recovery.scan()
+        self.now += 5
+        self.recovery.scan()
+        self.assertEqual(len(self.target_starts()), 1)
+        self.assertNotIn('target', self.recovery.unloaded_reads)
+        self.assertFalse(any(method == 'thread/resume' for method, _ in self.rpc.calls))
+
+    def test_unload_during_history_or_retry_recheck_cancels_pending(self):
+        for failing_method in ('thread/turns/list', 'thread/read', 'thread/goal/get'):
+            with self.subTest(method=failing_method):
+                self.setUp()
+                self.observe()
+                self.now += 5
+                original = self.rpc.call
+                reads = []
+
+                def call(method, params):
+                    if method == 'thread/read' and params['threadId'] == 'target':
+                        reads.append(method)
+                    if (method == failing_method and params.get('threadId') == 'target'
+                            and (method != 'thread/read' or len(reads) == 2)):
+                        raise RpcError('unloaded', {'code': -32600,
+                                                   'message': 'thread not loaded: target'})
+                    return original(method, params)
+
+                self.rpc.call = call
+                self.recovery.scan()
+                self.assertEqual(self.target_starts(), [])
+                self.assertIsNone(self.state['target']['pending'])
+                self.assertEqual(self.recovery.unloaded_reads['target'], 1)
+
+    def test_other_unloaded_errors_still_stop_scanning(self):
+        original = self.rpc.call
+
+        def call(method, params):
+            if method == 'thread/read':
+                raise RpcError('unloaded', {'code': -32600,
+                                           'message': 'thread not loaded: another-thread'})
+            return original(method, params)
+
+        self.rpc.call = call
+        with self.assertRaises(RpcError):
+            self.recovery.scan()
+
     def test_other_history_errors_still_stop_scanning(self):
         original_call = self.rpc.call
         error = {'code': -32600,

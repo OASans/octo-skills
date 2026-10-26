@@ -104,6 +104,7 @@ class Recovery:
         self.clock = clock
         self.log = log
         self.armed_at = int(clock())
+        self.unloaded_reads = {}
 
     def metadata(self, thread_id):
         return self.rpc.call('thread/read', {'threadId': thread_id, 'includeTurns': False})['thread']
@@ -243,6 +244,19 @@ class Recovery:
         self.save()
         self.notify(f'Retry {attempt}/{self.max_retries} sent to task {thread_id} in {thread["cwd"]}.')
 
+    def handle_unloaded(self, thread_id, error):
+        if error.error != {'code': -32600, 'message': f'thread not loaded: {thread_id}'}:
+            raise error
+        count = self.unloaded_reads.get(thread_id, 0) + 1
+        self.unloaded_reads[thread_id] = count
+        entry = self.state.get(thread_id)
+        if entry and entry['pending']:
+            entry['pending'] = None
+            self.save()
+        action = ('will recheck next scan' if count < 3
+                  else 'skipping until it leaves and reappears in the loaded list')
+        self.log(f'Thread {thread_id} unloaded ({count}/3); {action}')
+
     def scan(self, baseline=False):
         if self.quota:
             self.quota.read()
@@ -255,26 +269,39 @@ class Recovery:
             if not cursor:
                 break
         loaded = set(loaded)
+        for thread_id in set(self.unloaded_reads) - loaded:
+            del self.unloaded_reads[thread_id]
+        available = set()
         for thread_id in loaded:
-            thread = self.metadata(thread_id)
-            if self.quota:
-                self.quota.steer(thread, self.latest)
-            if thread_id == self.notify_thread:
+            if self.unloaded_reads.get(thread_id, 0) >= 3:
                 continue
-            if thread.get('parentThreadId') or thread.get('canAcceptDirectInput') is not True:
-                continue
-            self.observe(thread, self.latest(thread_id), baseline)
+            try:
+                thread = self.metadata(thread_id)
+                if self.quota:
+                    self.quota.steer(thread, self.latest)
+                if (thread_id != self.notify_thread and not thread.get('parentThreadId')
+                        and thread.get('canAcceptDirectInput') is True):
+                    self.observe(thread, self.latest(thread_id), baseline)
+                available.add(thread_id)
+            except RpcError as error:
+                self.handle_unloaded(thread_id, error)
         if self.quota and self.quota.stop_required:
             for entry in self.state.values():
                 entry['pending'] = None
             self.save()
-            return
-        for thread_id, entry in self.state.items():
-            if thread_id not in loaded and entry['pending']:
-                entry['pending'] = None
-                self.save()
-            if thread_id in loaded:
-                self.retry_due(thread_id)
+        else:
+            for thread_id, entry in self.state.items():
+                if thread_id not in loaded and entry['pending']:
+                    entry['pending'] = None
+                    self.save()
+                if thread_id in available:
+                    try:
+                        self.retry_due(thread_id)
+                    except RpcError as error:
+                        self.handle_unloaded(thread_id, error)
+                        available.discard(thread_id)
+        for thread_id in available:
+            self.unloaded_reads.pop(thread_id, None)
 
 
 def control(directory, command):
