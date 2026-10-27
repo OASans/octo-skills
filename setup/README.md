@@ -31,6 +31,8 @@ Every Linux installer run disables GNOME LocalSearch indexing for the installing
 
 Linux installs `python-is-python3` so `python` runs Python 3 in terminals and agent commands.
 
+Linux disables NetworkManager Wi-Fi power saving globally and in existing Wi-Fi profiles, and applies it immediately without reconnecting. Run `bash setup/install-components/configure-wifi.sh` to apply only this setting; sudo is required.
+
 `install-components/` holds the pieces shared across platforms (`install-rust.sh`, `install-tmux.sh`); the platform scripts call them.
 
 Linux also attaches the optional data SSD selected by `SSD_DISK_ID` in `setup/.env`, using a stable whole-disk `/dev/disk/by-id/` path. No flags are needed. It requires exactly one existing ext4 partition and never partitions or formats disks. Other layouts and disks in use elsewhere are refused. The mount defaults to the installing user's `~/Storage`; `SSD_MOUNT_DIR` overrides it. Existing file ownership is preserved, and the filesystem UUID is saved in `/etc/fstab` for automatic mounting. The underlying directory blocks ordinary user writes while the SSD is absent. Leave `SSD_DISK_ID` empty on machines without a data SSD.

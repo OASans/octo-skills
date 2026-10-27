@@ -16,6 +16,7 @@
 #       * ufw firewall: deny all inbound except SSH from the LAN and your web
 #         port from specific internal IPs (configured in setup/.env)
 #       * power: never auto-suspend/hibernate; blank screen after 5 min, no lock
+#       * Wi-Fi: disable power saving for always-on performance
 #   - Set git globals (matches install-mac.sh)
 #   - Log in to GitHub via gh (browser device flow) and wire gh up as the
 #     git credential helper so HTTPS push/pull works without passwords
@@ -576,6 +577,10 @@ echo
 # ---------- Step 15: power (never suspend; blank screen, no lock) ----------
 echo "=== Step 15: power settings (never suspend; blank screen, no lock) ==="
 setup_power
+bash "$SCRIPT_DIR/install-components/configure-wifi.sh" || {
+  echo "ERROR: Wi-Fi power configuration failed — see output above." >&2
+  exit 1
+}
 echo
 
 echo "=== Step 16: Linux data SSD ==="
