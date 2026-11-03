@@ -210,6 +210,18 @@ bootstrap_codex_app_server() {
     if out="$("$CODEX_STANDALONE_BIN" app-server daemon bootstrap --remote-control 2>&1)"; then
         echo "  Codex managed app-server ready (Remote Control socket reused)"
     else
+        # A timezone change can strand an old updater's text-only PID record.
+        # On explicit restart, stop only a verified updater, then let Codex
+        # clean up its own record. Never adjust timestamps or delete records.
+        if [ "$RESTART_CODEX_APP_SERVER" -eq 1 ] &&
+            python3 "$SCRIPT_DIR/scripts/stop_legacy_codex_updater.py" \
+                "$CODEX_DIR" "$CODEX_STANDALONE_BIN" "$out"; then
+            echo "  Stopped legacy Codex updater after process verification failed; retrying bootstrap"
+            if out="$("$CODEX_STANDALONE_BIN" app-server daemon bootstrap --remote-control 2>&1)"; then
+                echo "  Codex managed app-server ready (Remote Control socket reused)"
+                return 0
+            fi
+        fi
         case "$out" in
             *"app server is running but is not managed by codex app-server daemon"*)
                 echo "  Existing Remote Control app-server ready (socket reused)"
