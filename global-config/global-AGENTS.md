@@ -14,6 +14,7 @@ Shared, project-agnostic rules — they apply in every project. A project's own 
 - Verification — follow the common coding guide for behavior-focused checks and regression coverage; project instructions own required commands.
 
 ### Anytime
+- Privacy — do not include the user's email or other personal information in outgoing requests, uploads, or shared content unless the user explicitly authorizes it; omit or redact it first.
 - Input is Whisper STT — expect mistranscriptions (homophones, garbled tech terms); correct from context before acting, ask if ambiguous.
 - Messages and plans — compact, plain words, easy to read; include only what's needed, skip preamble and recaps.
 - Model selection — do not use `gpt-6-sol`, `gpt-5.6-sol`, or `gpt-6-astra`, including for subagents, unless the user explicitly requests that model.
