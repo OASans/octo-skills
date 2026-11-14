@@ -23,8 +23,8 @@ Use only browser GPT-6 Pro through the sibling [ChatGPT Pro analysis workflow](.
 3. **Run.** Read the analysis workflow and its shared browser instructions, then use its helper in `analysis` mode with the prompt and ZIP. Choose a fresh project-local `.chatgpt-workspace/` run directory. Wait for completion and collect that same run; a sending timeout is recovered with `collect`, never another `start`.
 
 ```bash
-python3 <skills-root>/tool-chatgpt-images/scripts/browser.py start analysis --prompt <prompt.txt> --attach <scope.zip> --run <project>/.chatgpt-workspace/<unique-run>
-python3 <skills-root>/tool-chatgpt-images/scripts/browser.py collect --run <project>/.chatgpt-workspace/<unique-run>
+python3 <skills-root>/tool-chatgpt-analysis/scripts/browser.py start analysis --prompt <prompt.txt> --attach <scope.zip> --run <project>/.chatgpt-workspace/<unique-run>
+python3 <skills-root>/tool-chatgpt-analysis/scripts/browser.py collect --run <project>/.chatgpt-workspace/<unique-run>
 ```
 
 Check the attachment answer and reported file coverage against the inventory. Verifying one fact from the attachment does not prove every file was read. Record omissions as partial or pending; never present an incomplete response as a complete audit. Save the browser response and conversation link and confirm its owned tab was closed. Record the browser-reported inspected/total file count and displayed work time; say unavailable if no duration is exposed. Label it work time, not pure thinking time. These two metrics suffice for process reporting; do not add an intermediate-activity audit.
